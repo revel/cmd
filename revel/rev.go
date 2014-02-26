@@ -94,7 +94,7 @@ func errorf(format string, args ...interface{}) {
 }
 
 const header = `~
-~ revel! http://revel.github.com
+~ revel! http://revel.github.io
 ~
 `
 

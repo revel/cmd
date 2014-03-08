@@ -66,10 +66,19 @@ func mustChmod(filename string, mode os.FileMode) {
 // Additionally, the trailing ".template" is stripped from the file name.
 // Also, dot files and dot directories are skipped.
 func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
-	return filepath.Walk(srcDir, func(srcPath string, info os.FileInfo, err error) error {
+	var realSrcDir string
+	// handle symlinked source-direcories
+	f, err := os.Lstat(srcDir)
+	if err == nil && f.Mode()&os.ModeSymlink == os.ModeSymlink {
+		realSrcDir, _ = os.Readlink(srcDir)
+	} else {
+		realSrcDir = srcDir
+	}
+
+	return filepath.Walk(realSrcDir, func(srcPath string, info os.FileInfo, err error) error {
 		// Get the relative path from the source base, and the corresponding path in
 		// the dest directory.
-		relSrcPath := strings.TrimLeft(srcPath[len(srcDir):], string(os.PathSeparator))
+		relSrcPath := strings.TrimLeft(srcPath[len(realSrcDir):], string(os.PathSeparator))
 		destPath := path.Join(destDir, relSrcPath)
 
 		// Skip dot files and dot directories.

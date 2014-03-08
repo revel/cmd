@@ -92,6 +92,25 @@ func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 			return nil
 		}
 
+		// if this is a link, call mustCopyDir recursively on the actual directory
+		link, err := os.Lstat(srcPath)
+		if err == nil && link.Mode()&os.ModeSymlink == os.ModeSymlink {
+			// lookup the actual directory
+			realSrcPath, err := filepath.EvalSymlinks(srcPath)
+			panicOnError(err, "Failed to read sym link")
+
+			// make the destination directory
+			err = os.MkdirAll(path.Join(destPath), 0777)
+			if !os.IsExist(err) {
+				panicOnError(err, "Failed to create directory")
+			}
+
+			// copy the actual directory
+			mustCopyDir(destPath, realSrcPath, data)
+			return nil
+
+		}
+
 		// Create a subdirectory if necessary.
 		if info.IsDir() {
 			err := os.MkdirAll(path.Join(destDir, relSrcPath), 0777)

@@ -70,7 +70,7 @@ func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 	// Handle symlinked directories.
 	f, err := os.Lstat(srcDir)
 	if err == nil && f.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fullSrcDir, err = os.Readlink(srcDir)
+		fullSrcDir, err = filepath.EvalSymlinks(srcDir)
 		if err != nil {
 			panic(err)
 		}

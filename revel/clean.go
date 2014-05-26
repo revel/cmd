@@ -17,7 +17,7 @@ For example:
 
     revel clean github.com/revel/revel/samples/chat
 
-It removes the app/tmp directory.
+It removes the app/tmp and app/routes directory.
 `,
 }
 
@@ -37,12 +37,17 @@ func cleanApp(args []string) {
 		return
 	}
 
-	// Remove the app/tmp directory.
-	tmpDir := path.Join(appPkg.Dir, "app", "tmp")
-	fmt.Println("Removing:", tmpDir)
-	err = os.RemoveAll(tmpDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Abort:", err)
-		return
+	dirs := []string{
+		path.Join(appPkg.Dir, "app", "tmp"),
+		path.Join(appPkg.Dir, "app", "routes"),
+	}
+
+	for _, dir := range dirs {
+		fmt.Println("Removing:", dir)
+		err = os.RemoveAll(dir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Abort:", err)
+			return
+		}
 	}
 }

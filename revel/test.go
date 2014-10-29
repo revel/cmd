@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/revel/revel"
-	"github.com/revel/revel/harness"
+	"github.com/revel/cmd/harness"
 	"github.com/revel/revel/modules/testrunner/app/controllers"
 	"io"
 	"io/ioutil"

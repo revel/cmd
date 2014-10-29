@@ -62,7 +62,7 @@ func testApp(args []string) {
 	// Ensure that the testrunner is loaded in this mode.
 	testRunnerFound := false
 	for _, module := range revel.Modules {
-		if module.ImportPath == "github.com/revel/modules/testrunner" {
+		if module.ImportPath == revel.Config.StringDefault("module.testrunner", "github.com/revel/modules/testrunner") {
 			testRunnerFound = true
 			break
 		}

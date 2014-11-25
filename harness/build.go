@@ -322,6 +322,7 @@ import (
 	"reflect"
 	"github.com/revel/revel"{{range $k, $v := $.ImportPaths}}
 	{{$v}} "{{$k}}"{{end}}
+	"github.com/revel/revel/testing"
 )
 
 var (
@@ -360,7 +361,7 @@ func main() {
 			{{$line}}: "{{$key}}",{{end}}
 		},{{end}}
 	}
-	revel.TestSuites = []interface{}{ {{range .TestSuites}}
+	testing.TestSuites = []interface{}{ {{range .TestSuites}}
 		(*{{index $.ImportPaths .ImportPath}}.{{.StructName}})(nil),{{end}}
 	}
 

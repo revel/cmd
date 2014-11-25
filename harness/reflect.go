@@ -681,7 +681,7 @@ func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 
 func (s *SourceInfo) TestSuites() []*TypeInfo {
 	if s.testSuites == nil {
-		s.testSuites = s.TypesThatEmbed(revel.REVEL_IMPORT_PATH + ".TestSuite")
+		s.testSuites = s.TypesThatEmbed(revel.REVEL_IMPORT_PATH + "/testing.TestSuite")
 	}
 	return s.testSuites
 }

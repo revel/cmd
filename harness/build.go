@@ -163,9 +163,6 @@ func getAppVersion() string {
 func cleanSource(dirs ...string) {
 	for _, dir := range dirs {
 		cleanDir(dir)
-		if err != nil {
-			revel.ERROR.Println("Failed to remove dir:", err)
-		}
 	}
 }
 

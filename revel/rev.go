@@ -34,6 +34,7 @@ var commands = []*Command{
 	cmdRun,
 	cmdBuild,
 	cmdPackage,
+	cmdAssets,
 	cmdClean,
 	cmdTest,
 }

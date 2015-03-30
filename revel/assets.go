@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	. "github.com/huacnlee/train/cmd"
+	. "github.com/huacnlee/train/command"
 	"github.com/revel/revel"
 	"os"
 )

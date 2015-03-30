@@ -25,13 +25,12 @@ func init() {
 }
 
 func compileAssets(args []string) {
-	appImportPath := args[0]
-
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdAssets.UsageLine, cmdAssets.Long)
 		return
 	}
 
+	appImportPath := args[0]
 	revel.Init("", appImportPath, "")
 
 	// Remove the archive if it already exists.

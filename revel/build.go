@@ -31,12 +31,12 @@ func init() {
 }
 
 func buildApp(args []string) {
-	if len(args) != 2 {
+	if len(args) != 3 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
 		return
 	}
 
-	appImportPath, destPath := args[0], args[1]
+	appImportPath, destPath, mode := args[0], args[1], args[2]
 	if !revel.Initialized {
 		revel.Init("", appImportPath, "")
 	}
@@ -96,6 +96,7 @@ func buildApp(args []string) {
 	tmplData, runShPath := map[string]interface{}{
 		"BinName":    filepath.Base(app.BinaryPath),
 		"ImportPath": appImportPath,
+		"Mode":       mode,
 	}, path.Join(destPath, "run.sh")
 
 	mustRenderTemplate(

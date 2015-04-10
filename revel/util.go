@@ -70,7 +70,7 @@ func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 	// Handle symlinked directories.
 	f, err := os.Lstat(srcDir)
 	if err == nil && f.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fullSrcDir, err = os.Readlink(srcDir)
+		fullSrcDir, err = filepath.EvalSymlinks(srcDir)
 		if err != nil {
 			panic(err)
 		}
@@ -92,6 +92,45 @@ func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 			return nil
 		}
 
+		// if this is a link, call mustCopyDir recursively on the actual directory
+		link, err := os.Lstat(srcPath)
+		if err == nil && link.Mode()&os.ModeSymlink == os.ModeSymlink {
+			// lookup the actual directory
+			realSrcPath, err := filepath.EvalSymlinks(srcPath)
+			panicOnError(err, "Failed to read symlink")
+
+			real_info, err := os.Stat(realSrcPath)
+			panicOnError(err, "Failed to stat symlink target")
+
+			// TODO should factor out this and the same code below for regular files
+
+			if real_info.IsDir() {
+				// make the destination sub-directory
+				err = os.MkdirAll(path.Join(destPath), 0777)
+				if !os.IsExist(err) {
+					panicOnError(err, "Failed to create directory")
+				}
+
+				// copy the actual directory
+				// TODO, this is the exception to the factoring out code idea
+				// we need to manually call mustCopyDir on a symlink directory
+				// because filepath.Walk does not traverse symlink directories
+				mustCopyDir(destPath, realSrcPath, data)
+				return nil
+			}
+
+			// If this file ends in ".template", render it as a template.
+			if strings.HasSuffix(realSrcPath, ".template") {
+				mustRenderTemplate(destPath[:len(destPath)-len(".template")], realSrcPath, data)
+				return nil
+			}
+
+			// Else, just copy it over.
+			mustCopyFile(destPath, realSrcPath)
+
+		}
+
+		// TODO should factor out this and the same code above for symlink files
 		// Create a subdirectory if necessary.
 		if info.IsDir() {
 			err := os.MkdirAll(path.Join(destDir, relSrcPath), 0777)

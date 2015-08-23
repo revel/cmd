@@ -149,6 +149,7 @@ func setSkeletonPath(args []string) {
 		if err != nil {
 			// Execute "go get <pkg>"
 			getCmd := exec.Command(gocmd, "get", "-d", skeletonName)
+			fmt.Println("Exec:", getCmd.Args)
 			getOutput, err := getCmd.CombinedOutput()
 
 			// check getOutput for no buildible string

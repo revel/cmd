@@ -1,0 +1,15 @@
+package controllers
+
+import (
+        {{.RevelPath}}
+)
+
+type {{.Controller}} struct {
+        *revel.Controller
+}
+
+// Put your contoller methods here.
+// For example:
+// func (c {{.Controller}}) Index() revel.Result {
+//         return c.Render()
+// }

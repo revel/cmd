@@ -14,14 +14,15 @@ import (
 
 var cmdAdd = &Command{
 	UsageLine: "add [path] [controller_name]",
-	Short:     "add a new Qcontroller to the Revel application",
+	Short:     "add a new controller to the Revel application",
 	Long: `
-Add creates a new controller file and puts it in the Revel application directory you specify and sets up the controller file appropriately.
+Add creates a new controller file and puts it in the Revel application directory you specify and sets up the controller file appropriately. Also adds the views
+directory for the new controller.
 
 For example:
     revel add import/path/app user
 
-This creates a user.go file in the /app/controllers directory of import/path/app.
+This creates a user.go file in the /app/controllers directory of import/path/app and a User directory under /app/views
 `,
 }
 
@@ -61,6 +62,9 @@ func addController(args []string) {
 
 	// create the new controller file
 	createControllerFile()
+
+	// create the view directory
+	createControllerViews()
 
 	fmt.Println("Done!")
 }
@@ -128,7 +132,7 @@ func createControllerFile() {
 
 	_, err = os.Stat(controllerPath)
 	if err == nil {
-		errorf("Abort: That controller file already exists.")
+		errorf("Abort: The controller %s already exists.", controllerPath)
 	}
 
 	f, err := os.Create(controllerPath)
@@ -143,4 +147,21 @@ func createControllerFile() {
 
 	err = f.Close()
 	panicOnError(err, "Failed to close "+f.Name())
+}
+
+// create the views directory for the controller
+func createControllerViews() {
+	viewsPath := "/app/views/" + strings.Title(controller)
+	viewsPath = filepath.Join(appPath, viewsPath)
+
+	// check if the views directory exists
+	_, err := os.Stat(viewsPath)
+	if err == nil {
+		errorf("Abort: The views directory %s already exists.", viewsPath)
+	}
+
+	err = os.Mkdir(viewsPath, 0755)
+	if err != nil {
+		panicOnError(err, "Could not create the views directory: "+viewsPath)
+	}
 }

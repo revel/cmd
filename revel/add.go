@@ -5,9 +5,9 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
-  "text/template"
-  "runtime"
-  "strings"
+	"runtime"
+	"strings"
+	"text/template"
 
 	"github.com/revel/revel"
 )
@@ -30,125 +30,117 @@ func init() {
 }
 
 var (
-
-	// // go related paths
-	// gopath  string
-	// gocmd   string
-	// srcRoot string
-  //
-	// // revel related paths
-	revelPath    string
-	// appPath      string
-	// appName      string
-  controller   string
+	// revel related paths
+	revelPath  string
+	controller string
 )
 
 func addController(args []string) {
-  // check for args by count. need two arguments.
-  if len(args) == 0 {
-    errorf("The app path and controller name were not supplied. Run 'revel help add' for usage.\n")
-  }
-  if len(args) != 2 {
-    errorf("The incorrect number of arguments was supplied. Run 'revel help add' for usage.\n")
-  }
+	// check for args by count. need two arguments.
+	if len(args) == 0 {
+		errorf("The app path and controller name were not supplied. Run 'revel help add' for usage.\n")
+	}
+	if len(args) != 2 {
+		errorf("The incorrect number of arguments was supplied. Run 'revel help add' for usage.\n")
+	}
 
-  controller  = args[1]
+	controller = args[1]
 
-  // checking and setting go paths
-  initGoPaths()
+	// checking and setting go paths
+	initGoPaths()
 
-  // create the path to the application
-  createApplicationPath(args[0])
+	// create the path to the application
+	createApplicationPath(args[0])
 
-  // check if the application path exists
-  checkApplicationPath()
+	// check if the application path exists
+	checkApplicationPath()
 
-  // check if the path to the controllers directory
-  // exists
-  checkControllersDirectory()
+	// check if the path to the controllers directory
+	// exists
+	checkControllersDirectory()
 
-  // create the new controller file
-  createControllerFile()
+	// create the new controller file
+	createControllerFile()
 
-  fmt.Println("Done!")
+	fmt.Println("Done!")
 }
 
 func createApplicationPath(appName string) {
-  appPath = filepath.Join(srcRoot, filepath.FromSlash(appName))
+	appPath = filepath.Join(srcRoot, filepath.FromSlash(appName))
 }
 
 func checkApplicationPath() {
-  fmt.Printf("Adding controller: %s.go\n", controller)
-  fmt.Printf("Application Path: %s\n", appPath)
+	fmt.Printf("Adding controller: %s.go\n", controller)
+	fmt.Printf("Application Path: %s\n", appPath)
 
-  _, err := os.Stat(appPath)
-  if os.IsNotExist(err) {
-    errorf("Abort: Application path %s does not exist.\n", appPath)
-  }
+	_, err := os.Stat(appPath)
+	if os.IsNotExist(err) {
+		errorf("Abort: Application path %s does not exist.\n", appPath)
+	}
 
-  revelPkg, err = build.Import(revel.REVEL_IMPORT_PATH, "", build.FindOnly)
+	revelPkg, err = build.Import(revel.REVEL_IMPORT_PATH, "", build.FindOnly)
 	if err != nil {
 		errorf("Abort: Could not find Revel source code: %s\n", err)
 	}
 
-  revelPath = revelPkg.ImportPath
+	revelPath = revelPkg.ImportPath
 
-  // now check if we can access the app directory
-  // under the app path
-  _, err = os.Stat(appPath + "/app")
-  if os.IsNotExist(err) {
-    errorf("Abort: Could not access the /app directory: %s\n", appPath + "/app")
-  }
+	// now check if we can access the app directory
+	// under the app path
+	_, err = os.Stat(appPath + "/app")
+	if os.IsNotExist(err) {
+		errorf("Abort: Could not access the /app directory: %s\n", appPath+"/app")
+	}
 }
 
 func checkControllersDirectory() {
-  // see if we can access the controllers directory
-  // if we can, do nothing. if we cannot, create it.
-  controllersDirectory := appPath + "/app/controllers"
-  _, err := os.Stat(controllersDirectory)
-  if os.IsNotExist(err) {
-    fmt.Printf("Creating %s\n", controllersDirectory)
-    err2 := os.Mkdir(controllersDirectory, 0755)
-    if err2 != nil {
-      fmt.Printf("Abort: Could not create the controllers directory: %s\n", controllersDirectory)
-    }
-  }
+	// see if we can access the controllers directory
+	// if we can, do nothing. if we cannot, create it.
+	controllersDirectory := appPath + "/app/controllers"
+	_, err := os.Stat(controllersDirectory)
+	if os.IsNotExist(err) {
+		fmt.Printf("Creating %s\n", controllersDirectory)
+		err2 := os.Mkdir(controllersDirectory, 0755)
+		if err2 != nil {
+			fmt.Printf("Abort: Could not create the controllers directory: %s\n", controllersDirectory)
+		}
+	}
 }
 
 func getPathToTemplate() string {
-  _, dir, _, _ := runtime.Caller(1)
-  dir, _ = filepath.Split(dir)
+	_, dir, _, _ := runtime.Caller(1)
+	dir, _ = filepath.Split(dir)
 
-  templateFile := filepath.Join(dir, "new_controller.template")
+	templateFile := filepath.Join(dir, "new_controller.template")
 
-  return templateFile
+	return templateFile
 }
 
 // create the new controller file
 func createControllerFile() {
-  // get the path to the controller template
-  templateFile := getPathToTemplate()
-  tmpl, err := template.ParseFiles(templateFile)
-  panicOnError(err, "Could not parse template file: new_controller.template.")
+	// get the path to the controller template
+	templateFile := getPathToTemplate()
+	tmpl, err := template.ParseFiles(templateFile)
+	panicOnError(err, "Could not parse template file: new_controller.template.")
 
-  controllerFile := "/app/controllers/" + controller + ".go"
-  controllerPath := filepath.Join(appPath, controllerFile)
+	controllerFile := "/app/controllers/" + controller + ".go"
+	controllerPath := filepath.Join(appPath, controllerFile)
 
-  _, err = os.Stat(controllerPath)
-  if err == nil {
-    errorf("Abort: That controller file already exists.")
-  }
+	_, err = os.Stat(controllerPath)
+	if err == nil {
+		errorf("Abort: That controller file already exists.")
+	}
 
-  f, err := os.Create(controllerPath)
-  panicOnError(err, "Could not create " + controllerPath)
+	f, err := os.Create(controllerPath)
+	panicOnError(err, "Could not create "+controllerPath)
 
-  tmplData := map[string]interface{}{
-    "Controller": strings.Title(controller),
-    "RevelPath": revelPath,
-  }
+	tmplData := map[string]interface{}{
+		"Controller": strings.Title(controller),
+		"RevelPath":  revelPath,
+	}
 
-  err = tmpl.Execute(f, tmplData)
+	err = tmpl.Execute(f, tmplData)
 
-  err = f.Close()
+	err = f.Close()
 	panicOnError(err, "Failed to close "+f.Name())
 }

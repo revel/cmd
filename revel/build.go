@@ -82,7 +82,7 @@ func buildApp(args []string) {
 			if moduleImportPath == "" {
 				continue
 			}
-			modulePath, err := revel.ResolveImportPath(moduleImportPath)
+			modulePath, err := revel.ResolveImportPath(srcPath, moduleImportPath)
 			if err != nil {
 				revel.ERROR.Fatalln("Failed to load module %s: %s", key[len("module."):], err)
 			}

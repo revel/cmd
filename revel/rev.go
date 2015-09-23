@@ -4,7 +4,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/agtorre/gocolorize"
 	"io"
 	"math/rand"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/agtorre/gocolorize"
 )
 
 // Cribbed from the genius organization of the "go" command.
@@ -32,6 +33,7 @@ func (cmd *Command) Name() string {
 var commands = []*Command{
 	cmdNew,
 	cmdRun,
+	cmdGenerate,
 	cmdBuild,
 	cmdPackage,
 	cmdClean,

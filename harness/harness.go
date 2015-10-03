@@ -204,7 +204,15 @@ func getFreePort() (port int) {
 // proxyWebsocket copies data between websocket client and server until one side
 // closes the connection.  (ReverseProxy doesn't work with websocket requests.)
 func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
-	d, err := net.Dial("tcp", host)
+	var d net.Conn
+	var err error
+	if revel.HttpSsl {
+		// since this proxy isn't used in production, it's OK to set InsecureSkipVerify to true
+		// no need to add another configuration option.
+		d, err = tls.Dial("tcp", host, &tls.Config{InsecureSkipVerify: true})
+	} else {
+		d, err = net.Dial("tcp", host)
+	}
 	if err != nil {
 		http.Error(w, "Error contacting backend server.", 500)
 		revel.ERROR.Printf("Error dialing websocket backend %s: %v", host, err)

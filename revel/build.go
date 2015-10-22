@@ -75,7 +75,9 @@ func buildApp(args []string) {
 	mustCopyFile(destBinaryPath, app.BinaryPath)
 	mustChmod(destBinaryPath, 0755)
 	mustCopyDir(path.Join(tmpRevelPath, "conf"), path.Join(revel.RevelPath, "conf"), nil)
-	mustCopyDir(path.Join(tmpRevelPath, "templates"), path.Join(revel.RevelPath, "templates"), nil)
+	if revel.GO_TEMPLATE == revel.Config.StringDefault("template.engine", revel.GO_TEMPLATE) {
+		mustCopyDir(path.Join(tmpRevelPath, "templates"), path.Join(revel.RevelPath, "templates"), nil)
+	}
 	mustCopyDir(path.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
 
 	// Find all the modules used and copy them over.

@@ -80,6 +80,7 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		versionLinkerFlags := fmt.Sprintf("-X %s/app.APP_VERSION \"%s\"", revel.ImportPath, appVersion)
 		flags := []string{
 			"build",
+			"-i",
 			"-ldflags", versionLinkerFlags,
 			"-tags", buildTags,
 			"-o", binName}

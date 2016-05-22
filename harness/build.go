@@ -181,7 +181,9 @@ func cleanDir(dir string) {
 		defer f.Close()
 		infos, err := f.Readdir(0)
 		if err != nil {
-			revel.ERROR.Println("Failed to clean dir:", err)
+			if !os.IsNotExist(err) {
+				revel.ERROR.Println("Failed to clean dir:", err)
+			}
 		} else {
 			for _, info := range infos {
 				path := path.Join(tmpPath, info.Name())

@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/revel/revel"
 	"github.com/revel/cmd/harness"
 	"github.com/revel/modules/testrunner/app/controllers"
+	"github.com/revel/revel"
 	"io"
 	"io/ioutil"
 	"net/http"

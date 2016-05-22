@@ -200,7 +200,6 @@ func cleanDir(dir string) {
 	}
 }
 
-
 // genSource renders the given template to produce source code, which it writes
 // to the given directory and file.
 func genSource(dir, filename, templateSource string, args map[string]interface{}) {

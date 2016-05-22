@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/revel/revel"
 	"github.com/revel/cmd/harness"
+	"github.com/revel/revel"
 )
 
 var cmdBuild = &Command{

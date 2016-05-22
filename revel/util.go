@@ -65,7 +65,7 @@ func mustChmod(filename string, mode os.FileMode) {
 // ".template" are treated as a Go template and rendered using the given data.
 // Additionally, the trailing ".template" is stripped from the file name.
 // Also, dot files and dot directories are skipped.
-func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
+func mustCopyDir(destDir, srcDir string, ignoreGlobs []string, data map[string]interface{}) error {
 	var fullSrcDir string
 	// Handle symlinked directories.
 	f, err := os.Lstat(srcDir)
@@ -90,6 +90,23 @@ func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+
+		// skip ignored glob patterns
+		if ignoreGlobs != nil {
+			for _, glob := range ignoreGlobs {
+				if m, err := filepath.Match(glob, relSrcPath); m {
+					if info.IsDir() {
+						revel.TRACE.Printf("Skipping directory %s", relSrcPath)
+						return filepath.SkipDir
+					}
+
+					revel.TRACE.Printf("Skipping file %s", relSrcPath)
+					return nil
+				} else if err != nil {
+					panicOnError(err, "Failed to evaluate ignore pattern")
+				}
+			}
 		}
 
 		// Create a subdirectory if necessary.

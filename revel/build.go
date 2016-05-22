@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
-	"github.com/revel/revel"
 	"github.com/revel/cmd/harness"
+	"github.com/revel/revel"
 )
 
 var cmdBuild = &Command{
@@ -59,15 +60,34 @@ func buildApp(args []string) {
 	// - revel
 	// - app
 
+	// read the ignore list from .revelignore
+	ignoreGlobals := make([]string, 0)
+	if _, err := os.Stat(filepath.Join(revel.BasePath, ".revelignore")); err == nil {
+		f, err := os.Open(filepath.Join(revel.BasePath, ".revelignore"))
+		panicOnError(err, "Failed to open ignore file")
+		defer f.Close()
+
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			if glob := scanner.Text(); len(glob) > 0 && !strings.HasPrefix(glob, "#") {
+				ignoreGlobals = append(ignoreGlobals, glob)
+			}
+		}
+
+		panicOnError(scanner.Err(), "Failed to read ignore file")
+	} else if !os.IsNotExist(err) {
+		panicOnError(err, "Failed to stat ignore file")
+	}
+
 	// Revel and the app are in a directory structure mirroring import path
 	srcPath := path.Join(destPath, "src")
 	destBinaryPath := path.Join(destPath, filepath.Base(app.BinaryPath))
 	tmpRevelPath := path.Join(srcPath, filepath.FromSlash(revel.REVEL_IMPORT_PATH))
 	mustCopyFile(destBinaryPath, app.BinaryPath)
 	mustChmod(destBinaryPath, 0755)
-	mustCopyDir(path.Join(tmpRevelPath, "conf"), path.Join(revel.RevelPath, "conf"), nil)
-	mustCopyDir(path.Join(tmpRevelPath, "templates"), path.Join(revel.RevelPath, "templates"), nil)
-	mustCopyDir(path.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
+	mustCopyDir(path.Join(tmpRevelPath, "conf"), path.Join(revel.RevelPath, "conf"), nil, nil)
+	mustCopyDir(path.Join(tmpRevelPath, "templates"), path.Join(revel.RevelPath, "templates"), nil, nil)
+	mustCopyDir(path.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, ignoreGlobals, nil)
 
 	// Find all the modules used and copy them over.
 	config := revel.Config.Raw()
@@ -90,7 +110,7 @@ func buildApp(args []string) {
 		}
 	}
 	for importPath, fsPath := range modulePaths {
-		mustCopyDir(path.Join(srcPath, importPath), fsPath, nil)
+		mustCopyDir(path.Join(srcPath, importPath), fsPath, nil, nil)
 	}
 
 	tmplData, runShPath := map[string]interface{}{

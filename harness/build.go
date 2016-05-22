@@ -80,6 +80,7 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		versionLinkerFlags := fmt.Sprintf("-X %s/app.APP_VERSION \"%s\"", revel.ImportPath, appVersion)
 		flags := []string{
 			"build",
+			"-i",
 			"-ldflags", versionLinkerFlags,
 			"-tags", buildTags,
 			"-o", binName}
@@ -173,7 +174,9 @@ func cleanDir(dir string) {
 	tmpPath := path.Join(revel.AppPath, dir)
 	f, err := os.Open(tmpPath)
 	if err != nil {
-		revel.ERROR.Println("Failed to clean dir:", err)
+		if !os.IsNotExist(err) {
+			revel.ERROR.Println("Failed to clean dir:", err)
+		}
 	} else {
 		defer f.Close()
 		infos, err := f.Readdir(0)
@@ -197,7 +200,6 @@ func cleanDir(dir string) {
 		}
 	}
 }
-
 
 // genSource renders the given template to produce source code, which it writes
 // to the given directory and file.

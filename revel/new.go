@@ -172,7 +172,7 @@ func copyNewAppFiles() {
 	err = os.MkdirAll(appPath, 0777)
 	panicOnError(err, "Failed to create directory "+appPath)
 
-	mustCopyDir(appPath, skeletonPath, map[string]interface{}{
+	mustCopyDir(appPath, skeletonPath, nil, map[string]interface{}{
 		// app.conf
 		"AppName":  appName,
 		"BasePath": basePath,

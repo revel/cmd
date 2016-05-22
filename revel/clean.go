@@ -37,12 +37,12 @@ func cleanApp(args []string) {
 		return
 	}
 
-	dirs := []string{
+	purgeDirs := []string{
 		path.Join(appPkg.Dir, "app", "tmp"),
 		path.Join(appPkg.Dir, "app", "routes"),
 	}
 
-	for _, dir := range dirs {
+	for _, dir := range purgeDirs {
 		fmt.Println("Removing:", dir)
 		err = os.RemoveAll(dir)
 		if err != nil {

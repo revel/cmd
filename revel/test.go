@@ -117,13 +117,19 @@ You can add it to a run mode configuration with the following line:
 	)
 	for i := 0; ; i++ {
 		if resp, err = http.Get(baseUrl + "/@tests.list"); err == nil {
-			break
+			if resp.StatusCode == 200 {
+				break
+			}
 		}
 		if i < 3 {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		errorf("Failed to request test list: %s", err)
+		if err != nil {
+			errorf("Failed to request test list: %s", err)
+		} else {
+			errorf("Failed to request test list: Not status code 200")
+		}
 	}
 	defer resp.Body.Close()
 	json.NewDecoder(resp.Body).Decode(&testSuites)

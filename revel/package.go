@@ -44,7 +44,7 @@ func packageApp(args []string) {
 	}
 
 	appImportPath := args[0]
-	revel.Init("", appImportPath, "")
+	revel.Init(mode, appImportPath, "")
 
 	// Remove the archive if it already exists.
 	destFile := filepath.Base(revel.BasePath) + ".tar.gz"

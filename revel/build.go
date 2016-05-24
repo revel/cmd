@@ -46,8 +46,6 @@ func buildApp(args []string) {
 		mode = args[2]
 	}
 
-	fmt.Println("mode:", mode)
-
 	if !revel.Initialized {
 		revel.Init(mode, appImportPath, "")
 	}

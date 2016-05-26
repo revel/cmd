@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/revel/revel"
 )
@@ -111,7 +112,11 @@ func initGoPaths() {
 func setApplicationPath(args []string) {
 	var err error
 	importPath = args[0]
-	if filepath.IsAbs(importPath) {
+
+	// revel/revel#1014 validate relative path, we cannot use built-in functions
+	// since Go import path is valid relative path too.
+	// so check basic part of the path, which is "."
+	if filepath.IsAbs(importPath) || strings.HasPrefix(importPath, ".") {
 		errorf("Abort: '%s' looks like a directory.  Please provide a Go import path instead.",
 			importPath)
 	}

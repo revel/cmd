@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -61,6 +62,8 @@ func newApp(args []string) {
 		errorf("Too many arguments provided.\nRun 'revel help new' for usage.\n")
 	}
 
+	revel.ERROR.SetFlags(log.LstdFlags)
+
 	// checking and setting go paths
 	initGoPaths()
 
@@ -97,9 +100,6 @@ func initGoPaths() {
 			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
 	}
 
-	// set go src path
-	srcRoot = filepath.Join(filepath.SplitList(gopath)[0], "src")
-
 	// check for go executable
 	var err error
 	gocmd, err = exec.LookPath("go")
@@ -107,6 +107,28 @@ func initGoPaths() {
 		errorf("Go executable not found in PATH.")
 	}
 
+	// revel/revel#1004 choose go path relative to current working directory
+	workingDir, _ := os.Getwd()
+	goPathList := filepath.SplitList(gopath)
+	for _, path := range goPathList {
+		if strings.HasPrefix(strings.ToLower(workingDir), strings.ToLower(path)) {
+			srcRoot = path
+			break
+		}
+
+		path, _ = filepath.EvalSymlinks(path)
+		if len(path) > 0 && strings.HasPrefix(strings.ToLower(workingDir), strings.ToLower(path)) {
+			srcRoot = path
+			break
+		}
+	}
+
+	if len(srcRoot) == 0 {
+		revel.ERROR.Fatalln("Abort: could not create a Revel application outside of GOPATH.")
+	}
+
+	// set go src path
+	srcRoot = filepath.Join(srcRoot, "src")
 }
 
 func setApplicationPath(args []string) {

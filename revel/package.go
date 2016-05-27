@@ -19,7 +19,7 @@ This allows it to be deployed and run on a machine that lacks a Go installation.
 The run mode is used to select which set of app.conf configuration should
 apply and may be used to determine logic in the application itself.
 
-Run mode defaults to "prod".
+Run mode defaults to "dev".
 
 For example:
 
@@ -38,7 +38,7 @@ func packageApp(args []string) {
 	}
 
 	// Determine the run mode.
-	mode := "prod"
+	mode := "dev"
 	if len(args) >= 2 {
 		mode = args[1]
 	}

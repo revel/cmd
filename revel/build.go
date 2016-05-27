@@ -21,7 +21,7 @@ This allows it to be deployed and run on a machine that lacks a Go installation.
 The run mode is used to select which set of app.conf configuration should
 apply and may be used to determine logic in the application itself.
 
-Run mode defaults to "prod".
+Run mode defaults to "dev".
 
 WARNING: The target path will be completely deleted, if it already exists!
 
@@ -41,7 +41,7 @@ func buildApp(args []string) {
 		return
 	}
 
-	appImportPath, destPath, mode := args[0], args[1], "prod"
+	appImportPath, destPath, mode := args[0], args[1], "dev"
 	if len(args) >= 3 {
 		mode = args[2]
 	}

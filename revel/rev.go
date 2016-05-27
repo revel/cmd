@@ -36,6 +36,7 @@ var commands = []*Command{
 	cmdPackage,
 	cmdClean,
 	cmdTest,
+	cmdAdd,
 }
 
 func main() {

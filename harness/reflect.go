@@ -96,7 +96,7 @@ func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
 		}
 
 		// Start walking the directory tree.
-		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		_ = revel.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				log.Println("Error scanning app source:", err)
 				return nil

@@ -29,6 +29,6 @@ func init() {
 
 func versionApp(args []string) {
 	fmt.Printf("Version(s):")
-	fmt.Printf("\n   Revel v%v (%v)", revel.VERSION, revel.BUILD_DATE)
+	fmt.Printf("\n   Revel v%v (%v)", revel.Version, revel.BuildDate)
 	fmt.Printf("\n   %s %s/%s\n\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }

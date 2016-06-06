@@ -63,7 +63,7 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	}
 
 	// Binary path is a combination of $GOBIN/revel.d directory, app's import path and its name.
-	binName := path.Join(pkg.BinDir, "revel.d", revel.ImportPath, path.Base(revel.BasePath))
+	binName := filepath.Join(pkg.BinDir, "revel.d", revel.ImportPath, filepath.Base(revel.BasePath))
 
 	// Change binary path for Windows build
 	goos := runtime.GOOS

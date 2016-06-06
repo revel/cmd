@@ -25,27 +25,14 @@ var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
 // Returns the path to the built binary, and an error if there was a problem building it.
 func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	// First, clear the generated files (to avoid them messing with ProcessSource).
-	cleanSource("tmp", "routes")
+	cleanSource("app/tmp", "app/routes")
 
-	sourceInfo, compileError := ProcessSource(revel.CodePaths)
+	templateArgs, compileError := preProcess()
 	if compileError != nil {
 		return nil, compileError
 	}
 
-	// Add the db.import to the import paths.
-	if dbImportPath, found := revel.Config.String("db.import"); found {
-		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, dbImportPath)
-	}
-
-	// Generate two source files.
-	templateArgs := map[string]interface{}{
-		"Controllers":    sourceInfo.ControllerSpecs(),
-		"ValidationKeys": sourceInfo.ValidationKeys,
-		"ImportPaths":    calcImportAliases(sourceInfo),
-		"TestSuites":     sourceInfo.TestSuites(),
-	}
-	genSource("tmp", "main.go", MAIN, templateArgs)
-	genSource("routes", "routes.go", ROUTES, templateArgs)
+	generate("app/tmp", templateArgs)
 
 	// Read build config.
 	buildTags := revel.Config.StringDefault("build.tags", "")
@@ -129,6 +116,53 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	return nil, nil
 }
 
+// Generate the app:
+// 1. Generate the main.go file.
+// 2. Generate the routes.go file.
+// Requires that revel.Init has been called previously.
+// Returns an error if there was a problem processing the source.
+func Generate(mainDir string, initDirectly bool) *revel.Error {
+	// First, clear the generated files (to avoid them messing with ProcessSource).
+	cleanSource(mainDir, "app/routes")
+
+	templateArgs, compileError := preProcess()
+	if compileError != nil {
+		return compileError
+	}
+
+	templateArgs["initDirectly"] = initDirectly
+
+	generate(mainDir, templateArgs)
+	return nil
+}
+
+func preProcess() (templateArgs map[string]interface{}, compileError *revel.Error) {
+	sourceInfo, compileError := ProcessSource(revel.CodePaths)
+	if compileError != nil {
+		return nil, compileError
+	}
+
+	// Add the db.import to the import paths.
+	if dbImportPath, found := revel.Config.String("db.import"); found {
+		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, dbImportPath)
+	}
+
+	// Generate two source files.
+	templateArgs = map[string]interface{}{
+		"Controllers":    sourceInfo.ControllerSpecs(),
+		"ValidationKeys": sourceInfo.ValidationKeys,
+		"ImportPaths":    calcImportAliases(sourceInfo),
+		"TestSuites":     sourceInfo.TestSuites(),
+	}
+
+	return templateArgs, nil
+}
+
+func generate(mainDir string, templateArgs map[string]interface{}) {
+	genSource(mainDir, "main.go", MAIN, templateArgs)
+	genSource("app/routes", "routes.go", ROUTES, templateArgs)
+}
+
 // Try to define a version string for the compiled app
 // The following is tried (first match returns):
 // - Read a version explicitly specified in the APP_VERSION environment
@@ -171,7 +205,7 @@ func cleanSource(dirs ...string) {
 
 func cleanDir(dir string) {
 	revel.INFO.Println("Cleaning dir " + dir)
-	tmpPath := path.Join(revel.AppPath, dir)
+	tmpPath := path.Join(revel.BasePath, dir)
 	f, err := os.Open(tmpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -212,7 +246,7 @@ func genSource(dir, filename, templateSource string, args map[string]interface{}
 
 	// Create a fresh dir.
 	cleanSource(dir)
-	tmpPath := path.Join(revel.AppPath, dir)
+	tmpPath := path.Join(revel.BasePath, dir)
 	err := os.Mkdir(tmpPath, 0777)
 	if err != nil && !os.IsExist(err) {
 		revel.ERROR.Fatalf("Failed to make '%v' directory: %v", dir, err)
@@ -358,8 +392,13 @@ import (
 var (
 	runMode    *string = flag.String("runMode", "", "Run mode.")
 	port       *int    = flag.Int("port", 0, "By default, read from app.conf")
+	{{ if .initDirectly }}
+	basePath     *string = flag.String("basePath", "", "Path to the app folder.")
+  revelSrcPath *string = flag.String("revelSrcPath", "", "Path to the source root for Revel.")
+  {{ else }}
 	importPath *string = flag.String("importPath", "", "Go Import Path for the app.")
 	srcPath    *string = flag.String("srcPath", "", "Path to the source root.")
+  {{ end }}
 
 	// So compiler won't complain if the generated code doesn't reference reflect package...
 	_ = reflect.Invalid
@@ -367,7 +406,12 @@ var (
 
 func main() {
 	flag.Parse()
+
+	{{ if .initDirectly }}
+	revel.InitDirectly(*runMode, *revelSrcPath, *basePath)
+	{{ else }}
 	revel.Init(*runMode, *importPath, *srcPath)
+	{{ end }}
 	revel.INFO.Println("Running revel server")
 	{{range $i, $c := .Controllers}}
 	revel.RegisterController((*{{index $.ImportPaths .ImportPath}}.{{.StructName}})(nil),

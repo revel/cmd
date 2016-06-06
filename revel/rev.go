@@ -33,6 +33,7 @@ func (cmd *Command) Name() string {
 var commands = []*Command{
 	cmdNew,
 	cmdRun,
+	cmdGenerate,
 	cmdBuild,
 	cmdPackage,
 	cmdClean,

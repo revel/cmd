@@ -88,7 +88,8 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		// Add in build flags
 		flags = append(flags, buildFlags...)
 
-		// The main path
+		// This is Go main path
+		// Note: It's not applicable for filepath.* usage
 		flags = append(flags, path.Join(revel.ImportPath, "app", "tmp"))
 
 		buildCmd := exec.Command(goPath, flags...)
@@ -143,7 +144,7 @@ func getAppVersion() string {
 	// Check for the git binary
 	if gitPath, err := exec.LookPath("git"); err == nil {
 		// Check for the .git directory
-		gitDir := path.Join(revel.BasePath, ".git")
+		gitDir := filepath.Join(revel.BasePath, ".git")
 		info, err := os.Stat(gitDir)
 		if (err != nil && os.IsNotExist(err)) || !info.IsDir() {
 			return ""
@@ -171,7 +172,7 @@ func cleanSource(dirs ...string) {
 
 func cleanDir(dir string) {
 	revel.INFO.Println("Cleaning dir " + dir)
-	tmpPath := path.Join(revel.AppPath, dir)
+	tmpPath := filepath.Join(revel.AppPath, dir)
 	f, err := os.Open(tmpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -186,7 +187,7 @@ func cleanDir(dir string) {
 			}
 		} else {
 			for _, info := range infos {
-				path := path.Join(tmpPath, info.Name())
+				path := filepath.Join(tmpPath, info.Name())
 				if info.IsDir() {
 					err := os.RemoveAll(path)
 					if err != nil {
@@ -212,14 +213,14 @@ func genSource(dir, filename, templateSource string, args map[string]interface{}
 
 	// Create a fresh dir.
 	cleanSource(dir)
-	tmpPath := path.Join(revel.AppPath, dir)
+	tmpPath := filepath.Join(revel.AppPath, dir)
 	err := os.Mkdir(tmpPath, 0777)
 	if err != nil && !os.IsExist(err) {
 		revel.ERROR.Fatalf("Failed to make '%v' directory: %v", dir, err)
 	}
 
 	// Create the file
-	file, err := os.Create(path.Join(tmpPath, filename))
+	file, err := os.Create(filepath.Join(tmpPath, filename))
 	defer file.Close()
 	if err != nil {
 		revel.ERROR.Fatalf("Failed to create file: %v", err)

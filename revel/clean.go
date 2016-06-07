@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/build"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 var cmdClean = &Command{
@@ -38,8 +38,8 @@ func cleanApp(args []string) {
 	}
 
 	purgeDirs := []string{
-		path.Join(appPkg.Dir, "app", "tmp"),
-		path.Join(appPkg.Dir, "app", "routes"),
+		filepath.Join(appPkg.Dir, "app", "tmp"),
+		filepath.Join(appPkg.Dir, "app", "routes"),
 	}
 
 	for _, dir := range purgeDirs {

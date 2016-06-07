@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -52,7 +51,7 @@ func buildApp(args []string) {
 
 	// First, verify that it is either already empty or looks like a previous
 	// build (to avoid clobbering anything)
-	if exists(destPath) && !empty(destPath) && !exists(path.Join(destPath, "run.sh")) {
+	if exists(destPath) && !empty(destPath) && !exists(filepath.Join(destPath, "run.sh")) {
 		errorf("Abort: %s exists and does not look like a build directory.", destPath)
 	}
 
@@ -69,14 +68,14 @@ func buildApp(args []string) {
 	// - app
 
 	// Revel and the app are in a directory structure mirroring import path
-	srcPath := path.Join(destPath, "src")
-	destBinaryPath := path.Join(destPath, filepath.Base(app.BinaryPath))
-	tmpRevelPath := path.Join(srcPath, filepath.FromSlash(revel.REVEL_IMPORT_PATH))
+	srcPath := filepath.Join(destPath, "src")
+	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
+	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.REVEL_IMPORT_PATH))
 	mustCopyFile(destBinaryPath, app.BinaryPath)
 	mustChmod(destBinaryPath, 0755)
-	mustCopyDir(path.Join(tmpRevelPath, "conf"), path.Join(revel.RevelPath, "conf"), nil)
-	mustCopyDir(path.Join(tmpRevelPath, "templates"), path.Join(revel.RevelPath, "templates"), nil)
-	mustCopyDir(path.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
+	mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
+	mustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
+	mustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
 
 	// Find all the modules used and copy them over.
 	config := revel.Config.Raw()
@@ -99,14 +98,14 @@ func buildApp(args []string) {
 		}
 	}
 	for importPath, fsPath := range modulePaths {
-		mustCopyDir(path.Join(srcPath, importPath), fsPath, nil)
+		mustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
 	}
 
 	tmplData, runShPath := map[string]interface{}{
 		"BinName":    filepath.Base(app.BinaryPath),
 		"ImportPath": appImportPath,
 		"Mode":       mode,
-	}, path.Join(destPath, "run.sh")
+	}, filepath.Join(destPath, "run.sh")
 
 	mustRenderTemplate(
 		runShPath,

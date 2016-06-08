@@ -1,9 +1,10 @@
 package main
 
 import (
+	"strconv"
+
 	"github.com/revel/cmd/harness"
 	"github.com/revel/revel"
-	"strconv"
 )
 
 var cmdRun = &Command{

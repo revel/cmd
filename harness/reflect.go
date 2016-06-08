@@ -419,7 +419,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 	if selExpr.Sel.Name != "Result" {
 		return
 	}
-	if pkgIdent, ok := selExpr.X.(*ast.Ident); !ok || imports[pkgIdent.Name] != revel.REVEL_IMPORT_PATH {
+	if pkgIdent, ok := selExpr.X.(*ast.Ident); !ok || imports[pkgIdent.Name] != revel.RevelImportPath {
 		return
 	}
 
@@ -597,7 +597,7 @@ func getValidationParameter(funcDecl *ast.FuncDecl, imports map[string]string) *
 			continue
 		}
 
-		if selExpr.Sel.Name == "Validation" && imports[xIdent.Name] == revel.REVEL_IMPORT_PATH {
+		if selExpr.Sel.Name == "Validation" && imports[xIdent.Name] == revel.RevelImportPath {
 			return field.Names[0].Obj
 		}
 	}
@@ -675,14 +675,14 @@ func (s *SourceInfo) TypesThatEmbed(targetType string) (filtered []*TypeInfo) {
 
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 	if s.controllerSpecs == nil {
-		s.controllerSpecs = s.TypesThatEmbed(revel.REVEL_IMPORT_PATH + ".Controller")
+		s.controllerSpecs = s.TypesThatEmbed(revel.RevelImportPath + ".Controller")
 	}
 	return s.controllerSpecs
 }
 
 func (s *SourceInfo) TestSuites() []*TypeInfo {
 	if s.testSuites == nil {
-		s.testSuites = s.TypesThatEmbed(revel.REVEL_IMPORT_PATH + "/testing.TestSuite")
+		s.testSuites = s.TypesThatEmbed(revel.RevelImportPath + "/testing.TestSuite")
 	}
 	return s.testSuites
 }

@@ -148,7 +148,7 @@ func setApplicationPath(args []string) {
 		errorf("Abort: Import path %s already exists.\n", importPath)
 	}
 
-	revelPkg, err = build.Import(revel.REVEL_IMPORT_PATH, "", build.FindOnly)
+	revelPkg, err = build.Import(revel.RevelImportPath, "", build.FindOnly)
 	if err != nil {
 		errorf("Abort: Could not find Revel source code: %s\n", err)
 	}

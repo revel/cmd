@@ -1,7 +1,6 @@
 package harness
 
 import (
-	"github.com/revel/revel"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -10,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/revel/revel"
 )
 
 const validationKeysSource = `
@@ -77,7 +78,7 @@ func TestGetValidationKeys(t *testing.T) {
 	}
 
 	for i, decl := range file.Decls {
-		lineKeys := getValidationKeys(fset, decl.(*ast.FuncDecl), map[string]string{"revel": revel.REVEL_IMPORT_PATH})
+		lineKeys := getValidationKeys(fset, decl.(*ast.FuncDecl), map[string]string{"revel": revel.RevelImportPath})
 		for k, v := range expectedValidationKeys[i] {
 			if lineKeys[k] != v {
 				t.Errorf("Not found - %d: %v - Actual Map: %v", k, v, lineKeys)

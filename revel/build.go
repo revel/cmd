@@ -70,7 +70,7 @@ func buildApp(args []string) {
 	// Revel and the app are in a directory structure mirroring import path
 	srcPath := filepath.Join(destPath, "src")
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
-	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.REVEL_IMPORT_PATH))
+	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.RevelImportPath))
 	mustCopyFile(destBinaryPath, app.BinaryPath)
 	mustChmod(destBinaryPath, 0755)
 	mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)

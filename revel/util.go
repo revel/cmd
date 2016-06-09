@@ -1,3 +1,7 @@
+// Copyright (c) 2012-2016 The Revel Framework Authors, All rights reserved.
+// Revel Framework source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -13,7 +17,7 @@ import (
 	"github.com/revel/revel"
 )
 
-// Use a wrapper to differentiate logged panics from unexpected ones.
+// LoggedError is wrapper to differentiate logged panics from unexpected ones.
 type LoggedError struct{ error }
 
 func panicOnError(err error, msg string) {
@@ -103,22 +107,30 @@ func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 func mustTarGzDir(destFilename, srcDir string) string {
 	zipFile, err := os.Create(destFilename)
 	panicOnError(err, "Failed to create archive")
-	defer zipFile.Close()
+	defer func() {
+		_ = zipFile.Close()
+	}()
 
 	gzipWriter := gzip.NewWriter(zipFile)
-	defer gzipWriter.Close()
+	defer func() {
+		_ = gzipWriter.Close()
+	}()
 
 	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+	defer func() {
+		_ = tarWriter.Close()
+	}()
 
-	revel.Walk(srcDir, func(srcPath string, info os.FileInfo, err error) error {
+	_ = revel.Walk(srcDir, func(srcPath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
 		srcFile, err := os.Open(srcPath)
 		panicOnError(err, "Failed to read source file")
-		defer srcFile.Close()
+		defer func() {
+			_ = srcFile.Close()
+		}()
 
 		err = tarWriter.WriteHeader(&tar.Header{
 			Name:    strings.TrimLeft(srcPath[len(srcDir):], string(os.PathSeparator)),
@@ -149,7 +161,9 @@ func empty(dirname string) bool {
 	if err != nil {
 		errorf("error opening directory: %s", err)
 	}
-	defer dir.Close()
+	defer func() {
+		_ = dir.Close()
+	}()
 	results, _ := dir.Readdir(1)
 	return len(results) == 0
 }

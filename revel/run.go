@@ -1,3 +1,7 @@
+// Copyright (c) 2012-2016 The Revel Framework Authors, All rights reserved.
+// Revel Framework source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -37,7 +41,7 @@ func runApp(args []string) {
 	}
 
 	// Determine the run mode.
-	mode := "dev"
+	mode := DefaultRunMode
 	if len(args) >= 2 {
 		mode = args[1]
 	}

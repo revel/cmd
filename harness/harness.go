@@ -1,13 +1,16 @@
-// The Harness for a Revel program.
+// Copyright (c) 2012-2016 The Revel Framework Authors, All rights reserved.
+// Revel Framework source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+// Package harness for a Revel Framework.
 //
-// It has a couple responsibilities:
+// It has a following responsibilities:
 // 1. Parse the user program, generating a main.go file that registers
 //    controller classes and starts the user's server.
 // 2. Build and run the user program.  Show compile errors.
 // 3. Monitor the user source and re-build / restart the program when necessary.
 //
 // Source files are generated in the app/tmp directory.
-
 package harness
 
 import (

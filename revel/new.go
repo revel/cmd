@@ -1,3 +1,7 @@
+// Copyright (c) 2012-2016 The Revel Framework Authors, All rights reserved.
+// Revel Framework source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -199,7 +203,7 @@ func copyNewAppFiles() {
 	err = os.MkdirAll(appPath, 0777)
 	panicOnError(err, "Failed to create directory "+appPath)
 
-	mustCopyDir(appPath, skeletonPath, map[string]interface{}{
+	_ = mustCopyDir(appPath, skeletonPath, map[string]interface{}{
 		// app.conf
 		"AppName":  appName,
 		"BasePath": basePath,

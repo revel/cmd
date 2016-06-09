@@ -20,11 +20,12 @@ type App struct {
 	cmd        AppCmd // The last cmd returned.
 }
 
+// NewApp returns app instance with binary path in it
 func NewApp(binPath string) *App {
 	return &App{BinaryPath: binPath}
 }
 
-// Return a command to run the app server using the current configuration.
+// Cmd returns a command to run the app server using the current configuration.
 func (a *App) Cmd() AppCmd {
 	a.cmd = NewAppCmd(a.BinaryPath, a.Port)
 	return a.cmd
@@ -41,6 +42,7 @@ type AppCmd struct {
 	*exec.Cmd
 }
 
+// NewAppCmd returns the AppCmd with parameters initialized for running app
 func NewAppCmd(binPath string, port int) AppCmd {
 	cmd := exec.Command(binPath,
 		fmt.Sprintf("-port=%d", port),
@@ -70,6 +72,8 @@ func (cmd AppCmd) Start() error {
 	case <-listeningWriter.notifyReady:
 		return nil
 	}
+
+	// TODO remove this unreachable code and document it
 	panic("Impossible")
 }
 
@@ -81,7 +85,7 @@ func (cmd AppCmd) Run() {
 	}
 }
 
-// Terminate the app server if it's running.
+// Kill terminates the app server if it's running.
 func (cmd AppCmd) Kill() {
 	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
 		revel.TRACE.Println("Killing revel server pid", cmd.Process.Pid)
@@ -96,7 +100,7 @@ func (cmd AppCmd) Kill() {
 func (cmd AppCmd) waitChan() <-chan struct{} {
 	ch := make(chan struct{}, 1)
 	go func() {
-		cmd.Wait()
+		_ = cmd.Wait()
 		ch <- struct{}{}
 	}()
 	return ch

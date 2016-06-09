@@ -47,7 +47,7 @@ func runApp(args []string) {
 	revel.LoadMimeConfig()
 
 	// Determine the override port, if any.
-	port := revel.HttpPort
+	port := revel.HTTPPort
 	if len(args) == 3 {
 		var err error
 		if port, err = strconv.Atoi(args[2]); err != nil {
@@ -61,7 +61,7 @@ func runApp(args []string) {
 	// If the app is run in "watched" mode, use the harness to run it.
 	if revel.Config.BoolDefault("watch", true) && revel.Config.BoolDefault("watch.code", true) {
 		revel.TRACE.Println("Running in watched mode.")
-		revel.HttpPort = port
+		revel.HTTPPort = port
 		harness.NewHarness().Run() // Never returns.
 	}
 

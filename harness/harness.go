@@ -84,12 +84,14 @@ func NewHarness() *Harness {
 	// Prefer the app's views/errors directory, and fall back to the stock error pages.
 	revel.MainTemplateLoader = revel.NewTemplateLoader(
 		[]string{filepath.Join(revel.RevelPath, "templates")})
-	revel.MainTemplateLoader.Refresh()
+	if err := revel.MainTemplateLoader.Refresh(); err != nil {
+		revel.ERROR.Println(err)
+	}
 
-	addr := revel.HttpAddr
+	addr := revel.HTTPAddr
 	port := revel.Config.IntDefault("harness.port", 0)
 	scheme := "http"
-	if revel.HttpSsl {
+	if revel.HTTPSsl {
 		scheme = "https"
 	}
 
@@ -110,7 +112,7 @@ func NewHarness() *Harness {
 		proxy:      httputil.NewSingleHostReverseProxy(serverURL),
 	}
 
-	if revel.HttpSsl {
+	if revel.HTTPSsl {
 		harness.proxy.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
@@ -166,13 +168,16 @@ func (h *Harness) Run() {
 	watcher.Listen(h, paths...)
 
 	go func() {
-		addr := fmt.Sprintf("%s:%d", revel.HttpAddr, revel.HttpPort)
+		addr := fmt.Sprintf("%s:%d", revel.HTTPAddr, revel.HTTPPort)
 		revel.INFO.Printf("Listening on %s", addr)
 
 		var err error
-		if revel.HttpSsl {
-			err = http.ListenAndServeTLS(addr, revel.HttpSslCert,
-				revel.HttpSslKey, h)
+		if revel.HTTPSsl {
+			err = http.ListenAndServeTLS(
+				addr,
+				revel.HTTPSslCert,
+				revel.HTTPSslKey,
+				h)
 		} else {
 			err = http.ListenAndServe(addr, h)
 		}
@@ -213,7 +218,7 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 		d   net.Conn
 		err error
 	)
-	if revel.HttpSsl {
+	if revel.HTTPSsl {
 		// since this proxy isn't used in production,
 		// it's OK to set InsecureSkipVerify to true
 		// no need to add another configuration option.
@@ -236,8 +241,14 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 		revel.ERROR.Printf("Hijack error: %v", err)
 		return
 	}
-	defer nc.Close()
-	defer d.Close()
+	defer func() {
+		if err = nc.Close(); err != nil {
+			revel.ERROR.Println(err)
+		}
+		if err = d.Close(); err != nil {
+			revel.ERROR.Println(err)
+		}
+	}()
 
 	err = r.Write(d)
 	if err != nil {

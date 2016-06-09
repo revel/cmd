@@ -60,12 +60,14 @@ type methodCall struct {
 	Names []string
 }
 
+// MethodSpec holds the information of one Method
 type MethodSpec struct {
 	Name        string        // Name of the method, e.g. "Index"
 	Args        []*MethodArg  // Argument descriptors
 	RenderCalls []*methodCall // Descriptions of Render() invocations from this Method.
 }
 
+// MethodArg holds the information of one argument
 type MethodArg struct {
 	Name       string   // Name of the argument.
 	TypeExpr   TypeExpr // The name of the type, e.g. "int", "*pkg.UserType"
@@ -80,8 +82,9 @@ type embeddedTypeName struct {
 // receiver.
 type methodMap map[string][]*MethodSpec
 
-// Parse the app controllers directory and return a list of the controller types found.
-// Returns a CompileError if the parsing fails.
+// ProcessSource parses the app controllers directory and
+// returns a list of the controller types found.
+// Otherwise CompileError if the parsing fails.
 func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
 	var (
 		srcInfo      *SourceInfo
@@ -120,7 +123,7 @@ func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
 			}, 0)
 			if err != nil {
 				if errList, ok := err.(scanner.ErrorList); ok {
-					var pos token.Position = errList[0].Pos
+					var pos = errList[0].Pos
 					compileError = &revel.Error{
 						SourceType:  ".go source",
 						Title:       "Go Compilation Error",
@@ -139,6 +142,8 @@ func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
 
 					return compileError
 				}
+
+				// This is exception, err alredy checked above. Here just a print
 				ast.Print(nil, err)
 				log.Fatalf("Failed to parse dir: %s", err)
 			}
@@ -490,7 +495,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 	})
 
 	var recvTypeName string
-	var recvType ast.Expr = funcDecl.Recv.List[0].Type
+	var recvType = funcDecl.Recv.List[0].Type
 	if recvStarType, ok := recvType.(*ast.StarExpr); ok {
 		recvTypeName = recvStarType.X.(*ast.Ident).Name
 	} else {
@@ -673,6 +678,8 @@ func (s *SourceInfo) TypesThatEmbed(targetType string) (filtered []*TypeInfo) {
 	return
 }
 
+// ControllerSpecs returns the all the contollers that embeds
+// `revel.Controller`
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 	if s.controllerSpecs == nil {
 		s.controllerSpecs = s.TypesThatEmbed(revel.RevelImportPath + ".Controller")
@@ -680,6 +687,8 @@ func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 	return s.controllerSpecs
 }
 
+// TestSuites returns the all the Application tests that embeds
+// `testing.TestSuite`
 func (s *SourceInfo) TestSuites() []*TypeInfo {
 	if s.testSuites == nil {
 		s.testSuites = s.TypesThatEmbed(revel.RevelImportPath + "/testing.TestSuite")
@@ -705,7 +714,7 @@ func (e TypeExpr) TypeName(pkgOverride string) string {
 	return e.Expr[:e.pkgIndex] + pkgName + "." + e.Expr[e.pkgIndex:]
 }
 
-// This returns the syntactic expression for referencing this type in Go.
+// NewTypeExpr returns the syntactic expression for referencing this type in Go.
 func NewTypeExpr(pkgName string, expr ast.Expr) TypeExpr {
 	switch t := expr.(type) {
 	case *ast.Ident:
@@ -731,31 +740,32 @@ func NewTypeExpr(pkgName string, expr ast.Expr) TypeExpr {
 	return TypeExpr{Valid: false}
 }
 
-var _BUILTIN_TYPES = map[string]struct{}{
-	"bool":       struct{}{},
-	"byte":       struct{}{},
-	"complex128": struct{}{},
-	"complex64":  struct{}{},
-	"error":      struct{}{},
-	"float32":    struct{}{},
-	"float64":    struct{}{},
-	"int":        struct{}{},
-	"int16":      struct{}{},
-	"int32":      struct{}{},
-	"int64":      struct{}{},
-	"int8":       struct{}{},
-	"rune":       struct{}{},
-	"string":     struct{}{},
-	"uint":       struct{}{},
-	"uint16":     struct{}{},
-	"uint32":     struct{}{},
-	"uint64":     struct{}{},
-	"uint8":      struct{}{},
-	"uintptr":    struct{}{},
+var builtInTypes = map[string]struct{}{
+	"bool":       {},
+	"byte":       {},
+	"complex128": {},
+	"complex64":  {},
+	"error":      {},
+	"float32":    {},
+	"float64":    {},
+	"int":        {},
+	"int16":      {},
+	"int32":      {},
+	"int64":      {},
+	"int8":       {},
+	"rune":       {},
+	"string":     {},
+	"uint":       {},
+	"uint16":     {},
+	"uint32":     {},
+	"uint64":     {},
+	"uint8":      {},
+	"uintptr":    {},
 }
 
+// IsBuiltinType checks the given type is built-in types of Go
 func IsBuiltinType(name string) bool {
-	_, ok := _BUILTIN_TYPES[name]
+	_, ok := builtInTypes[name]
 	return ok
 }
 

@@ -44,8 +44,8 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		"ImportPaths":    calcImportAliases(sourceInfo),
 		"TestSuites":     sourceInfo.TestSuites(),
 	}
-	genSource("tmp", "main.go", MAIN, templateArgs)
-	genSource("routes", "routes.go", ROUTES, templateArgs)
+	genSource("tmp", "main.go", RevelMainTemplate, templateArgs)
+	genSource("routes", "routes.go", RevelRoutesTemplate, templateArgs)
 
 	// Read build config.
 	buildTags := revel.Config.StringDefault("build.tags", "")
@@ -126,6 +126,8 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 
 		// Success getting the import, attempt to build again.
 	}
+
+	// TODO remove this unreachable code and document it
 	revel.ERROR.Fatalf("Not reachable")
 	return nil, nil
 }
@@ -179,7 +181,10 @@ func cleanDir(dir string) {
 			revel.ERROR.Println("Failed to clean dir:", err)
 		}
 	} else {
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
+
 		infos, err := f.Readdir(0)
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -221,12 +226,14 @@ func genSource(dir, filename, templateSource string, args map[string]interface{}
 
 	// Create the file
 	file, err := os.Create(filepath.Join(tmpPath, filename))
-	defer file.Close()
 	if err != nil {
 		revel.ERROR.Fatalf("Failed to create file: %v", err)
 	}
-	_, err = file.WriteString(sourceCode)
-	if err != nil {
+	defer func() {
+		_ = file.Close()
+	}()
+
+	if _, err = file.WriteString(sourceCode); err != nil {
 		revel.ERROR.Fatalf("Failed to write to file: %v", err)
 	}
 }
@@ -345,7 +352,8 @@ func newCompileError(output []byte) *revel.Error {
 	return compileError
 }
 
-const MAIN = `// GENERATED CODE - DO NOT EDIT
+// RevelMainTemplate template for app/tmp/main.go
+const RevelMainTemplate = `// GENERATED CODE - DO NOT EDIT
 package main
 
 import (
@@ -399,7 +407,9 @@ func main() {
 	revel.Run(*port)
 }
 `
-const ROUTES = `// GENERATED CODE - DO NOT EDIT
+
+// RevelRoutesTemplate template for app/conf/routes
+const RevelRoutesTemplate = `// GENERATED CODE - DO NOT EDIT
 package routes
 
 import "github.com/revel/revel"
@@ -415,7 +425,7 @@ func (_ t{{$c.StructName}}) {{.Name}}({{range .Args}}
 	args := make(map[string]string)
 	{{range .Args}}
 	revel.Unbind(args, "{{.Name}}", {{.Name}}){{end}}
-	return revel.MainRouter.Reverse("{{$c.StructName}}.{{.Name}}", args).Url
+	return revel.MainRouter.Reverse("{{$c.StructName}}.{{.Name}}", args).URL
 }
 {{end}}
 {{end}}

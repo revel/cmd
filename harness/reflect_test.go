@@ -92,18 +92,18 @@ func TestGetValidationKeys(t *testing.T) {
 }
 
 var TypeExprs = map[string]TypeExpr{
-	"int":        TypeExpr{"int", "", 0, true},
-	"*int":       TypeExpr{"*int", "", 1, true},
-	"[]int":      TypeExpr{"[]int", "", 2, true},
-	"...int":     TypeExpr{"[]int", "", 2, true},
-	"[]*int":     TypeExpr{"[]*int", "", 3, true},
-	"...*int":    TypeExpr{"[]*int", "", 3, true},
-	"MyType":     TypeExpr{"MyType", "pkg", 0, true},
-	"*MyType":    TypeExpr{"*MyType", "pkg", 1, true},
-	"[]MyType":   TypeExpr{"[]MyType", "pkg", 2, true},
-	"...MyType":  TypeExpr{"[]MyType", "pkg", 2, true},
-	"[]*MyType":  TypeExpr{"[]*MyType", "pkg", 3, true},
-	"...*MyType": TypeExpr{"[]*MyType", "pkg", 3, true},
+	"int":        {"int", "", 0, true},
+	"*int":       {"*int", "", 1, true},
+	"[]int":      {"[]int", "", 2, true},
+	"...int":     {"[]int", "", 2, true},
+	"[]*int":     {"[]*int", "", 3, true},
+	"...*int":    {"[]*int", "", 3, true},
+	"MyType":     {"MyType", "pkg", 0, true},
+	"*MyType":    {"*MyType", "pkg", 1, true},
+	"[]MyType":   {"[]MyType", "pkg", 2, true},
+	"...MyType":  {"[]MyType", "pkg", 2, true},
+	"[]*MyType":  {"[]*MyType", "pkg", 3, true},
+	"...*MyType": {"[]*MyType", "pkg", 3, true},
 }
 
 func TestTypeExpr(t *testing.T) {
@@ -126,10 +126,10 @@ func TestTypeExpr(t *testing.T) {
 		}
 
 		if array {
-			expr = &ast.ArrayType{expr.Pos(), nil, expr}
+			expr = &ast.ArrayType{Lbrack: expr.Pos(), Len: nil, Elt: expr}
 		}
 		if ellipsis {
-			expr = &ast.Ellipsis{expr.Pos(), expr}
+			expr = &ast.Ellipsis{Ellipsis: expr.Pos(), Elt: expr}
 		}
 
 		actual := NewTypeExpr("pkg", expr)
@@ -146,11 +146,11 @@ func TestProcessBookingSource(t *testing.T) {
 		t.Fatal("Failed to process booking source with error:", err)
 	}
 
-	CONTROLLER_PKG := "github.com/revel/samples/booking/app/controllers"
+	controllerPackage := "github.com/revel/samples/booking/app/controllers"
 	expectedControllerSpecs := []*TypeInfo{
-		{"GorpController", CONTROLLER_PKG, "controllers", nil, nil},
-		{"Application", CONTROLLER_PKG, "controllers", nil, nil},
-		{"Hotels", CONTROLLER_PKG, "controllers", nil, nil},
+		{"GorpController", controllerPackage, "controllers", nil, nil},
+		{"Application", controllerPackage, "controllers", nil, nil},
+		{"Hotels", controllerPackage, "controllers", nil, nil},
 	}
 	if len(sourceInfo.ControllerSpecs()) != len(expectedControllerSpecs) {
 		t.Errorf("Unexpected number of controllers found.  Expected %d, Found %d",

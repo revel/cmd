@@ -114,7 +114,7 @@ You can add it to a run mode configuration with the following line:
 	var (
 		testSuites []controllers.TestSuiteDesc
 		resp       *http.Response
-		baseUrl    = fmt.Sprintf("http://127.0.0.1:%d", revel.HttpPort)
+		baseUrl    = fmt.Sprintf("http://127.0.0.1:%d", revel.HTTPPort)
 	)
 	for i := 0; ; i++ {
 		if resp, err = http.Get(baseUrl + "/@tests.list"); err == nil {

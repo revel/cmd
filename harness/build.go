@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/hashicorp/go-version"
 	"github.com/revel/revel"
 )
 
@@ -77,7 +78,15 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	gotten := make(map[string]struct{})
 	for {
 		appVersion := getAppVersion()
-		versionLinkerFlags := fmt.Sprintf("-X %s/app.APP_VERSION \"%s\"", revel.ImportPath, appVersion)
+		//TODO remove version check fot versionLinkerFlags after min version go1.5
+		v15, err := version.NewVersion(runtime.Version()[2:5]) // return 1.X from go1.XXXXX
+		constraints, err := version.NewConstraint(">=1.5")
+		versionLinkerFlags := ""
+		if constraints.Check(v15) {
+			versionLinkerFlags = fmt.Sprintf("-X %s/app.APP_VERSION=\"%s\"", revel.ImportPath, appVersion)
+		} else {
+			versionLinkerFlags = fmt.Sprintf("-X %s/app.APP_VERSION \"%s\"", revel.ImportPath, appVersion)
+		}
 		flags := []string{
 			"build",
 			"-i",

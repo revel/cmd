@@ -8,6 +8,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
+	"go/build"
 	"io"
 	"os"
 	"path/filepath"
@@ -166,4 +167,10 @@ func empty(dirname string) bool {
 	}()
 	results, _ := dir.Readdir(1)
 	return len(results) == 0
+}
+
+func importPathFromCurrentDir() string {
+	pwd, _ := os.Getwd()
+	importPath, _ := filepath.Rel(filepath.Join(build.Default.GOPATH, "src"), pwd)
+	return filepath.ToSlash(importPath)
 }

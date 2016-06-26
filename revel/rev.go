@@ -19,8 +19,13 @@ import (
 	"github.com/agtorre/gocolorize"
 )
 
-// DefaultRunMode for revel's application
-const DefaultRunMode = "dev"
+const (
+	// RevelCmdImportPath Revel framework cmd tool import path
+	RevelCmdImportPath = "github.com/revel/cmd"
+
+	// DefaultRunMode for revel's application
+	DefaultRunMode = "dev"
+)
 
 // Command structure cribbed from the genius organization of the "go" command.
 type Command struct {

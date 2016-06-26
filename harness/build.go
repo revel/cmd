@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/revel/revel"
 )
@@ -81,12 +82,15 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	gotten := make(map[string]struct{})
 	for {
 		appVersion := getAppVersion()
-		versionLinkerFlags := fmt.Sprintf("-X %s/app.APP_VERSION=\"%s\"", revel.ImportPath, appVersion)
+		buildTime := time.Now().UTC().Format(time.RFC3339)
+		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
+			revel.ImportPath, appVersion, revel.ImportPath, buildTime)
 
 		// TODO remove version check for versionLinkerFlags after Revel becomes Go min version to go1.5
 		goVersion, _ := strconv.ParseFloat(runtime.Version()[2:5], 64)
 		if goVersion < 1.5 {
-			versionLinkerFlags = fmt.Sprintf("-X %s/app.APP_VERSION \"%s\"", revel.ImportPath, appVersion)
+			versionLinkerFlags = fmt.Sprintf("-X %s/app.AppVersion \"%s\" -X %s/app.BuildTime \"%s\"",
+				revel.ImportPath, appVersion, revel.ImportPath, buildTime)
 		}
 		flags := []string{
 			"build",

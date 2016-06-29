@@ -50,6 +50,7 @@ var (
 
 	// revel related paths
 	revelPkg     *build.Package
+	revelCmdPkg  *build.Package
 	appPath      string
 	appName      string
 	basePath     string
@@ -194,7 +195,12 @@ func setSkeletonPath(args []string) {
 
 	} else {
 		// use the revel default
-		skeletonPath = filepath.Join(revelPkg.Dir, "skeleton")
+		revelCmdPkg, err = build.Import(RevelCmdImportPath, "", build.FindOnly)
+		if err != nil {
+			errorf("Abort: Could not find Revel Cmd source code: %s\n", err)
+		}
+
+		skeletonPath = filepath.Join(revelCmdPkg.Dir, "revel", "skeleton")
 	}
 }
 

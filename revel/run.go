@@ -85,7 +85,8 @@ func parseRunArgs(args []string) *RunArgs {
 		// 1. revel run [import-path]
 		// 2. revel run [port]
 		// 3. revel run [run-mode]
-		if strings.Contains(args[0], "/") {
+		if strings.Contains(args[0], "/") ||
+			strings.Contains(inputArgs.ImportPath, "..") {
 			inputArgs.ImportPath = args[0]
 		} else if port, err := strconv.Atoi(args[0]); err == nil {
 			inputArgs.Port = port

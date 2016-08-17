@@ -104,7 +104,7 @@ func testApp(args []string) {
 
 	var httpProto = "http"
 	if revel.HttpSsl {
-		httpProto = "httpss"
+		httpProto = "https"
 	}
 
 	// Get a list of tests

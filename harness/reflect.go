@@ -774,6 +774,10 @@ func IsBuiltinType(name string) bool {
 }
 
 func importPathFromPath(root string) string {
+	vendoringPath := revel.BasePath + "/vendor/"
+	if strings.HasPrefix(root, vendoringPath) {
+		return filepath.ToSlash(root[len(vendoringPath):])
+	}
 	for _, gopath := range filepath.SplitList(build.Default.GOPATH) {
 		srcPath := filepath.Join(gopath, "src")
 		if strings.HasPrefix(root, srcPath) {

@@ -1,6 +1,8 @@
 package app
 
-import "github.com/revel/revel"
+import (
+	"github.com/revel/revel"
+)
 
 var (
 	// AppVersion revel app version (ldflags)
@@ -27,8 +29,7 @@ func init() {
 		revel.ActionInvoker,           // Invoke the action.
 	}
 
-	// register startup functions with OnAppStart
-	// ( order dependent )
+	// register startup functions with OnAppStart ( order dependent )
 	// revel.OnAppStart(InitDB)
 	// revel.OnAppStart(FillCache)
 }

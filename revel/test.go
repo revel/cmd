@@ -28,7 +28,7 @@ Run all tests for the Revel app named by the given import path.
 
 For example, to run the booking sample application's tests:
 
-    revel test github.com/revel/samples/booking dev
+    revel test github.com/revel/examples/booking dev
 
 The run mode is used to select which set of app.conf configuration should
 apply and may be used to determine logic in the application itself.

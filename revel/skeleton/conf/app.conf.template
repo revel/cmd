@@ -1,11 +1,9 @@
 ################################################################################
 # Revel configuration file
-# See:
-#   http://revel.github.io/manual/appconf.html
-#   for more detailed documentation.
+# More info at http://revel.github.io/manual/appconf.html
 ################################################################################
 
-# This sets the `AppName` variable which can be used in your code as
+# Sets the `AppName` variable which can be used in your code as
 #   `if revel.AppName {...}`
 app.name = {{ .AppName }}
 

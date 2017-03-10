@@ -1,6 +1,8 @@
 package app
 
-import "github.com/revel/revel"
+import (
+	"github.com/revel/revel"
+)
 
 var (
 	// AppVersion revel app version (ldflags)
@@ -26,6 +28,7 @@ func init() {
 		revel.CompressFilter,          // Compress the result.
 		revel.ActionInvoker,           // Invoke the action.
 	}
+
 
 	// register startup functions with OnAppStart
 	// revel.DevMode and revel.RunMode only work inside of OnAppStart. See Example Startup Script

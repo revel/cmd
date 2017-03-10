@@ -50,10 +50,10 @@ var HeaderFilter = func(c *revel.Controller, fc []revel.Filter) {
 	fc[0](c, fc[1:]) // Execute the next filter stage.
 }
 
-func ExampleStartupScript() {
-	// revel.DevMod and revel.RunMode work here
-	// Use this script to check for dev mode and set dev/prod startup scripts here!
-	if revel.DevMode == true {
-		os.Setenv("SOME_ENV_VAR", "VALUE")
-	}
-}
+//func ExampleStartupScript() {
+//	// revel.DevMod and revel.RunMode work here
+//	// Use this script to check for dev mode and set dev/prod startup scripts here!
+//	if revel.DevMode == true {
+//		// Dev mode
+//	}
+//}

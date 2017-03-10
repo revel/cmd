@@ -144,13 +144,13 @@ func TestTypeExpr(t *testing.T) {
 }
 
 func TestProcessBookingSource(t *testing.T) {
-	revel.Init("prod", "github.com/revel/samples/booking", "")
+	revel.Init("prod", "github.com/revel/examples/booking", "")
 	sourceInfo, err := ProcessSource([]string{revel.AppPath})
 	if err != nil {
 		t.Fatal("Failed to process booking source with error:", err)
 	}
 
-	controllerPackage := "github.com/revel/samples/booking/app/controllers"
+	controllerPackage := "github.com/revel/examples/booking/app/controllers"
 	expectedControllerSpecs := []*TypeInfo{
 		{"GorpController", controllerPackage, "controllers", nil, nil},
 		{"Application", controllerPackage, "controllers", nil, nil},
@@ -182,7 +182,7 @@ NEXT_TEST:
 }
 
 func BenchmarkProcessBookingSource(b *testing.B) {
-	revel.Init("", "github.com/revel/samples/booking", "")
+	revel.Init("", "github.com/revel/examples/booking", "")
 	revel.TRACE = log.New(ioutil.Discard, "", 0)
 	b.ResetTimer()
 

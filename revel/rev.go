@@ -17,15 +17,9 @@ import (
 	"time"
 
 	"github.com/agtorre/gocolorize"
+    "github.com/revel/cmd/revel/util"
 )
 
-const (
-	// RevelCmdImportPath Revel framework cmd tool import path
-	RevelCmdImportPath = "github.com/revel/cmd"
-
-	// DefaultRunMode for revel's application
-	DefaultRunMode = "dev"
-)
 
 // Command structure cribbed from the genius organization of the "go" command.
 type Command struct {
@@ -45,6 +39,7 @@ func (cmd *Command) Name() string {
 
 var commands = []*Command{
 	cmdNew,
+	cmdNewRaml,
 	cmdRun,
 	cmdBuild,
 	cmdPackage,
@@ -81,7 +76,7 @@ func main() {
 	// Panics are logged at the point of error.  Ignore those.
 	defer func() {
 		if err := recover(); err != nil {
-			if _, ok := err.(LoggedError); !ok {
+			if _, ok := err.(util.LoggedError); !ok {
 				// This panic was not expected / logged.
 				panic(err)
 			}
@@ -96,16 +91,7 @@ func main() {
 		}
 	}
 
-	errorf("unknown command %q\nRun 'revel help' for usage.\n", args[0])
-}
-
-func errorf(format string, args ...interface{}) {
-	// Ensure the user's command prompt starts on the next line.
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-	fmt.Fprintf(os.Stderr, format, args...)
-	panic(LoggedError{}) // Panic instead of os.Exit so that deferred will run.
+	util.Errorf("unknown command %q\nRun 'revel help' for usage.\n", args[0])
 }
 
 const header = `~

@@ -10,6 +10,7 @@ import (
 
 	"github.com/revel/cmd/harness"
 	"github.com/revel/revel"
+    "github.com/revel/cmd/revel/util"
 )
 
 var cmdRun = &Command{
@@ -45,8 +46,8 @@ func init() {
 
 func parseRunArgs(args []string) *RunArgs {
 	inputArgs := RunArgs{
-		ImportPath: importPathFromCurrentDir(),
-		Mode:       DefaultRunMode,
+		ImportPath: util.ImportPathFromCurrentDir(),
+		Mode:       util.DefaultRunMode,
 		Port:       revel.HTTPPort,
 	}
 	switch len(args) {
@@ -55,7 +56,7 @@ func parseRunArgs(args []string) *RunArgs {
 		// revel run [import-path] [run-mode] [port]
 		port, err := strconv.Atoi(args[2])
 		if err != nil {
-			errorf("Failed to parse port as integer: %s", args[2])
+			util.Errorf("Failed to parse port as integer: %s", args[2])
 		}
 		inputArgs.ImportPath = args[0]
 		inputArgs.Mode = args[1]
@@ -75,7 +76,7 @@ func parseRunArgs(args []string) *RunArgs {
 		} else {
 			port, err := strconv.Atoi(args[1])
 			if err != nil {
-				errorf("Failed to parse port as integer: %s", args[1])
+				util.Errorf("Failed to parse port as integer: %s", args[1])
 			}
 			inputArgs.Mode = args[0]
 			inputArgs.Port = port
@@ -124,7 +125,7 @@ func runApp(args []string) {
 	revel.TRACE.Println("Running in live build mode.")
 	app, err := harness.Build()
 	if err != nil {
-		errorf("Failed to build app: %s", err)
+		util.Errorf("Failed to build app: %s", err)
 	}
 	app.Port = runArgs.Port
 	app.Cmd().Run()

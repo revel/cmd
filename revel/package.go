@@ -6,15 +6,17 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/revel/revel"
+    "github.com/revel/cmd/revel/util"
+    "strconv"
+    "strings"
 )
 
 var cmdPackage = &Command{
-	UsageLine: "package [import path] [run mode]",
+	UsageLine: "package [import path] [run mode] [include source]",
 	Short:     "package a Revel application (e.g. for deployment)",
 	Long: `
 Package the Revel web application named by the given import path.
@@ -23,11 +25,16 @@ This allows it to be deployed and run on a machine that lacks a Go installation.
 The run mode is used to select which set of app.conf configuration should
 apply and may be used to determine logic in the application itself.
 
+The include source arguement defaults to true, if you enter false
+only paths under views/** messages/** conf/** public/** will be included
+
+Note symlinked forlders are not included
+
 Run mode defaults to "dev".
 
 For example:
 
-    revel package github.com/revel/examples/chat
+    revel package github.com/revel/examples/chat prod false
 `,
 }
 
@@ -42,11 +49,10 @@ func packageApp(args []string) {
 	}
 
 	// Determine the run mode.
-	mode := DefaultRunMode
+	mode := util.DefaultRunMode
 	if len(args) >= 2 {
 		mode = args[1]
 	}
-
 	appImportPath := args[0]
 	revel.Init(mode, appImportPath, "")
 
@@ -57,13 +63,37 @@ func packageApp(args []string) {
 	}
 
 	// Collect stuff in a temp directory.
-	tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
-	panicOnError(err, "Failed to get temp dir")
+	// tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
+    //tmpDir,err := filepath.Join(os.Getwd(),"rbuild"), os.Mkdir("rbuild",os.ModePerm)
+    //println("Created ",tmpDir)
+	//util.PanicOnError(err, "Failed to get temp dir")
+    wd ,_ := os.Getwd()
+    tmpDir := filepath.Join(wd,"rbuild")
 
-	buildApp([]string{args[0], tmpDir, mode})
+	includeSource := func(file string) bool{ return true }
+	if len(args) >= 3 {
+		if ok,_ := strconv.ParseBool(args[2]);!ok {
+            includeSource = func(file string) bool {
+                file = filepath.ToSlash(file)
+                shortPath := file[len(tmpDir)+1:]
+                return strings.Contains(file,"/views/") ||
+                    strings.Contains(file,"/public/") ||
+                    strings.Contains(file,"/conf/") ||
+                    strings.Contains(file,"/messages/") ||
+                    strings.Contains(file,"/templates/") || // Revel has these
+                    !strings.Contains(shortPath,"/")
+
+            }
+        }
+
+	}
+
+
+
+    buildTheApp(args[0],tmpDir,mode)
 
 	// Create the zip file.
-	archiveName := mustTarGzDir(destFile, tmpDir)
+	archiveName := util.MustTarGzDir(destFile, tmpDir, includeSource)
 
 	fmt.Println("Your archive is ready:", archiveName)
 }

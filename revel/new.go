@@ -4,9 +4,9 @@ import (
 )
 
 var cmdNew = &Command{
-	UsageLine: "new [path] [skeleton]",
-	Short:     "create a skeleton Revel application",
-	Long: `
+    UsageLine: "new [path] [skeleton]",
+    Short:     "create a skeleton Revel application",
+    Long: `
 New creates a few files to get a new Revel application running quickly.
 
 It puts all of the files in the given import path, taking the final element in
@@ -23,5 +23,5 @@ For example:
 }
 
 func init() {
-	cmdNew.Run = builder.NewSkeleton
+    cmdNew.Run = builder.NewSkeleton
 }

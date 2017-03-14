@@ -5,20 +5,20 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+    "fmt"
+    "os"
+    "path/filepath"
 
-	"github.com/revel/revel"
+    "github.com/revel/revel"
     "github.com/revel/cmd/revel/util"
     "strconv"
     "strings"
 )
 
 var cmdPackage = &Command{
-	UsageLine: "package [import path] [run mode] [include source]",
-	Short:     "package a Revel application (e.g. for deployment)",
-	Long: `
+    UsageLine: "package [import path] [run mode] [include source]",
+    Short:     "package a Revel application (e.g. for deployment)",
+    Long: `
 Package the Revel web application named by the given import path.
 This allows it to be deployed and run on a machine that lacks a Go installation.
 
@@ -39,40 +39,40 @@ For example:
 }
 
 func init() {
-	cmdPackage.Run = packageApp
+    cmdPackage.Run = packageApp
 }
 
 func packageApp(args []string) {
-	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, cmdPackage.Long)
-		return
-	}
+    if len(args) == 0 {
+        fmt.Fprint(os.Stderr, cmdPackage.Long)
+        return
+    }
 
-	// Determine the run mode.
-	mode := util.DefaultRunMode
-	if len(args) >= 2 {
-		mode = args[1]
-	}
-	appImportPath := args[0]
-	revel.Init(mode, appImportPath, "")
+    // Determine the run mode.
+    mode := util.DefaultRunMode
+    if len(args) >= 2 {
+        mode = args[1]
+    }
+    appImportPath := args[0]
+    revel.Init(mode, appImportPath, "")
 
-	// Remove the archive if it already exists.
-	destFile := filepath.Base(revel.BasePath) + ".tar.gz"
-	if err := os.Remove(destFile); err != nil && !os.IsNotExist(err) {
-		revel.ERROR.Fatal(err)
-	}
+    // Remove the archive if it already exists.
+    destFile := filepath.Base(revel.BasePath) + ".tar.gz"
+    if err := os.Remove(destFile); err != nil && !os.IsNotExist(err) {
+        revel.ERROR.Fatal(err)
+    }
 
-	// Collect stuff in a temp directory.
-	// tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
+    // Collect stuff in a temp directory.
+    // tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
     //tmpDir,err := filepath.Join(os.Getwd(),"rbuild"), os.Mkdir("rbuild",os.ModePerm)
     //println("Created ",tmpDir)
-	//util.PanicOnError(err, "Failed to get temp dir")
+    //util.PanicOnError(err, "Failed to get temp dir")
     wd ,_ := os.Getwd()
     tmpDir := filepath.Join(wd,"rbuild")
 
-	includeSource := func(file string) bool{ return true }
-	if len(args) >= 3 {
-		if ok,_ := strconv.ParseBool(args[2]);!ok {
+    includeSource := func(file string) bool{ return true }
+    if len(args) >= 3 {
+        if ok,_ := strconv.ParseBool(args[2]);!ok {
             includeSource = func(file string) bool {
                 file = filepath.ToSlash(file)
                 shortPath := file[len(tmpDir)+1:]
@@ -86,14 +86,14 @@ func packageApp(args []string) {
             }
         }
 
-	}
+    }
 
 
 
     buildTheApp(args[0],tmpDir,mode)
 
-	// Create the zip file.
-	archiveName := util.MustTarGzDir(destFile, tmpDir, includeSource)
+    // Create the zip file.
+    archiveName := util.MustTarGzDir(destFile, tmpDir, includeSource)
 
-	fmt.Println("Your archive is ready:", archiveName)
+    fmt.Println("Your archive is ready:", archiveName)
 }

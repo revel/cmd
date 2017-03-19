@@ -13,6 +13,7 @@ import (
     "github.com/revel/cmd/revel/util"
     "strconv"
     "strings"
+    "io/ioutil"
 )
 
 var cmdPackage = &Command{
@@ -63,12 +64,8 @@ func packageApp(args []string) {
     }
 
     // Collect stuff in a temp directory.
-    // tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
-    //tmpDir,err := filepath.Join(os.Getwd(),"rbuild"), os.Mkdir("rbuild",os.ModePerm)
-    //println("Created ",tmpDir)
-    //util.PanicOnError(err, "Failed to get temp dir")
-    wd ,_ := os.Getwd()
-    tmpDir := filepath.Join(wd,"rbuild")
+    tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
+    util.PanicOnError(err, "Failed to get temp dir")
 
     includeSource := func(file string) bool{ return true }
     if len(args) >= 3 {

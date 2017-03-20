@@ -51,7 +51,7 @@ cookie.prefix = REVEL
 # server. This makes the cookie less likely to be exposed to cookie theft via
 # eavesdropping.
 #
-# Defaults to false. If 'http.ssl' is enabled, this will automatically be enabled.
+# Defaults to false. If 'http.ssl' is enabled, this will be defaulted to true.
 # This should only be true when Revel is handling SSL connections. If you are
 # using a proxy in front of revel (Nginx, Apache, etc), then this should be left
 # as false.

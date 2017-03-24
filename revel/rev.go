@@ -6,106 +6,92 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"io"
-	"math/rand"
-	"os"
-	"runtime"
-	"strings"
-	"text/template"
-	"time"
+    "flag"
+    "fmt"
+    "io"
+    "math/rand"
+    "os"
+    "runtime"
+    "strings"
+    "text/template"
+    "time"
 
-	"github.com/agtorre/gocolorize"
+    "github.com/agtorre/gocolorize"
+    "github.com/revel/cmd/revel/util"
 )
 
-const (
-	// RevelCmdImportPath Revel framework cmd tool import path
-	RevelCmdImportPath = "github.com/revel/cmd"
-
-	// DefaultRunMode for revel's application
-	DefaultRunMode = "dev"
-)
 
 // Command structure cribbed from the genius organization of the "go" command.
 type Command struct {
-	Run                    func(args []string)
-	UsageLine, Short, Long string
+    Run                    func(args []string)
+    UsageLine, Short, Long string
 }
 
 // Name returns command name from usage line
 func (cmd *Command) Name() string {
-	name := cmd.UsageLine
-	i := strings.Index(name, " ")
-	if i >= 0 {
-		name = name[:i]
-	}
-	return name
+    name := cmd.UsageLine
+    i := strings.Index(name, " ")
+    if i >= 0 {
+        name = name[:i]
+    }
+    return name
 }
 
 var commands = []*Command{
-	cmdNew,
-	cmdRun,
-	cmdBuild,
-	cmdPackage,
-	cmdClean,
-	cmdTest,
-	cmdVersion,
+    cmdNew,
+    cmdNewRaml,
+    cmdRun,
+    cmdBuild,
+    cmdPackage,
+    cmdClean,
+    cmdTest,
+    cmdVersion,
 }
 
 func main() {
-	if runtime.GOOS == "windows" {
-		gocolorize.SetPlain(true)
-	}
-	fmt.Fprintf(os.Stdout, gocolorize.NewColor("blue").Paint(header))
-	flag.Usage = func() { usage(1) }
-	flag.Parse()
-	args := flag.Args()
+    if runtime.GOOS == "windows" {
+        gocolorize.SetPlain(true)
+    }
+    fmt.Fprintf(os.Stdout, gocolorize.NewColor("blue").Paint(header))
+    flag.Usage = func() { usage(1) }
+    flag.Parse()
+    args := flag.Args()
 
-	if len(args) < 1 || args[0] == "help" {
-		if len(args) == 1 {
-			usage(0)
-		}
-		if len(args) > 1 {
-			for _, cmd := range commands {
-				if cmd.Name() == args[1] {
-					tmpl(os.Stdout, helpTemplate, cmd)
-					return
-				}
-			}
-		}
-		usage(2)
-	}
+    if len(args) < 1 || args[0] == "help" {
+        if len(args) == 1 {
+            usage(0)
+        }
+        if len(args) > 1 {
+            for _, cmd := range commands {
+                if cmd.Name() == args[1] {
+                    tmpl(os.Stdout, helpTemplate, cmd)
+                    return
+                }
+            }
+        }
+        usage(2)
+    }
 
-	// Commands use panic to abort execution when something goes wrong.
-	// Panics are logged at the point of error.  Ignore those.
-	defer func() {
-		if err := recover(); err != nil {
-			if _, ok := err.(LoggedError); !ok {
-				// This panic was not expected / logged.
-				panic(err)
-			}
-			os.Exit(1)
-		}
-	}()
+    // Commands use panic to abort execution when something goes wrong.
+    // Panics are logged at the point of error.  Ignore those.
+    defer func() {
+        if err := recover(); err != nil {
+            if _, ok := err.(util.LoggedError); !ok {
+                // This panic was not expected / logged.
+                panic(err)
+            }
+            os.Exit(1)
+        }
+    }()
 
-	for _, cmd := range commands {
-		if cmd.Name() == args[0] {
-			cmd.Run(args[1:])
-			return
-		}
-	}
+    for _, cmd := range commands {
+        if cmd.Name() == args[0] {
+            cmd.Run(args[1:])
+            return
+        }
+    }
 
-	errorf("unknown command %q\nRun 'revel help' for usage.\n", args[0])
-}
-
-func errorf(format string, args ...interface{}) {
-	// Ensure the user's command prompt starts on the next line.
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-	fmt.Fprintf(os.Stderr, format, args...)
-	panic(LoggedError{}) // Panic instead of os.Exit so that deferred will run.
+    util.Errorf("unknown command %q\nRun 'revel help' for usage.\n", args[0])
 }
 
 const header = `~
@@ -127,18 +113,18 @@ var helpTemplate = `usage: revel {{.UsageLine}}
 `
 
 func usage(exitCode int) {
-	tmpl(os.Stderr, usageTemplate, commands)
-	os.Exit(exitCode)
+    tmpl(os.Stderr, usageTemplate, commands)
+    os.Exit(exitCode)
 }
 
 func tmpl(w io.Writer, text string, data interface{}) {
-	t := template.New("top")
-	template.Must(t.Parse(text))
-	if err := t.Execute(w, data); err != nil {
-		panic(err)
-	}
+    t := template.New("top")
+    template.Must(t.Parse(text))
+    if err := t.Execute(w, data); err != nil {
+        panic(err)
+    }
 }
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+    rand.Seed(time.Now().UnixNano())
 }

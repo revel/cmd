@@ -5,19 +5,20 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+    "fmt"
+    "os"
+    "path/filepath"
+    "strings"
 
-	"github.com/revel/cmd/harness"
-	"github.com/revel/revel"
+    "github.com/revel/cmd/harness"
+    "github.com/revel/cmd/revel/util"
+    "github.com/revel/revel"
 )
 
 var cmdBuild = &Command{
-	UsageLine: "build [import path] [target path] [run mode]",
-	Short:     "build a Revel application (e.g. for deployment)",
-	Long: `
+    UsageLine: "build [import path] [target path] [run mode] [Include source]",
+    Short:     "build a Revel application (e.g. for deployment)",
+    Long: `
 Build the Revel web application named by the given import path.
 This allows it to be deployed and run on a machine that lacks a Go installation.
 
@@ -35,96 +36,100 @@ For example:
 }
 
 func init() {
-	cmdBuild.Run = buildApp
+    cmdBuild.Run = buildApp
 }
 
 func buildApp(args []string) {
-	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
-		return
-	}
+    if len(args) < 2 {
+        fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
+        return
+    }
 
-	appImportPath, destPath, mode := args[0], args[1], DefaultRunMode
-	if len(args) >= 3 {
-		mode = args[2]
-	}
+    appImportPath, destPath, mode := args[0], args[1], util.DefaultRunMode
+    if len(args) >= 3 {
+        mode = args[2]
+    }
+    buildTheApp(appImportPath, destPath, mode)
+}
 
-	if !revel.Initialized {
-		revel.Init(mode, appImportPath, "")
-	}
+func buildTheApp(appImportPath, destPath, mode string) {
 
-	// First, verify that it is either already empty or looks like a previous
-	// build (to avoid clobbering anything)
-	if exists(destPath) && !empty(destPath) && !exists(filepath.Join(destPath, "run.sh")) {
-		errorf("Abort: %s exists and does not look like a build directory.", destPath)
-	}
+    if !revel.Initialized {
+        revel.Init(mode, appImportPath, "")
+    }
 
-	if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
-		revel.ERROR.Fatalln(err)
-	}
+    // First, verify that it is either already empty or looks like a previous
+    // build (to avoid clobbering anything)
+    if util.Exists(destPath) && !util.Empty(destPath) && !util.Exists(filepath.Join(destPath, "run.sh")) {
+        util.Errorf("Abort: %s exists and does not look like a build directory.", destPath)
+    }
 
-	if err := os.MkdirAll(destPath, 0777); err != nil {
-		revel.ERROR.Fatalln(err)
-	}
+    if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
+        revel.ERROR.Fatalln(err)
+    }
 
-	app, reverr := harness.Build()
-	panicOnError(reverr, "Failed to build")
+    if err := os.MkdirAll(destPath, 0777); err != nil {
+        revel.ERROR.Fatalln(err)
+    }
 
-	// Included are:
-	// - run scripts
-	// - binary
-	// - revel
-	// - app
+    app, reverr := harness.Build()
+    util.PanicOnError(reverr, "Failed to build")
 
-	// Revel and the app are in a directory structure mirroring import path
-	srcPath := filepath.Join(destPath, "src")
-	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
-	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.RevelImportPath))
-	mustCopyFile(destBinaryPath, app.BinaryPath)
-	mustChmod(destBinaryPath, 0755)
-	_ = mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
-	_ = mustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
-	_ = mustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
+    // Included are:
+    // - run scripts
+    // - binary
+    // - revel
+    // - app
 
-	// Find all the modules used and copy them over.
-	config := revel.Config.Raw()
-	modulePaths := make(map[string]string) // import path => filesystem path
-	for _, section := range config.Sections() {
-		options, _ := config.SectionOptions(section)
-		for _, key := range options {
-			if !strings.HasPrefix(key, "module.") {
-				continue
-			}
-			moduleImportPath, _ := config.String(section, key)
-			if moduleImportPath == "" {
-				continue
-			}
-			modulePath, err := revel.ResolveImportPath(moduleImportPath)
-			if err != nil {
-				revel.ERROR.Fatalln("Failed to load module %s: %s", key[len("module."):], err)
-			}
-			modulePaths[moduleImportPath] = modulePath
-		}
-	}
-	for importPath, fsPath := range modulePaths {
-		_ = mustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
-	}
+    // Revel and the app are in a directory structure mirroring import path
+    srcPath := filepath.Join(destPath, "src")
+    destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
+    tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.RevelImportPath))
+    util.MustCopyFile(destBinaryPath, app.BinaryPath)
+    util.MustChmod(destBinaryPath, 0755)
+    _ = util.MustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
+    _ = util.MustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
+    _ = util.MustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
 
-	tmplData, runShPath := map[string]interface{}{
-		"BinName":    filepath.Base(app.BinaryPath),
-		"ImportPath": appImportPath,
-		"Mode":       mode,
-	}, filepath.Join(destPath, "run.sh")
+    // Find all the modules used and copy them over.
+    config := revel.Config.Raw()
+    modulePaths := make(map[string]string) // import path => filesystem path
+    for _, section := range config.Sections() {
+        options, _ := config.SectionOptions(section)
+        for _, key := range options {
+            if !strings.HasPrefix(key, "module.") {
+                continue
+            }
+            moduleImportPath, _ := config.String(section, key)
+            if moduleImportPath == "" {
+                continue
+            }
+            modulePath, err := revel.ResolveImportPath(moduleImportPath)
+            if err != nil {
+                revel.ERROR.Fatalln("Failed to load module %s: %s", key[len("module."):], err)
+            }
+            modulePaths[moduleImportPath] = modulePath
+        }
+    }
+    for importPath, fsPath := range modulePaths {
+        _ = util.MustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+    }
 
-	mustRenderTemplate(
-		runShPath,
-		filepath.Join(revel.RevelPath, "..", "cmd", "revel", "package_run.sh.template"),
-		tmplData)
+    tmplData, runShPath := map[string]interface{}{
+        "BinName":    filepath.Base(app.BinaryPath),
+        "ImportPath": appImportPath,
+        "Mode":       mode,
+    }, filepath.Join(destPath, "run.sh")
 
-	mustChmod(runShPath, 0755)
+    util.MustRenderTemplate(
+        runShPath,
+        filepath.Join(revel.RevelPath, "..", "cmd", "revel", "package_run.sh.template"),
+        tmplData)
 
-	mustRenderTemplate(
-		filepath.Join(destPath, "run.bat"),
-		filepath.Join(revel.RevelPath, "..", "cmd", "revel", "package_run.bat.template"),
-		tmplData)
+    util.MustChmod(runShPath, 0755)
+
+    util.MustRenderTemplate(
+        filepath.Join(destPath, "run.bat"),
+        filepath.Join(revel.RevelPath, "..", "cmd", "revel", "package_run.bat.template"),
+        tmplData)
 }

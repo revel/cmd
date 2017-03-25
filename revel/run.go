@@ -5,8 +5,8 @@
 package main
 
 import (
+	"go/build"
 	"strconv"
-	"strings"
 
 	"github.com/revel/cmd/harness"
 	"github.com/revel/revel"
@@ -65,14 +65,18 @@ func parseRunArgs(args []string) *RunArgs {
 		// 1. revel run [import-path] [run-mode]
 		// 2. revel run [import-path] [port]
 		// 3. revel run [run-mode] [port]
-		if strings.Contains(args[0], "/") {
+		if _, err := build.Import(args[0], "", build.FindOnly); err == nil {
+			// 1st arg is the import path
 			inputArgs.ImportPath = args[0]
 			if port, err := strconv.Atoi(args[1]); err == nil {
+				// 2nd arg is the port number
 				inputArgs.Port = port
 			} else {
+				// 2nd arg is the run mode
 				inputArgs.Mode = args[1]
 			}
 		} else {
+			// 1st arg is the run mode
 			port, err := strconv.Atoi(args[1])
 			if err != nil {
 				errorf("Failed to parse port as integer: %s", args[1])
@@ -85,12 +89,14 @@ func parseRunArgs(args []string) *RunArgs {
 		// 1. revel run [import-path]
 		// 2. revel run [port]
 		// 3. revel run [run-mode]
-		if strings.Contains(args[0], "/") ||
-			strings.Contains(inputArgs.ImportPath, "..") {
+		if _, err := build.Import(args[0], "", build.FindOnly); err == nil {
+			// 1st arg is the import path
 			inputArgs.ImportPath = args[0]
 		} else if port, err := strconv.Atoi(args[0]); err == nil {
+			// 1st arg is the port number
 			inputArgs.Port = port
 		} else {
+			// 1st arg is the run mode
 			inputArgs.Mode = args[0]
 		}
 	}

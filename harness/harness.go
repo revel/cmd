@@ -47,7 +47,10 @@ type Harness struct {
 	proxy      *httputil.ReverseProxy
 }
 
-func renderError(w http.ResponseWriter, r *http.Request, err error) {
+func renderError(iw http.ResponseWriter, ir *http.Request, err error) {
+    r,w := &revel.GORequest{Goheader:&revel.GOHeader{}}, &revel.GOResponse{Goheader:&revel.GOHeader{}}
+    r.Set(ir)
+    w.Set(iw)
 	req, resp := revel.NewRequest(r), revel.NewResponse(w)
 	c := revel.NewController(req, resp)
 	c.RenderError(err).Apply(req, resp)

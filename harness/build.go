@@ -286,7 +286,7 @@ func calcImportAliases(src *SourceInfo) map[string]string {
 }
 
 func addAlias(aliases map[string]string, importPath, pkgName string) {
-	alias, ok := aliases[importPath]
+    alias, ok := aliases[importPath]
 	if ok {
 		return
 	}
@@ -297,7 +297,7 @@ func addAlias(aliases map[string]string, importPath, pkgName string) {
 func makePackageAlias(aliases map[string]string, pkgName string) string {
 	i := 0
 	alias := pkgName
-	for containsValue(aliases, alias) {
+	for containsValue(aliases, alias) || alias=="revel" {
 		alias = fmt.Sprintf("%s%d", pkgName, i)
 		i++
 	}

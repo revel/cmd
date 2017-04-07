@@ -128,7 +128,7 @@ watch = true
 
 # If you set watch.mode = "eager", the server starts to recompile
 # your application every time your application's files change.
-watch.mode = "normal"
+watch.mode = normal
 
 # Watch the entire $GOPATH for code changes. Default is false.
 #watch.gopath = true

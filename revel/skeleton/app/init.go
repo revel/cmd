@@ -43,9 +43,9 @@ func init() {
 // should probably also have a filter for CSRF
 // not sure if it can go in the same filter or not
 var HeaderFilter = func(c *revel.Controller, fc []revel.Filter) {
-	c.Response.SetHeader("X-Frame-Options", "SAMEORIGIN")
-	c.Response.SetHeader("X-XSS-Protection", "1; mode=block")
-	c.Response.SetHeader( "X-Content-Type-Options", "nosniff")
+	c.Response.SetHttpHeader("X-Frame-Options", "SAMEORIGIN")
+	c.Response.SetHttpHeader("X-XSS-Protection", "1; mode=block")
+	c.Response.SetHttpHeader( "X-Content-Type-Options", "nosniff")
 
 	fc[0](c, fc[1:]) // Execute the next filter stage.
 }

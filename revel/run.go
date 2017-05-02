@@ -89,7 +89,12 @@ func parseRunArgs(args []string) *RunArgs {
 		// 1. revel run [import-path]
 		// 2. revel run [port]
 		// 3. revel run [run-mode]
-		if _, err := build.Import(args[0], "", build.FindOnly); err == nil {
+        _, err := build.Import(args[0], "", build.FindOnly);
+        if err!=nil {
+            revel.WARN.Printf("Unable to run using an import path, assuming import path is working directory %s %s",args[0],err.Error())
+        }
+        println("Trying to build with",args[0], err)
+		if  err == nil {
 			// 1st arg is the import path
 			inputArgs.ImportPath = args[0]
 		} else if port, err := strconv.Atoi(args[0]); err == nil {

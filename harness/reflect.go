@@ -160,8 +160,20 @@ func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
 				return nil
 			}
 
+			// Ignore packages that end with _test
+			for i := range pkgs {
+				if len(i) > 6 {
+					if string(i[len(i)-5:]) == "_test" {
+						delete(pkgs, i)
+					}
+				}
+			}
+
 			// There should be only one package in this directory.
 			if len(pkgs) > 1 {
+				for i := range pkgs {
+					println("Found package ", i)
+				}
 				log.Println("Most unexpected! Multiple packages in a single directory:", pkgs)
 			}
 

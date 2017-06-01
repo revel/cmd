@@ -97,13 +97,13 @@ func testApp(args []string) {
 	defer cmd.Kill()
 	revel.INFO.Printf("Testing %s (%s) in %s mode\n", revel.AppName, revel.ImportPath, mode)
 
-	var httpAddr = revel.HttpAddr
+	var httpAddr = revel.HTTPAddr
 	if httpAddr == "" {
 		httpAddr = "127.0.0.1"
 	}
 
 	var httpProto = "http"
-	if revel.HttpSsl {
+	if revel.HTTPSsl {
 		httpProto = "https"
 	}
 

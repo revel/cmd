@@ -48,7 +48,7 @@ type Harness struct {
 }
 
 func renderError(iw http.ResponseWriter, ir *http.Request, err error) {
-	context := revel.NewGOContext(nil)
+	context := revel.NewGoContext(nil)
 	context.Request.SetRequest(ir)
 	context.Response.SetResponse(iw)
 	c := revel.NewController(context)

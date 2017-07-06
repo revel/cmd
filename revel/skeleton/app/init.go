@@ -29,7 +29,7 @@ func init() {
 		revel.ActionInvoker,           // Invoke the action.
 	}
 
-	// register startup functions with OnAppStart
+	// Register startup functions with OnAppStart
 	// revel.DevMode and revel.RunMode only work inside of OnAppStart. See Example Startup Script
 	// ( order dependent )
 	// revel.OnAppStart(ExampleStartupScript)

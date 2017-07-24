@@ -47,10 +47,12 @@ type Harness struct {
 	proxy      *httputil.ReverseProxy
 }
 
-func renderError(w http.ResponseWriter, r *http.Request, err error) {
-	req, resp := revel.NewRequest(r), revel.NewResponse(w)
-	c := revel.NewController(req, resp)
-	c.RenderError(err).Apply(req, resp)
+func renderError(iw http.ResponseWriter, ir *http.Request, err error) {
+	context := revel.NewGoContext(nil)
+	context.Request.SetRequest(ir)
+	context.Response.SetResponse(iw)
+	c := revel.NewController(context)
+	c.RenderError(err).Apply(c.Request, c.Response)
 }
 
 // ServeHTTP handles all requests.

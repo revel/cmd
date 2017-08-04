@@ -32,7 +32,6 @@ import (
 )
 
 var (
-	watcher    *revel.Watcher
 	doNotWatch = []string{"tmp", "views", "routes"}
 
 	lastRequestHadError int32
@@ -45,6 +44,7 @@ type Harness struct {
 	serverHost string
 	port       int
 	proxy      *httputil.ReverseProxy
+	watcher    *revel.Watcher
 }
 
 func renderError(iw http.ResponseWriter, ir *http.Request, err error) {
@@ -63,14 +63,21 @@ func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Flush any change events and rebuild app if necessary.
-	// Render an error page if the rebuild / restart failed.
-	err := watcher.Notify()
-	if err != nil {
-		atomic.CompareAndSwapInt32(&lastRequestHadError, 0, 1)
-		renderError(w, r, err)
-		return
+	// If app did not start when harness was run then trigger the build to capture the error
+	if h.app == nil {
+		// Flush any change events and rebuild app if necessary.
+		// Render an error page if the rebuild / restart failed.
+		err := h.watcher.Notify()
+		if err != nil {
+			// In a thread safe manner update the flag so that a request for
+			// /favicon.ico does not trigger a rebuild
+			atomic.CompareAndSwapInt32(&lastRequestHadError, 0, 1)
+			renderError(w, r, err)
+			return
+		}
 	}
+	// In a thread safe manner update the flag so that a request for
+	// /favicon.ico is allowed
 	atomic.CompareAndSwapInt32(&lastRequestHadError, 1, 0)
 
 	// Reverse proxy the request.
@@ -169,8 +176,9 @@ func (h *Harness) Run() {
 		paths = append(paths, gopaths...)
 	}
 	paths = append(paths, revel.CodePaths...)
-	watcher = revel.NewWatcher()
-	watcher.Listen(h, paths...)
+	h.watcher = revel.NewWatcher()
+	h.watcher.Listen(h, paths...)
+	h.watcher.Notify()
 
 	go func() {
 		addr := fmt.Sprintf("%s:%d", revel.HTTPAddr, revel.HTTPPort)

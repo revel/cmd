@@ -51,7 +51,7 @@ func parseRunArgs(args []string) *RunArgs {
 	}
 	switch len(args) {
 	case 3:
-		// Possibile combinations
+		// Possible combinations
 		// revel run [import-path] [run-mode] [port]
 		port, err := strconv.Atoi(args[2])
 		if err != nil {
@@ -61,7 +61,7 @@ func parseRunArgs(args []string) *RunArgs {
 		inputArgs.Mode = args[1]
 		inputArgs.Port = port
 	case 2:
-		// Possibile combinations
+		// Possible combinations
 		// 1. revel run [import-path] [run-mode]
 		// 2. revel run [import-path] [port]
 		// 3. revel run [run-mode] [port]
@@ -85,7 +85,7 @@ func parseRunArgs(args []string) *RunArgs {
 			inputArgs.Port = port
 		}
 	case 1:
-		// Possibile combinations
+		// Possible combinations
 		// 1. revel run [import-path]
 		// 2. revel run [port]
 		// 3. revel run [run-mode]

@@ -29,6 +29,7 @@ import (
 	"sync/atomic"
 
 	"github.com/revel/revel"
+	"sync"
 )
 
 var (
@@ -45,6 +46,7 @@ type Harness struct {
 	port       int
 	proxy      *httputil.ReverseProxy
 	watcher    *revel.Watcher
+	mutex      *sync.Mutex
 }
 
 func renderError(iw http.ResponseWriter, ir *http.Request, err error) {
@@ -63,19 +65,17 @@ func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If app did not start when harness was run then trigger the build to capture the error
-	if h.app == nil {
-		// Flush any change events and rebuild app if necessary.
-		// Render an error page if the rebuild / restart failed.
-		err := h.watcher.Notify()
-		if err != nil {
-			// In a thread safe manner update the flag so that a request for
-			// /favicon.ico does not trigger a rebuild
-			atomic.CompareAndSwapInt32(&lastRequestHadError, 0, 1)
-			renderError(w, r, err)
-			return
-		}
+	// Flush any change events and rebuild app if necessary.
+	// Render an error page if the rebuild / restart failed.
+	err := h.watcher.Notify()
+	if err != nil {
+		// In a thread safe manner update the flag so that a request for
+		// /favicon.ico does not trigger a rebuild
+		atomic.CompareAndSwapInt32(&lastRequestHadError, 0, 1)
+		renderError(w, r, err)
+		return
 	}
+
 	// In a thread safe manner update the flag so that a request for
 	// /favicon.ico is allowed
 	atomic.CompareAndSwapInt32(&lastRequestHadError, 1, 0)
@@ -122,6 +122,7 @@ func NewHarness() *Harness {
 		port:       port,
 		serverHost: serverURL.String()[len(scheme+"://"):],
 		proxy:      httputil.NewSingleHostReverseProxy(serverURL),
+		mutex:      &sync.Mutex{},
 	}
 
 	if revel.HTTPSsl {
@@ -134,6 +135,10 @@ func NewHarness() *Harness {
 
 // Refresh method rebuilds the Revel application and run it on the given port.
 func (h *Harness) Refresh() (err *revel.Error) {
+	// Allow only one thread to rebuild the process
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	if h.app != nil {
 		h.app.Kill()
 	}
@@ -162,7 +167,7 @@ func (h *Harness) WatchDir(info os.FileInfo) bool {
 }
 
 // WatchFile method returns true given filename HasSuffix of ".go"
-// otheriwse false
+// otheriwse false - implements revel.DiscerningListener
 func (h *Harness) WatchFile(filename string) bool {
 	return strings.HasSuffix(filename, ".go")
 }

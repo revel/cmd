@@ -58,7 +58,7 @@ func NewAppCmd(binPath string, port int) AppCmd {
 
 // Start the app server, and wait until it is ready to serve requests.
 func (cmd AppCmd) Start() error {
-	listeningWriter := startupListeningWriter{os.Stdout, make(chan bool)}
+	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool)}
 	cmd.Stdout = listeningWriter
 	revel.TRACE.Println("Exec app:", cmd.Path, cmd.Args)
 	if err := cmd.Cmd.Start(); err != nil {
@@ -70,6 +70,7 @@ func (cmd AppCmd) Start() error {
 		return errors.New("revel/harness: app died")
 
 	case <-time.After(30 * time.Second):
+		revel.TRACE.Println("Killing revel server process did not respond after wait timeout", cmd.Process.Pid)
 		cmd.Kill()
 		return errors.New("revel/harness: app timed out")
 
@@ -118,7 +119,7 @@ type startupListeningWriter struct {
 	notifyReady chan bool
 }
 
-func (w startupListeningWriter) Write(p []byte) (n int, err error) {
+func (w *startupListeningWriter) Write(p []byte) (n int, err error) {
 	if w.notifyReady != nil && bytes.Contains(p, []byte("Listening")) {
 		w.notifyReady <- true
 		w.notifyReady = nil

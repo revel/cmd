@@ -59,12 +59,12 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	// It relies on the user having "go" installed.
 	goPath, err := exec.LookPath("go")
 	if err != nil {
-		revel.ERROR.Fatalf("Go executable not found in PATH.")
+		revel.RevelLog.Fatalf("Go executable not found in PATH.")
 	}
 
 	pkg, err := build.Default.Import(revel.ImportPath, "", build.FindOnly)
 	if err != nil {
-		revel.ERROR.Fatalln("Failure importing", revel.ImportPath)
+		revel.RevelLog.Fatal("Failure importing", "path", revel.ImportPath)
 	}
 
 	// Binary path is a combination of $GOBIN/revel.d directory, app's import path and its name.
@@ -109,14 +109,14 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		flags = append(flags, path.Join(revel.ImportPath, "app", "tmp"))
 
 		buildCmd := exec.Command(goPath, flags...)
-		revel.TRACE.Println("Exec:", buildCmd.Args)
+		revel.RevelLog.Debug("Exec:", "args", buildCmd.Args)
 		output, err := buildCmd.CombinedOutput()
 
 		// If the build succeeded, we're done.
 		if err == nil {
 			return NewApp(binName), nil
 		}
-		revel.ERROR.Println(string(output))
+		revel.RevelLog.Error(string(output))
 
 		// See if it was an import error that we can go get.
 		matches := importErrorPattern.FindStringSubmatch(string(output))
@@ -133,10 +133,10 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 
 		// Execute "go get <pkg>"
 		getCmd := exec.Command(goPath, "get", pkgName)
-		revel.TRACE.Println("Exec:", getCmd.Args)
+		revel.RevelLog.Debug("Exec:", "args", getCmd.Args)
 		getOutput, err := getCmd.CombinedOutput()
 		if err != nil {
-			revel.ERROR.Println(string(getOutput))
+			revel.RevelLog.Error(string(getOutput))
 			return nil, newCompileError(output)
 		}
 
@@ -144,7 +144,7 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 	}
 
 	// TODO remove this unreachable code and document it
-	revel.ERROR.Fatalf("Not reachable")
+	revel.RevelLog.Fatalf("Not reachable")
 	return nil, nil
 }
 
@@ -168,11 +168,11 @@ func getAppVersion() string {
 			return ""
 		}
 		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "describe", "--always", "--dirty")
-		revel.TRACE.Println("Exec:", gitCmd.Args)
+		revel.RevelLog.Debug("Exec:", "args", gitCmd.Args)
 		output, err := gitCmd.Output()
 
 		if err != nil {
-			revel.WARN.Println("Cannot determine git repository version:", err)
+			revel.RevelLog.Warn("Cannot determine git repository version:", "error", err)
 			return ""
 		}
 
@@ -189,12 +189,12 @@ func cleanSource(dirs ...string) {
 }
 
 func cleanDir(dir string) {
-	revel.INFO.Println("Cleaning dir " + dir)
+	revel.RevelLog.Info("Cleaning dir " + dir)
 	tmpPath := filepath.Join(revel.AppPath, dir)
 	f, err := os.Open(tmpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			revel.ERROR.Println("Failed to clean dir:", err)
+			revel.RevelLog.Error("Failed to clean dir:", "error", err)
 		}
 	} else {
 		defer func() {
@@ -204,20 +204,20 @@ func cleanDir(dir string) {
 		infos, err := f.Readdir(0)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				revel.ERROR.Println("Failed to clean dir:", err)
+				revel.RevelLog.Error("Failed to clean dir:", "error", err)
 			}
 		} else {
 			for _, info := range infos {
-				path := filepath.Join(tmpPath, info.Name())
+				pathName := filepath.Join(tmpPath, info.Name())
 				if info.IsDir() {
-					err := os.RemoveAll(path)
+					err := os.RemoveAll(pathName)
 					if err != nil {
-						revel.ERROR.Println("Failed to remove dir:", err)
+						revel.RevelLog.Error("Failed to remove dir:", "error", err)
 					}
 				} else {
-					err := os.Remove(path)
+					err := os.Remove(pathName)
 					if err != nil {
-						revel.ERROR.Println("Failed to remove file:", err)
+						revel.RevelLog.Error("Failed to remove file:", "error", err)
 					}
 				}
 			}
@@ -237,20 +237,20 @@ func genSource(dir, filename, templateSource string, args map[string]interface{}
 	tmpPath := filepath.Join(revel.AppPath, dir)
 	err := os.Mkdir(tmpPath, 0777)
 	if err != nil && !os.IsExist(err) {
-		revel.ERROR.Fatalf("Failed to make '%v' directory: %v", dir, err)
+		revel.RevelLog.Fatalf("Failed to make '%v' directory: %v", dir, err)
 	}
 
 	// Create the file
 	file, err := os.Create(filepath.Join(tmpPath, filename))
 	if err != nil {
-		revel.ERROR.Fatalf("Failed to create file: %v", err)
+		revel.RevelLog.Fatalf("Failed to create file: %v", err)
 	}
 	defer func() {
 		_ = file.Close()
 	}()
 
 	if _, err = file.WriteString(sourceCode); err != nil {
-		revel.ERROR.Fatalf("Failed to write to file: %v", err)
+		revel.RevelLog.Fatalf("Failed to write to file: %v", err)
 	}
 }
 
@@ -287,7 +287,7 @@ func calcImportAliases(src *SourceInfo) map[string]string {
 }
 
 func addAlias(aliases map[string]string, importPath, pkgName string) {
-    alias, ok := aliases[importPath]
+	alias, ok := aliases[importPath]
 	if ok {
 		return
 	}
@@ -298,7 +298,7 @@ func addAlias(aliases map[string]string, importPath, pkgName string) {
 func makePackageAlias(aliases map[string]string, pkgName string) string {
 	i := 0
 	alias := pkgName
-	for containsValue(aliases, alias) || alias=="revel" {
+	for containsValue(aliases, alias) || alias == "revel" {
 		alias = fmt.Sprintf("%s%d", pkgName, i)
 		i++
 	}
@@ -323,7 +323,7 @@ func newCompileError(output []byte) *revel.Error {
 		errorMatch = regexp.MustCompile(`(?m)^(.*?)\:(\d+)\:\s(.*?)$`).FindSubmatch(output)
 
 		if errorMatch == nil {
-			revel.ERROR.Println("Failed to parse build errors:\n", string(output))
+			revel.RevelLog.Error("Failed to parse build errors", "error", string(output))
 			return &revel.Error{
 				SourceType:  "Go code",
 				Title:       "Go Compilation Error",
@@ -333,7 +333,7 @@ func newCompileError(output []byte) *revel.Error {
 
 		errorMatch = append(errorMatch, errorMatch[3])
 
-		revel.ERROR.Println("Build errors:\n", string(output))
+		revel.RevelLog.Error("Build errors", "errors", string(output))
 	}
 
 	// Read the source for the offending file.
@@ -360,7 +360,7 @@ func newCompileError(output []byte) *revel.Error {
 	fileStr, err := revel.ReadLines(absFilename)
 	if err != nil {
 		compileError.MetaError = absFilename + ": " + err.Error()
-		revel.ERROR.Println(compileError.MetaError)
+		revel.RevelLog.Error(compileError.MetaError)
 		return compileError
 	}
 

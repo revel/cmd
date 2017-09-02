@@ -97,7 +97,7 @@ func NewHarness() *Harness {
 	revel.MainTemplateLoader = revel.NewTemplateLoader(
 		[]string{filepath.Join(revel.RevelPath, "templates")})
 	if err := revel.MainTemplateLoader.Refresh(); err != nil {
-		revel.ERROR.Println(err)
+		revel.RevelLog.Error("Template loader error", "error", err)
 	}
 
 	addr := revel.HTTPAddr
@@ -118,7 +118,7 @@ func NewHarness() *Harness {
 
 	serverURL, _ := url.ParseRequestURI(fmt.Sprintf(scheme+"://%s:%d", addr, port))
 
-	harness := &Harness{
+	serverHarness := &Harness{
 		port:       port,
 		serverHost: serverURL.String()[len(scheme+"://"):],
 		proxy:      httputil.NewSingleHostReverseProxy(serverURL),
@@ -126,11 +126,11 @@ func NewHarness() *Harness {
 	}
 
 	if revel.HTTPSsl {
-		harness.proxy.Transport = &http.Transport{
+		serverHarness.proxy.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 	}
-	return harness
+	return serverHarness
 }
 
 // Refresh method rebuilds the Revel application and run it on the given port.
@@ -143,7 +143,7 @@ func (h *Harness) Refresh() (err *revel.Error) {
 		h.app.Kill()
 	}
 
-	revel.TRACE.Println("Rebuild")
+	revel.RevelLog.Debug("Rebuild Called")
 	h.app, err = Build()
 	if err != nil {
 		return
@@ -187,7 +187,7 @@ func (h *Harness) Run() {
 
 	go func() {
 		addr := fmt.Sprintf("%s:%d", revel.HTTPAddr, revel.HTTPPort)
-		revel.INFO.Printf("Listening on %s", addr)
+		revel.RevelLog.Infof("Listening on %s", addr)
 
 		var err error
 		if revel.HTTPSsl {
@@ -200,7 +200,7 @@ func (h *Harness) Run() {
 			err = http.ListenAndServe(addr, h)
 		}
 		if err != nil {
-			revel.ERROR.Fatalln("Failed to start reverse proxy:", err)
+			revel.RevelLog.Error("Failed to start reverse proxy:", "error", err)
 		}
 	}()
 
@@ -218,13 +218,13 @@ func (h *Harness) Run() {
 func getFreePort() (port int) {
 	conn, err := net.Listen("tcp", ":0")
 	if err != nil {
-		revel.ERROR.Fatal(err)
+		revel.RevelLog.Fatal("Unable to fetch a freee port address", "error", err)
 	}
 
 	port = conn.Addr().(*net.TCPAddr).Port
 	err = conn.Close()
 	if err != nil {
-		revel.ERROR.Fatal(err)
+		revel.RevelLog.Fatal("Unable to close port", "error", err)
 	}
 	return port
 }
@@ -246,7 +246,7 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 	}
 	if err != nil {
 		http.Error(w, "Error contacting backend server.", 500)
-		revel.ERROR.Printf("Error dialing websocket backend %s: %v", host, err)
+		revel.RevelLog.Error("Error dialing websocket backend ", "host", host, "error", err)
 		return
 	}
 	hj, ok := w.(http.Hijacker)
@@ -256,21 +256,21 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 	}
 	nc, _, err := hj.Hijack()
 	if err != nil {
-		revel.ERROR.Printf("Hijack error: %v", err)
+		revel.RevelLog.Error("Hijack error", "error", err)
 		return
 	}
 	defer func() {
 		if err = nc.Close(); err != nil {
-			revel.ERROR.Println(err)
+			revel.RevelLog.Error("Connection close error", "error", err)
 		}
 		if err = d.Close(); err != nil {
-			revel.ERROR.Println(err)
+			revel.RevelLog.Error("Dial close error", "error", err)
 		}
 	}()
 
 	err = r.Write(d)
 	if err != nil {
-		revel.ERROR.Printf("Error copying request to target: %v", err)
+		revel.RevelLog.Error("Error copying request to target", "error", err)
 		return
 	}
 

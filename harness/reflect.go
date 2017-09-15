@@ -456,10 +456,13 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 				revel.RevelLog.Warnf("Didn't understand argument '%s' of action %s. Ignoring.", name, getFuncName(funcDecl))
 				return // We didn't understand one of the args.  Ignore this action.
 			}
-			if typeExpr.PkgName != "" {
+			// Local object
+			if typeExpr.PkgName == pkgName {
+				importPath = pkgImportPath
+			} else if typeExpr.PkgName != "" {
 				var ok bool
 				if importPath, ok = imports[typeExpr.PkgName]; !ok {
-					revel.RevelLog.Errorf("Failed to find import for arg of type:", typeExpr.TypeName(""))
+					revel.RevelLog.Errorf("Failed to find import for arg of type: %s , %s",typeExpr.PkgName, typeExpr.TypeName(""))
 				}
 			}
 			method.Args = append(method.Args, &MethodArg{

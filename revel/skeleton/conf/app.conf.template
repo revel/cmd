@@ -84,15 +84,6 @@ format.datetime = 2006-01-02 15:04
 results.chunked = false
 
 
-# Prefixes for each log message line.
-# User can override these prefix values within any section
-# For e.g: [dev], [prod], etc
-log.trace.prefix = "TRACE "
-log.info.prefix  = "INFO  "
-log.warn.prefix  = "WARN  "
-log.error.prefix = "ERROR "
-
-
 # The default language of this application.
 i18n.default_language = en
 
@@ -179,36 +170,12 @@ module.testrunner = github.com/revel/modules/testrunner
 #   Log to Os's standard error output. Default value.
 # "relative/path/to/log"
 #   Log to file.
-log.trace.output = off
-log.info.output  = stderr
-log.warn.output  = stderr
-log.error.output = stderr
-
-
-# Revel log flags. Possible flags defined by the Go `log` package. Go log is
-# "Bits OR'ed together to control what's printed
-# See:
-#   https://golang.org/pkg/log/#pkg-constants
-# Values:
-# "0"
-#   Just log the message, turn off the flags.
-# "3"
-#   log.LstdFlags (log.Ldate|log.Ltime)
-# "19"
-#   log.Ldate|log.Ltime|log.Lshortfile
-# "23"
-#   log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile
-log.trace.flags = 19
-log.info.flags  = 19
-log.warn.flags  = 19
-log.error.flags = 19
-
+log.all.filter.module.app = stdout # Log all loggers for the application to the stdout
+log.error.output = stderr          # Log all loggers for Revel errors to the stderr
 
 # Revel request access log
 # Access log line format:
-# RequestStartTime ClientIP ResponseStatus RequestLatency HTTPMethod URLPath
-# Sample format:
-# 2016/05/25 17:46:37.112 127.0.0.1 200  270.157µs GET /
+# INFO  21:53:55 static server-engine.go:169: Request Stats                             ip=127.0.0.1 path=/public/vendors/datatables.net-buttons/js/buttons.html5.min.js method=GET start=2017/08/31 21:53:55 status=200 duration_seconds=0.0002583 section=requestlog
 log.request.output = stderr
 
 
@@ -229,30 +196,12 @@ watch = false
 
 module.testrunner =
 
-log.trace.output = off
-log.info.output  = off
-log.warn.output  = log/%(app.name)s.log
-log.error.output = log/%(app.name)s.log
-
-# Revel log flags. Possible flags defined by the Go `log` package,
-# please refer https://golang.org/pkg/log/#pkg-constants
-# Go log is "Bits or'ed together to control what's printed"
-# Examples:
-#   0  => just log the message, turn off the flags
-#   3  => log.LstdFlags (log.Ldate|log.Ltime)
-#   19 => log.Ldate|log.Ltime|log.Lshortfile
-#   23 => log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile
-log.trace.flags = 3
-log.info.flags  = 3
-log.warn.flags  = 3
-log.error.flags = 3
-
+log.warn.output  = log/%(app.name)s.log  # Log all loggers for the application to the stdout
+log.error.output = log/%(app.name)s.log            # Log all errors to the stdout
 
 # Revel request access log
 # Access log line format:
-# RequestStartTime ClientIP ResponseStatus RequestLatency HTTPMethod URLPath
-# Sample format:
-# 2016/05/25 17:46:37.112 127.0.0.1 200  270.157µs GET /
+# INFO  21:53:55 static server-engine.go:169: Request Stats                             ip=127.0.0.1 path=/public/vendors/datatables.net-buttons/js/buttons.html5.min.js method=GET start=2017/08/31 21:53:55 status=200 duration_seconds=0.0002583 section=requestlog
 # Example:
-#   log.request.output = %(app.name)s-request.log
-log.request.output = off
+#   log.request.output = %(app.name)s-request.json
+log.request.output = log/requests.json

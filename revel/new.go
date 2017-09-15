@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
-	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -66,8 +65,6 @@ func newApp(args []string) {
 	if len(args) > 2 {
 		errorf("Too many arguments provided.\nRun 'revel help new' for usage.\n")
 	}
-
-	revel.ERROR.SetFlags(log.LstdFlags)
 
 	// checking and setting go paths
 	initGoPaths()
@@ -129,7 +126,7 @@ func initGoPaths() {
 	}
 
 	if len(srcRoot) == 0 {
-		revel.ERROR.Fatalln("Abort: could not create a Revel application outside of GOPATH.")
+		revel.RevelLog.Fatal("Abort: could not create a Revel application outside of GOPATH.")
 	}
 
 	// set go src path

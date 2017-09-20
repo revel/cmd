@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/revel/revel"
+	"unicode"
 )
 
 // SourceInfo is the top-level struct containing all extracted information
@@ -335,6 +336,7 @@ func appendStruct(specs []*TypeInfo, pkgImportPath string, pkg *ast.Package, dec
 	if !found {
 		return specs
 	}
+
 	structType := spec.Type.(*ast.StructType)
 
 	// At this point we know it's a type declaration for a struct.
@@ -462,7 +464,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 			} else if typeExpr.PkgName != "" {
 				var ok bool
 				if importPath, ok = imports[typeExpr.PkgName]; !ok {
-					revel.RevelLog.Errorf("Failed to find import for arg of type: %s , %s",typeExpr.PkgName, typeExpr.TypeName(""))
+					revel.RevelLog.Errorf("Failed to find import for arg of type: %s , %s", typeExpr.PkgName, typeExpr.TypeName(""))
 				}
 			}
 			method.Args = append(method.Args, &MethodArg{
@@ -661,7 +663,7 @@ func getStructTypeDecl(decl ast.Decl, fset *token.FileSet) (spec *ast.TypeSpec, 
 // TypesThatEmbed returns all types that (directly or indirectly) embed the
 // target type, which must be a fully qualified type name,
 // e.g. "github.com/revel/revel.Controller"
-func (s *SourceInfo) TypesThatEmbed(targetType string) (filtered []*TypeInfo) {
+func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered []*TypeInfo) {
 	// Do a search in the "embedded type graph", starting with the target type.
 	var (
 		nodeQueue = []string{targetType}
@@ -693,6 +695,37 @@ func (s *SourceInfo) TypesThatEmbed(targetType string) (filtered []*TypeInfo) {
 			}
 		}
 	}
+	// Strip out any specifications that contain a lower case
+	for exit := false; !exit; exit = true {
+		for i, filteredItem := range filtered {
+			if unicode.IsLower([]rune(filteredItem.StructName)[0]) {
+				revel.RevelLog.Debug("Skipping adding spec for unexported type",
+					"type", filteredItem.StructName,
+					"package", filteredItem.ImportPath)
+				filtered = append(filtered[:i], filtered[i+1:]...)
+				exit = false
+				break
+			}
+		}
+	}
+
+	// Check for any missed types that where from expected packages
+	for _, spec := range s.StructSpecs {
+		if spec.PackageName == packageFilter {
+			found := false
+			for _, filteredItem := range filtered {
+				if filteredItem.StructName == spec.StructName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				revel.RevelLog.Warn("Type found in package: "+packageFilter+
+					", but did not inherit from: "+filepath.Base(targetType),
+					"name", spec.StructName, "path", spec.ImportPath)
+			}
+		}
+	}
 	return
 }
 
@@ -700,7 +733,7 @@ func (s *SourceInfo) TypesThatEmbed(targetType string) (filtered []*TypeInfo) {
 // `revel.Controller`
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 	if s.controllerSpecs == nil {
-		s.controllerSpecs = s.TypesThatEmbed(revel.RevelImportPath + ".Controller")
+		s.controllerSpecs = s.TypesThatEmbed(revel.RevelImportPath+".Controller", "controllers")
 	}
 	return s.controllerSpecs
 }
@@ -709,7 +742,7 @@ func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 // `testing.TestSuite`
 func (s *SourceInfo) TestSuites() []*TypeInfo {
 	if s.testSuites == nil {
-		s.testSuites = s.TypesThatEmbed(revel.RevelImportPath + "/testing.TestSuite")
+		s.testSuites = s.TypesThatEmbed(revel.RevelImportPath+"/testing.TestSuite", "testsuite")
 	}
 	return s.testSuites
 }

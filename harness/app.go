@@ -60,9 +60,9 @@ func NewAppCmd(binPath string, port int) AppCmd {
 func (cmd AppCmd) Start() error {
 	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool)}
 	cmd.Stdout = listeningWriter
-	revel.RevelLog.Debug("Exec app:","path", cmd.Path,"args", cmd.Args)
+	revel.RevelLog.Debug("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Start(); err != nil {
-		revel.RevelLog.Fatal("Error running:","error", err)
+		revel.RevelLog.Fatal("Error running:", "error", err)
 	}
 
 	select {
@@ -70,7 +70,7 @@ func (cmd AppCmd) Start() error {
 		return errors.New("revel/harness: app died")
 
 	case <-time.After(30 * time.Second):
-		revel.RevelLog.Debug("Killing revel server process did not respond after wait timeout", cmd.Process.Pid)
+		revel.RevelLog.Debug("Killing revel server process did not respond after wait timeout", "processid", cmd.Process.Pid)
 		cmd.Kill()
 		return errors.New("revel/harness: app timed out")
 
@@ -84,19 +84,19 @@ func (cmd AppCmd) Start() error {
 
 // Run the app server inline.  Never returns.
 func (cmd AppCmd) Run() {
-	revel.RevelLog.Debug("Exec app:","path", cmd.Path,"args", cmd.Args)
+	revel.RevelLog.Debug("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Run(); err != nil {
-		revel.RevelLog.Fatal("Error running:","error", err)
+		revel.RevelLog.Fatal("Error running:", "error", err)
 	}
 }
 
 // Kill terminates the app server if it's running.
 func (cmd AppCmd) Kill() {
 	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
-		revel.RevelLog.Debug("Killing revel server pid","pid", cmd.Process.Pid)
+		revel.RevelLog.Debug("Killing revel server pid", "pid", cmd.Process.Pid)
 		err := cmd.Process.Kill()
 		if err != nil {
-			revel.RevelLog.Fatal("Failed to kill revel server:","error", err)
+			revel.RevelLog.Fatal("Failed to kill revel server:", "error", err)
 		}
 	}
 }

@@ -170,13 +170,13 @@ module.testrunner = github.com/revel/modules/testrunner
 #   Log to Os's standard error output. Default value.
 # "relative/path/to/log"
 #   Log to file.
-log.all.filter.module.app = stdout # Log all loggers for the application to the stdout
-log.error.output = stderr          # Log all loggers for Revel errors to the stderr
+log.all.filter.module.app = stdout    # Log all loggers for the application to the stdout
+log.error.nfilter.module.app = stderr # Everything else that logs an error to stderr
 
 # Revel request access log
 # Access log line format:
 # INFO  21:53:55 static server-engine.go:169: Request Stats                             ip=127.0.0.1 path=/public/vendors/datatables.net-buttons/js/buttons.html5.min.js method=GET start=2017/08/31 21:53:55 status=200 duration_seconds=0.0002583 section=requestlog
-log.request.output = stderr
+log.request.output = stdout
 
 
 
@@ -199,9 +199,7 @@ module.testrunner =
 log.warn.output  = log/%(app.name)s.log  # Log all loggers for the application to the stdout
 log.error.output = log/%(app.name)s.log            # Log all errors to the stdout
 
-# Revel request access log
-# Access log line format:
-# INFO  21:53:55 static server-engine.go:169: Request Stats                             ip=127.0.0.1 path=/public/vendors/datatables.net-buttons/js/buttons.html5.min.js method=GET start=2017/08/31 21:53:55 status=200 duration_seconds=0.0002583 section=requestlog
+# Revel request access log (json format)
 # Example:
 #   log.request.output = %(app.name)s-request.json
-log.request.output = log/requests.json
+log.request.output = log/%(app.name)s-requests.json

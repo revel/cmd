@@ -393,7 +393,7 @@ var (
 func main() {
 	flag.Parse()
 	revel.Init(*runMode, *importPath, *srcPath)
-	revel.INFO.Println("Running revel server")
+	revel.AppLog.Info("Running revel server")
 	{{range $i, $c := .Controllers}}
 	revel.RegisterController((*{{index $.ImportPaths .ImportPath}}.{{.StructName}})(nil),
 		[]*revel.MethodType{

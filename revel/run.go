@@ -91,7 +91,7 @@ func parseRunArgs(args []string) *RunArgs {
 		// 3. revel run [run-mode]
 		_, err := build.Import(args[0], "", build.FindOnly)
 		if err != nil {
-			revel.WARN.Printf("Unable to run using an import path, assuming import path is working directory %s %s", args[0], err.Error())
+			revel.RevelLog.Warn("Unable to run using an import path, assuming import path is working directory %s %s", "Argument", args[0], "error", err.Error())
 		}
 		println("Trying to build with", args[0], err)
 		if err == nil {
@@ -121,18 +121,18 @@ func runApp(args []string) {
 		runArgs.Port = revel.HTTPPort
 	}
 
-	revel.INFO.Printf("Running %s (%s) in %s mode\n", revel.AppName, revel.ImportPath, runArgs.Mode)
-	revel.TRACE.Println("Base path:", revel.BasePath)
+	revel.RevelLog.Infof("Running %s (%s) in %s mode\n", revel.AppName, revel.ImportPath, runArgs.Mode)
+	revel.RevelLog.Debug("Base path:", "path", revel.BasePath)
 
 	// If the app is run in "watched" mode, use the harness to run it.
 	if revel.Config.BoolDefault("watch", true) && revel.Config.BoolDefault("watch.code", true) {
-		revel.TRACE.Println("Running in watched mode.")
+		revel.RevelLog.Debug("Running in watched mode.")
 		revel.HTTPPort = runArgs.Port
 		harness.NewHarness().Run() // Never returns.
 	}
 
 	// Else, just build and run the app.
-	revel.TRACE.Println("Running in live build mode.")
+	revel.RevelLog.Debug("Running in live build mode.")
 	app, err := harness.Build()
 	if err != nil {
 		errorf("Failed to build app: %s", err)

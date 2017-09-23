@@ -151,10 +151,8 @@ func setApplicationPath(args []string) {
 	appPath = filepath.Join(srcRoot, filepath.FromSlash(importPath))
 
 	_, err = build.Import(importPath, "", build.FindOnly)
-	if err == nil {
-		if !empty(appPath) {
-			errorf("Abort: Import path %s already exists.\n", importPath)
-		}
+	if err == nil && !empty(appPath) {
+		errorf("Abort: Import path %s already exists.\n", importPath)
 	}
 
 	revelPkg, err = build.Import(revel.RevelImportPath, "", build.FindOnly)

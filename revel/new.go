@@ -145,8 +145,10 @@ func setApplicationPath(args []string) {
 			importPath)
 	}
 
+	appPath = filepath.Join(srcRoot, filepath.FromSlash(importPath))
+
 	_, err = build.Import(importPath, "", build.FindOnly)
-	if err == nil {
+	if err == nil && !empty(appPath) {
 		errorf("Abort: Import path %s already exists.\n", importPath)
 	}
 
@@ -155,7 +157,6 @@ func setApplicationPath(args []string) {
 		errorf("Abort: Could not find Revel source code: %s\n", err)
 	}
 
-	appPath = filepath.Join(srcRoot, filepath.FromSlash(importPath))
 	appName = filepath.Base(appPath)
 	basePath = filepath.ToSlash(filepath.Dir(importPath))
 

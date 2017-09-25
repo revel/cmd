@@ -62,6 +62,40 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		revel.RevelLog.Fatalf("Go executable not found in PATH.")
 	}
 
+	// Detect if deps tool should be used (is there a vendor folder ?)
+	useVendor := revel.DirExists(filepath.Join(revel.BasePath, "vendor"))
+	basePath := revel.BasePath
+	for !useVendor {
+		basePath = filepath.Dir(basePath)
+		found := false
+		// Check to see if we are still in the GOPATH
+		for _, path := range filepath.SplitList(build.Default.GOPATH) {
+			if strings.HasPrefix(basePath, path) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		} else {
+			useVendor = revel.DirExists(filepath.Join(basePath, "vendor"))
+		}
+	}
+
+	var depPath string
+	if useVendor {
+		revel.RevelLog.Info("Vendor folder detected, scanning for deps in path")
+		depPath, err = exec.LookPath("dep")
+		if err != nil {
+			// Do not halt build unless a new package needs to be imported
+			revel.RevelLog.Warn("Build: `dep` executable not found in PATH, but vendor folder detected." +
+				"Packages can only be added automatically to the vendor folder using the `dep` tool. " +
+				"You can install the `dep` tool by doing a `go get -u github.com/golang/dep/cmd/dep`")
+		}
+	} else {
+		revel.RevelLog.Info("No vendor folder detected, not using dependency manager to import files")
+	}
+
 	pkg, err := build.Default.Import(revel.ImportPath, "", build.FindOnly)
 	if err != nil {
 		revel.RevelLog.Fatal("Failure importing", "path", revel.ImportPath)
@@ -87,13 +121,6 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
 			revel.ImportPath, appVersion, revel.ImportPath, buildTime)
 
-		// TODO remove version check for versionLinkerFlags after Revel becomes Go min version to go1.5
-		goVersion, err := strconv.ParseFloat(runtime.Version()[2:5], 64)
-		// runtime.Version() may return commit hash, we assume it is above 1.5
-		if goVersion < 1.5 && err == nil {
-			versionLinkerFlags = fmt.Sprintf("-X %s/app.AppVersion \"%s\" -X %s/app.BuildTime \"%s\"",
-				revel.ImportPath, appVersion, revel.ImportPath, buildTime)
-		}
 		flags := []string{
 			"build",
 			"-i",
@@ -119,25 +146,41 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		revel.RevelLog.Error(string(output))
 
 		// See if it was an import error that we can go get.
-		matches := importErrorPattern.FindStringSubmatch(string(output))
+		matches := importErrorPattern.FindAllStringSubmatch(string(output), -1)
 		if matches == nil {
 			return nil, newCompileError(output)
 		}
+		for _, match := range matches {
+			// Ensure we haven't already tried to go get it.
+			pkgName := match[1]
+			if _, alreadyTried := gotten[pkgName]; alreadyTried {
+				return nil, newCompileError(output)
+			}
+			gotten[pkgName] = struct{}{}
 
-		// Ensure we haven't already tried to go get it.
-		pkgName := matches[1]
-		if _, alreadyTried := gotten[pkgName]; alreadyTried {
-			return nil, newCompileError(output)
-		}
-		gotten[pkgName] = struct{}{}
-
-		// Execute "go get <pkg>"
-		getCmd := exec.Command(goPath, "get", pkgName)
-		revel.RevelLog.Debug("Exec:", "args", getCmd.Args)
-		getOutput, err := getCmd.CombinedOutput()
-		if err != nil {
-			revel.RevelLog.Error(string(getOutput))
-			return nil, newCompileError(output)
+			// Execute "go get <pkg>"
+			// Or dep `dep ensure -add <pkg>` if it is there
+			var getCmd *exec.Cmd
+			if useVendor {
+				if depPath == "" {
+					revel.RevelLog.Error("Build: Vendor folder found, but the `dep` tool was not found, " +
+						"if you use a different vendoring (package management) tool please add the following packages by hand, " +
+						"or install the `dep` tool into your gopath by doing a `go get -u github.com/golang/dep/cmd/dep`. " +
+						"For more information and usage of the tool please see http://github.com/golang/dep")
+					for _, pkg := range matches {
+						revel.RevelLog.Error("Missing package", "package", pkg[1])
+					}
+				}
+				getCmd = exec.Command(depPath, "ensure", "-add", pkgName)
+			} else {
+				getCmd = exec.Command(goPath, "get", pkgName)
+			}
+			revel.RevelLog.Debug("Exec:", "args", getCmd.Args)
+			getOutput, err := getCmd.CombinedOutput()
+			if err != nil {
+				revel.RevelLog.Error(string(getOutput))
+				return nil, newCompileError(output)
+			}
 		}
 
 		// Success getting the import, attempt to build again.

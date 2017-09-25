@@ -721,7 +721,7 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 			}
 			if !found {
 				revel.RevelLog.Warn("Type found in package: "+packageFilter+
-					", but did not inherit from: "+filepath.Base(targetType),
+					", but did not embed from: "+filepath.Base(targetType),
 					"name", spec.StructName, "path", spec.ImportPath)
 			}
 		}

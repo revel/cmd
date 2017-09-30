@@ -104,7 +104,7 @@ i18n.default_language = en
 # Module to serve static content such as CSS, JavaScript and Media files
 # Allows Routes like this:
 #  `Static.ServeModule("modulename","public")`
-module.static=github.com/revel/modules/static
+module.static = github.com/revel/modules/static
 
 
 

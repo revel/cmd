@@ -47,6 +47,7 @@ var commands = []*Command{
 	cmdNew,
 	cmdRun,
 	cmdBuild,
+	cmdBuildMinify,
 	cmdPackage,
 	cmdClean,
 	cmdTest,

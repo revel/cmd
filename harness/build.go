@@ -167,7 +167,7 @@ func getAppVersion() string {
 		if (err != nil && os.IsNotExist(err)) || !info.IsDir() {
 			return ""
 		}
-		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "describe", "--always", "--dirty")
+		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "--work-tree="+revel.BasePath, "describe", "--always", "--dirty")
 		revel.TRACE.Println("Exec:", gitCmd.Args)
 		output, err := gitCmd.Output()
 

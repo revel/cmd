@@ -39,7 +39,7 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 
 	// Add the db.import to the import paths.
 	if dbImportPath, found := revel.Config.String("db.import"); found {
-		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath,",")...)
+		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath, ",")...)
 	}
 
 	// Generate two source files.
@@ -210,7 +210,7 @@ func getAppVersion() string {
 		if (err != nil && os.IsNotExist(err)) || !info.IsDir() {
 			return ""
 		}
-		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "describe", "--always", "--dirty")
+		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "--work-tree="+revel.BasePath, "describe", "--always", "--dirty")
 		revel.RevelLog.Debug("Exec:", "args", gitCmd.Args)
 		output, err := gitCmd.Output()
 

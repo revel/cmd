@@ -80,12 +80,8 @@ func buildMinifyApp(args []string) {
 	// srcPath := filepath.Join(destPath, "src")
 	srcPath := destPath
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
-	// tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.RevelImportPath))
 	mustCopyFile(destBinaryPath, app.BinaryPath)
 	mustChmod(destBinaryPath, 0755)
-	// _ = mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
-	// _ = mustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
-	// _ = mustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
 	_ = mustCopyDir(filepath.Join(srcPath), revel.BasePath, nil)
 
 	// Find all the modules used and copy them over.

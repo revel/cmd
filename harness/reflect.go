@@ -498,7 +498,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 		}
 
 		// Add this call's args to the renderArgs.
-		pos := fset.Position(callExpr.Rparen)
+		pos := fset.Position(callExpr.Lparen)
 		methodCall := &methodCall{
 			Line:  pos.Line,
 			Names: []string{},

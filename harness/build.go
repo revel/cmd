@@ -42,12 +42,22 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath,",")...)
 	}
 
+	importPaths := calcImportAliases(sourceInfo)
+
+	// Add the custom server import path
+	var customServer bool
+	if serverImportPath, found := revel.Config.String("module.server"); found {
+		importPaths[serverImportPath] = "server"
+		customServer = true
+	}
+
 	// Generate two source files.
 	templateArgs := map[string]interface{}{
 		"Controllers":    sourceInfo.ControllerSpecs(),
 		"ValidationKeys": sourceInfo.ValidationKeys,
-		"ImportPaths":    calcImportAliases(sourceInfo),
+		"ImportPaths":    importPaths,
 		"TestSuites":     sourceInfo.TestSuites(),
+		"CustomServer":   customServer,
 	}
 	genSource("tmp", "main.go", RevelMainTemplate, templateArgs)
 	genSource("routes", "routes.go", RevelRoutesTemplate, templateArgs)
@@ -463,7 +473,11 @@ func main() {
 		(*{{index $.ImportPaths .ImportPath}}.{{.StructName}})(nil),{{end}}
 	}
 
+	{{if .CustomServer}}
+	server.Run(revel.InitServer())
+	{{else}}
 	revel.Run(*port)
+	{{end}}
 }
 `
 

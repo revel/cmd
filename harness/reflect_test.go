@@ -8,8 +8,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
-	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -183,7 +181,7 @@ NEXT_TEST:
 
 func BenchmarkProcessBookingSource(b *testing.B) {
 	revel.Init("", "github.com/revel/examples/booking", "")
-	revel.TRACE = log.New(ioutil.Discard, "", 0)
+	revel.GetRootLogHandler().Disable()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

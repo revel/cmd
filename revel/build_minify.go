@@ -60,11 +60,11 @@ func buildMinifyApp(args []string) {
 	}
 
 	if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
-		revel.ERROR.Fatalln(err)
+		revel.RevelLog.Fatal("Remove all error","error", err)
 	}
 
 	if err := os.MkdirAll(destPath, 0777); err != nil {
-		revel.ERROR.Fatalln(err)
+		revel.RevelLog.Fatal("makedir error","error",err)
 	}
 
 	app, reverr := harness.Build()
@@ -77,12 +77,13 @@ func buildMinifyApp(args []string) {
 	// - app
 
 	// Revel and the app are in a directory structure mirroring import path
-	// srcPath := filepath.Join(destPath, "src")
-	srcPath := destPath
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
+    tmpRevelPath := filepath.Join(destPath, filepath.FromSlash(revel.RevelImportPath))
 	mustCopyFile(destBinaryPath, app.BinaryPath)
 	mustChmod(destBinaryPath, 0755)
-	_ = mustCopyDir(filepath.Join(srcPath), revel.BasePath, nil)
+	_ = mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
+	_ = mustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
+	_ = mustCopyDir(filepath.Join(destPath), revel.BasePath, nil)
 
 	// Find all the modules used and copy them over.
 	config := revel.Config.Raw()
@@ -99,13 +100,13 @@ func buildMinifyApp(args []string) {
 			}
 			modulePath, err := revel.ResolveImportPath(moduleImportPath)
 			if err != nil {
-				revel.ERROR.Fatalln("Failed to load module %s: %s", key[len("module."):], err)
+				revel.RevelLog.Fatalf("Failed to load module %s: %s", key[len("module."):], err)
 			}
 			modulePaths[moduleImportPath] = modulePath
 		}
 	}
 	for importPath, fsPath := range modulePaths {
-		_ = mustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+		_ = mustCopyDir(filepath.Join(destPath, importPath), fsPath, nil)
 	}
 
 	tmplData, runShPath := map[string]interface{}{
@@ -127,16 +128,16 @@ func buildMinifyApp(args []string) {
 		tmplData)
 
 	// remove all .go file and empty dir
-	filepath.Walk(destPath, func(srcPath string, info os.FileInfo, err error) error {
-		if strings.HasSuffix(srcPath, ".go") {
-			os.Remove(srcPath)
+	filepath.Walk(destPath, func(destPath string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(destPath, ".go") {
+			os.Remove(destPath)
 		}
 		return nil
 	})
 
-	filepath.Walk(destPath, func(srcPath string, info os.FileInfo, err error) error {
+	filepath.Walk(destPath, func(destPath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
-			os.Remove(srcPath)
+			os.Remove(destPath)
 		}
 		return nil
 	})

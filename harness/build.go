@@ -42,6 +42,10 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath,",")...)
 	}
 
+	// Sort controllers so that file generation is reproducible
+	controllers := sourceInfo.ControllerSpecs()
+	sort.SliceStable(controllers, func(i, j int) bool { return controllers[i].String() < controllers[j].String() })
+
 	// Generate two source files.
 	templateArgs := map[string]interface{}{
 		"Controllers":    sourceInfo.ControllerSpecs(),

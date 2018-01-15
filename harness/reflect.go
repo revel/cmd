@@ -17,8 +17,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/revel/revel"
 	"unicode"
+
+	"github.com/revel/revel"
 )
 
 // SourceInfo is the top-level struct containing all extracted information
@@ -782,6 +783,13 @@ func NewTypeExpr(pkgName string, expr ast.Expr) TypeExpr {
 	case *ast.ArrayType:
 		e := NewTypeExpr(pkgName, t.Elt)
 		return TypeExpr{"[]" + e.Expr, e.PkgName, e.pkgIndex + 2, e.Valid}
+	case *ast.MapType:
+		if identKey, ok := t.Key.(*ast.Ident); ok && IsBuiltinType(identKey.Name) {
+			e := NewTypeExpr(pkgName, t.Value)
+			return TypeExpr{"map[" + identKey.Name + "]" + e.Expr, e.PkgName, e.pkgIndex + len("map["+identKey.Name+"]"), e.Valid}
+		}
+
+		revel.RevelLog.Error("Failed to generate name for field. Make sure the field name is valid.")
 	case *ast.Ellipsis:
 		e := NewTypeExpr(pkgName, t.Elt)
 		return TypeExpr{"[]" + e.Expr, e.PkgName, e.pkgIndex + 2, e.Valid}

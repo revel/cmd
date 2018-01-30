@@ -23,6 +23,12 @@ import (
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
 
+type ByString []*TypeInfo
+
+func (c ByString) Len() int           { return len(c) }
+func (c ByString) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c ByString) Less(i, j int) bool { return c[i].String() < c[j].String() }
+
 // Build the app:
 // 1. Generate the the main.go file.
 // 2. Run the appropriate "go build" command.
@@ -39,12 +45,16 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 
 	// Add the db.import to the import paths.
 	if dbImportPath, found := revel.Config.String("db.import"); found {
-		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath,",")...)
+		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath, ",")...)
 	}
+
+	// Sort controllers so that file generation is reproducible
+	controllers := sourceInfo.ControllerSpecs()
+	sort.Stable(ByString(controllers))
 
 	// Generate two source files.
 	templateArgs := map[string]interface{}{
-		"Controllers":    sourceInfo.ControllerSpecs(),
+		"Controllers":    controllers,
 		"ValidationKeys": sourceInfo.ValidationKeys,
 		"ImportPaths":    calcImportAliases(sourceInfo),
 		"TestSuites":     sourceInfo.TestSuites(),

@@ -20,6 +20,7 @@ import (
 	"unicode"
 
 	"github.com/revel/revel"
+	"log"
 )
 
 // SourceInfo is the top-level struct containing all extracted information
@@ -222,8 +223,8 @@ func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast
 	)
 
 	// For each source file in the package...
+	log.Println("Exaiming files in path", pkgPath)
 	for _, file := range pkg.Files {
-
 		// Imports maps the package key to the full import path.
 		// e.g. import "sample/app/models" => "models": "sample/app/models"
 		imports := map[string]string{}
@@ -240,8 +241,8 @@ func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast
 				structSpecs = appendStruct(structSpecs, pkgImportPath, pkg, decl, imports, fset)
 			}
 
-			// If this is a func...
-			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+			// If this is a func... (ignore nil for external (non-Go) function)
+			if funcDecl, ok := decl.(*ast.FuncDecl); ok && funcDecl.Body != nil {
 				// Scan it for validation calls
 				lineKeys := getValidationKeys(fset, funcDecl, imports)
 				if len(lineKeys) > 0 {
@@ -794,7 +795,7 @@ func NewTypeExpr(pkgName string, expr ast.Expr) TypeExpr {
 		e := NewTypeExpr(pkgName, t.Elt)
 		return TypeExpr{"[]" + e.Expr, e.PkgName, e.pkgIndex + 2, e.Valid}
 	default:
-		revel.RevelLog.Error("Failed to generate name for field. Make sure the field name is valid.")
+		revel.RevelLog.Error("Failed to generate name for field. Make sure the field name is valid.", "package", pkgName, "expresion",expr)
 	}
 	return TypeExpr{Valid: false}
 }

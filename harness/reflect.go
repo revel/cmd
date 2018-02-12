@@ -598,7 +598,7 @@ func getValidationKeys(fset *token.FileSet, funcDecl *ast.FuncDecl, imports map[
 		}
 
 		if typeExpr := NewTypeExpr("", key); typeExpr.Valid {
-			lineKeys[fset.Position(callExpr.End()).Line] = typeExpr.TypeName("")
+			lineKeys[fset.Position(callExpr.Pos()).Line] = typeExpr.TypeName("")
 		}
 		return true
 	})

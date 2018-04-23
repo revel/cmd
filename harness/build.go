@@ -87,12 +87,6 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
 			revel.ImportPath, appVersion, revel.ImportPath, buildTime)
 
-		// TODO remove version check for versionLinkerFlags after Revel becomes Go min version to go1.5
-		goVersion, _ := strconv.ParseFloat(runtime.Version()[2:5], 64)
-		if goVersion < 1.5 {
-			versionLinkerFlags = fmt.Sprintf("-X %s/app.AppVersion \"%s\" -X %s/app.BuildTime \"%s\"",
-				revel.ImportPath, appVersion, revel.ImportPath, buildTime)
-		}
 		flags := []string{
 			"build",
 			"-i",

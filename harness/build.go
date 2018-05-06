@@ -30,18 +30,17 @@ func (c ByString) Len() int           { return len(c) }
 func (c ByString) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c ByString) Less(i, j int) bool { return c[i].String() < c[j].String() }
 
-// Build the app:
-// 1. Generate the the main.go file.
-// 2. Run the appropriate "go build" command.
-// Requires that revel.Init has been called previously.
-// Returns the path to the built binary, and an error if there was a problem building it.
-func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
+// Generate routes.go and main.go files by walking over the project folder.
+// Supports generating if project is not organized in GOPATH. If outside
+// GOPATH, import paths might have to be rewritten. Use find and replace args
+// to adjust.
+func GenerateRoutesMain(codePaths []string, outsideGopath bool, find, replace string) (compileError *revel.Error) {
 	// First, clear the generated files (to avoid them messing with ProcessSource).
 	cleanSource("tmp", "routes")
 
-	sourceInfo, compileError := ProcessSource(revel.CodePaths)
+	sourceInfo, compileError := ProcessSource(codePaths, outsideGopath)
 	if compileError != nil {
-		return nil, compileError
+		return compileError
 	}
 
 	// Add the db.import to the import paths.
@@ -60,9 +59,38 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 		"ImportPaths":    calcImportAliases(sourceInfo),
 		"TestSuites":     sourceInfo.TestSuites(),
 	}
+
+	// If the project is outside of the GOPATH, rewrite new import paths.
+	if outsideGopath {
+		oldImportPaths := templateArgs["ImportPaths"]
+		newImportPaths := make(map[string]string)
+		switch v := oldImportPaths.(type) {
+		case map[string]string:
+			for fullImport, shortImport := range v {
+				newFullImport := strings.Replace(fullImport, find, replace, 1)
+				newImportPaths[newFullImport] = shortImport
+			}
+		default:
+			revel.ERROR.Fatalln("Import paths expected to be a map[string]string")
+		}
+
+		templateArgs["NewImportPaths"] = newImportPaths
+	} else {
+		templateArgs["NewImportPaths"] = templateArgs["ImportPaths"]
+	}
+
 	genSource("tmp", "main.go", RevelMainTemplate, templateArgs)
 	genSource("routes", "routes.go", RevelRoutesTemplate, templateArgs)
+	return
+}
 
+// Build the app: Run the appropriate "go build" command.
+// Requires that revel.Init has been called previously.
+// Returns the path to the built binary, and an error if there was a problem building it.
+func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
+	if compileError = GenerateRoutesMain(revel.CodePaths, false, "", ""); compileError != nil {
+		return nil, compileError
+	}
 	// Read build config.
 	buildTags := revel.Config.StringDefault("build.tags", "")
 
@@ -429,7 +457,7 @@ package main
 import (
 	"flag"
 	"reflect"
-	"github.com/revel/revel"{{range $k, $v := $.ImportPaths}}
+	"github.com/revel/revel"{{range $k, $v := $.NewImportPaths}}
 	{{$v}} "{{$k}}"{{end}}
 	"github.com/revel/revel/testing"
 )

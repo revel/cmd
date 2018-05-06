@@ -51,6 +51,7 @@ var commands = []*Command{
 	cmdClean,
 	cmdTest,
 	cmdVersion,
+	cmdGenerate,
 }
 
 func main() {

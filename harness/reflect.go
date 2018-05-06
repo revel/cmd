@@ -88,20 +88,26 @@ type embeddedTypeName struct {
 // receiver.
 type methodMap map[string][]*MethodSpec
 
-// ProcessSource parses the app controllers directory and
-// returns a list of the controller types found.
-// Otherwise CompileError if the parsing fails.
-func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
+// ProcessSource parses the app controllers directory and returns a list of the
+// controller types found.  Otherwise CompileError if the parsing fails.  Add
+// optional boolean for parsing code outside the GOPATH
+func ProcessSource(roots []string, outsideGopath bool) (*SourceInfo, *revel.Error) {
 	var (
 		srcInfo      *SourceInfo
 		compileError *revel.Error
 	)
 
 	for _, root := range roots {
-		rootImportPath := importPathFromPath(root)
-		if rootImportPath == "" {
-			revel.RevelLog.Warn("Skipping empty code path", "path", root)
-			continue
+		var rootImportPath string
+		if outsideGopath {
+			// Building outside GOPATH, so set root of import path to self.
+			rootImportPath = root
+		} else {
+			rootImportPath = importPathFromPath(root)
+			if rootImportPath == "" {
+				revel.WARN.Println("Skipping code path", root)
+				continue
+			}
 		}
 
 		// Start walking the directory tree.
@@ -184,7 +190,7 @@ func ProcessSource(roots []string) (*SourceInfo, *revel.Error) {
 				pkg = v
 			}
 
-			srcInfo = appendSourceInfo(srcInfo, processPackage(fset, pkgImportPath, path, pkg))
+			srcInfo = appendSourceInfo(srcInfo, processPackage(fset, pkgImportPath, path, pkg, outsideGopath))
 			return nil
 		})
 	}
@@ -209,7 +215,7 @@ func appendSourceInfo(srcInfo1, srcInfo2 *SourceInfo) *SourceInfo {
 	return srcInfo1
 }
 
-func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast.Package) *SourceInfo {
+func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast.Package, outsideGopath bool) *SourceInfo {
 	var (
 		structSpecs     []*TypeInfo
 		initImportPaths []string
@@ -231,7 +237,7 @@ func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast
 
 		// For each declaration in the source file...
 		for _, decl := range file.Decls {
-			addImports(imports, decl, pkgPath)
+			addImports(imports, decl, pkgPath, outsideGopath)
 
 			if scanControllers {
 				// Match and add both structs and methods
@@ -285,7 +291,7 @@ func getFuncName(funcDecl *ast.FuncDecl) string {
 	return prefix + funcDecl.Name.Name
 }
 
-func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
+func addImports(imports map[string]string, decl ast.Decl, srcDir string, outsideGopath bool) {
 	genDecl, ok := decl.(*ast.GenDecl)
 	if !ok {
 		return
@@ -316,14 +322,24 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 		if pkgAlias == "" {
 			pkg, err := build.Import(fullPath, srcDir, 0)
 			if err != nil {
-				// We expect this to happen for apps using reverse routing (since we
-				// have not yet generated the routes).  Don't log that.
-				if !strings.HasSuffix(fullPath, "/app/routes") {
-					revel.RevelLog.Debug("Could not find import:", "path", fullPath)
+				// If building outside default Gopath or without it set, then cannot rely on build
+				// Import tool to provide the correct name.
+				if !outsideGopath {
+					// We expect this to happen for apps using reverse routing (since we
+					// have not yet generated the routes).  Don't log that.
+					if !strings.HasSuffix(fullPath, "/app/routes") {
+						revel.TRACE.Println("Could not find import:", fullPath)
+					}
+					continue
 				}
-				continue
 			}
 			pkgAlias = pkg.Name
+
+			// Instead let's just take the final name after the last slash
+			if outsideGopath {
+				splitPkgPath := strings.Split(fullPath, "/")
+				pkgAlias = splitPkgPath[len(splitPkgPath)-1]
+			}
 		}
 
 		imports[pkgAlias] = fullPath

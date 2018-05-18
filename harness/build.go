@@ -17,11 +17,18 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"sort"
 
 	"github.com/revel/revel"
 )
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
+
+type ByString []*TypeInfo
+
+func (c ByString) Len() int           { return len(c) }
+func (c ByString) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c ByString) Less(i, j int) bool { return c[i].String() < c[j].String() }
 
 // Build the app:
 // 1. Generate the the main.go file.
@@ -39,12 +46,16 @@ func Build(buildFlags ...string) (app *App, compileError *revel.Error) {
 
 	// Add the db.import to the import paths.
 	if dbImportPath, found := revel.Config.String("db.import"); found {
-		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath,",")...)
+		sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, strings.Split(dbImportPath, ",")...)
 	}
+
+	// Sort controllers so that file generation is reproducible
+	controllers := sourceInfo.ControllerSpecs()
+	sort.Stable(ByString(controllers))
 
 	// Generate two source files.
 	templateArgs := map[string]interface{}{
-		"Controllers":    sourceInfo.ControllerSpecs(),
+		"Controllers":    controllers,
 		"ValidationKeys": sourceInfo.ValidationKeys,
 		"ImportPaths":    calcImportAliases(sourceInfo),
 		"TestSuites":     sourceInfo.TestSuites(),
@@ -210,7 +221,7 @@ func getAppVersion() string {
 		if (err != nil && os.IsNotExist(err)) || !info.IsDir() {
 			return ""
 		}
-		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "describe", "--always", "--dirty")
+		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "--work-tree="+revel.BasePath, "describe", "--always", "--dirty")
 		revel.RevelLog.Debug("Exec:", "args", gitCmd.Args)
 		output, err := gitCmd.Output()
 

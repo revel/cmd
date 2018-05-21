@@ -83,7 +83,8 @@ func buildMinifyApp(args []string) {
 	mustChmod(destBinaryPath, 0755)
 	_ = mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
 	_ = mustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
-	_ = mustCopyDir(filepath.Join(destPath), revel.BasePath, nil)
+    // default skip build objs Makefile
+	_ = mustCopyDir(filepath.Join(destPath), revel.BasePath, nil,"build","objs","Makefile","log","tmp","temp","docs","docker","Dockerfile","docker-compose")
 
 	// Find all the modules used and copy them over.
 	config := revel.Config.Raw()

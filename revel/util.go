@@ -69,12 +69,22 @@ func mustChmod(filename string, mode os.FileMode) {
 // ".template" are treated as a Go template and rendered using the given data.
 // Additionally, the trailing ".template" is stripped from the file name.
 // Also, dot files and dot directories are skipped.
-func mustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
+func mustCopyDir(destDir, srcDir string, data map[string]interface{}, skips ...string) error {
 	return revel.Walk(srcDir, func(srcPath string, info os.FileInfo, err error) error {
 		// Get the relative path from the source base, and the corresponding path in
 		// the dest directory.
 		relSrcPath := strings.TrimLeft(srcPath[len(srcDir):], string(os.PathSeparator))
 		destPath := filepath.Join(destDir, relSrcPath)
+
+		// Skip specific directories and files
+		for _, skip := range skips {
+			if strings.HasPrefix(relSrcPath, skip) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+		}
 
 		// Skip dot files and dot directories.
 		if strings.HasPrefix(relSrcPath, ".") {

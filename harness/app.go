@@ -31,6 +31,10 @@ func NewApp(binPath string) *App {
 
 // Cmd returns a command to run the app server using the current configuration.
 func (a *App) Cmd() AppCmd {
+	if a.Port == 0 {
+		a.Port = getFreePort()
+		revel.HTTPPort = a.Port
+	}
 	a.cmd = NewAppCmd(a.BinaryPath, a.Port)
 	return a.cmd
 }

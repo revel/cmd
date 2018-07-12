@@ -248,6 +248,7 @@ func getTestsList(baseURL string) (*[]controllers.TestSuiteDesc, error) {
 func runTestSuites(baseURL, resultPath string, testSuites *[]controllers.TestSuiteDesc) (*[]controllers.TestSuiteResult, bool) {
 	// Load the result template, which we execute for each suite.
 	module, _ := revel.ModuleByName("testrunner")
+	revel.Config.SetOption("template.engines", "go")
 	TemplateLoader := revel.NewTemplateLoader([]string{filepath.Join(module.Path, "app", "views")})
 	if err := TemplateLoader.Refresh(); err != nil {
 		errorf("Failed to compile templates: %s", err)

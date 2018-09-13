@@ -5,11 +5,13 @@
 package main
 
 import (
-	"go/build"
 	"strconv"
 
+	"fmt"
 	"github.com/revel/cmd/harness"
-	"github.com/revel/revel"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"go/build"
 )
 
 var cmdRun = &Command{
@@ -40,49 +42,41 @@ type RunArgs struct {
 }
 
 func init() {
-	cmdRun.Run = runApp
+	cmdRun.RunWith = runApp
+	cmdRun.UpdateConfig = updateRunConfig
 }
 
-func parseRunArgs(args []string) *RunArgs {
-	inputArgs := RunArgs{
-		ImportPath: importPathFromCurrentDir(),
-		Mode:       DefaultRunMode,
-		Port:       revel.HTTPPort,
-	}
+func updateRunConfig(c *model.CommandConfig, args []string) bool {
+
 	switch len(args) {
 	case 3:
 		// Possible combinations
 		// revel run [import-path] [run-mode] [port]
-		port, err := strconv.Atoi(args[2])
-		if err != nil {
-			errorf("Failed to parse port as integer: %s", args[2])
-		}
-		inputArgs.ImportPath = args[0]
-		inputArgs.Mode = args[1]
-		inputArgs.Port = port
+		c.Run.ImportPath = args[0]
+		c.Run.Mode = args[1]
+		c.Run.Port = args[2]
 	case 2:
 		// Possible combinations
 		// 1. revel run [import-path] [run-mode]
 		// 2. revel run [import-path] [port]
 		// 3. revel run [run-mode] [port]
+
+		// Check to see if the import path evaluates out to something that may be on a gopath
 		if _, err := build.Import(args[0], "", build.FindOnly); err == nil {
 			// 1st arg is the import path
-			inputArgs.ImportPath = args[0]
-			if port, err := strconv.Atoi(args[1]); err == nil {
+			c.Run.ImportPath = args[0]
+
+			if _, err := strconv.Atoi(args[1]); err == nil {
 				// 2nd arg is the port number
-				inputArgs.Port = port
+				c.Run.Port = args[1]
 			} else {
 				// 2nd arg is the run mode
-				inputArgs.Mode = args[1]
+				c.Run.Mode = args[1]
 			}
 		} else {
 			// 1st arg is the run mode
-			port, err := strconv.Atoi(args[1])
-			if err != nil {
-				errorf("Failed to parse port as integer: %s", args[1])
-			}
-			inputArgs.Mode = args[0]
-			inputArgs.Port = port
+			c.Run.Mode = args[0]
+			c.Run.Port = args[1]
 		}
 	case 1:
 		// Possible combinations
@@ -91,52 +85,62 @@ func parseRunArgs(args []string) *RunArgs {
 		// 3. revel run [run-mode]
 		_, err := build.Import(args[0], "", build.FindOnly)
 		if err != nil {
-			revel.RevelLog.Warn("Unable to run using an import path, assuming import path is working directory %s %s", "Argument", args[0], "error", err.Error())
+			utils.Logger.Warn("Unable to run using an import path, assuming import path is working directory %s %s", "Argument", args[0], "error", err.Error())
 		}
-		println("Trying to build with", args[0], err)
+		utils.Logger.Info("Trying to build with", args[0], err)
 		if err == nil {
 			// 1st arg is the import path
-			inputArgs.ImportPath = args[0]
-		} else if port, err := strconv.Atoi(args[0]); err == nil {
+			c.Run.ImportPath = args[0]
+		} else if _, err := strconv.Atoi(args[0]); err == nil {
 			// 1st arg is the port number
-			inputArgs.Port = port
+			c.Run.Port = args[0]
 		} else {
 			// 1st arg is the run mode
-			inputArgs.Mode = args[0]
+			c.Run.Mode = args[0]
 		}
 	}
-
-	return &inputArgs
+	c.Index = RUN
+	return true
 }
 
-func runApp(args []string) {
-	runArgs := parseRunArgs(args)
-
-	// Find and parse app.conf
-	revel.Init(runArgs.Mode, runArgs.ImportPath, "")
-	revel.LoadMimeConfig()
-
-	// fallback to default port
-	if runArgs.Port == 0 {
-		runArgs.Port = revel.HTTPPort
+func runApp(c *model.CommandConfig) {
+	if c.Run.Mode == "" {
+		c.Run.Mode = "dev"
 	}
 
-	revel.RevelLog.Infof("Running %s (%s) in %s mode\n", revel.AppName, revel.ImportPath, runArgs.Mode)
-	revel.RevelLog.Debug("Base path:", "path", revel.BasePath)
+	revel_path := model.NewRevelPaths(c.Run.Mode, c.Run.ImportPath, "", model.DoNothingRevelCallback)
+	if c.Run.Port != "" {
+		port, err := strconv.Atoi(c.Run.Port)
+		if err != nil {
+			utils.Logger.Fatalf("Failed to parse port as integer: %s", c.Run.Port)
+		}
+		revel_path.HTTPPort = port
+	}
+
+	utils.Logger.Infof("Running %s (%s) in %s mode\n", revel_path.AppName, revel_path.ImportPath, revel_path.RunMode)
+	utils.Logger.Debug("Base path:", "path", revel_path.BasePath)
 
 	// If the app is run in "watched" mode, use the harness to run it.
-	if revel.Config.BoolDefault("watch", true) && revel.Config.BoolDefault("watch.code", true) {
-		revel.RevelLog.Debug("Running in watched mode.")
-		revel.HTTPPort = runArgs.Port
-		harness.NewHarness().Run() // Never returns.
+	if revel_path.Config.BoolDefault("watch", true) && revel_path.Config.BoolDefault("watch.code", true) {
+		utils.Logger.Info("Running in watched mode.")
+		runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, revel_path.RunMode, c.Verbose)
+		if c.HistoricMode {
+			runMode = revel_path.RunMode
+		}
+		// **** Never returns.
+		harness.NewHarness(c, revel_path, runMode, c.Run.NoProxy).Run()
 	}
 
 	// Else, just build and run the app.
-	revel.RevelLog.Debug("Running in live build mode.")
-	app, err := harness.Build()
+	utils.Logger.Debug("Running in live build mode.")
+	app, err := harness.Build(c, revel_path)
 	if err != nil {
-		errorf("Failed to build app: %s", err)
+		utils.Logger.Errorf("Failed to build app: %s", err)
 	}
-	app.Port = runArgs.Port
-	app.Cmd().Run()
+	app.Port = revel_path.HTTPPort
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, app.Paths.RunMode, c.Verbose)
+	if c.HistoricMode {
+		runMode = revel_path.RunMode
+	}
+	app.Cmd(runMode).Run()
 }

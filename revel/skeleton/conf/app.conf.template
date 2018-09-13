@@ -143,7 +143,7 @@ watch = true
 #   Rebuild when a new request is received and changes have been detected.
 # "eager"
 #   Rebuild as soon as changes are detected.
-watch.mode = normal
+watch.mode = eager
 
 # Watch the entire `$GOPATH` for changes.
 # Values:

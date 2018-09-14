@@ -506,11 +506,21 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 			Names: []string{},
 		}
 		for _, arg := range callExpr.Args {
-			argIdent, ok := arg.(*ast.Ident)
-			if !ok {
+			argName := ""
+			switch t := arg.(type) {
+			case *ast.Ident:
+				argName = t.Name
+			case *ast.SelectorExpr:
+				xIdent, ok := t.X.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				argName = xIdent.Name + "_" + t.Sel.Name
+			default:
 				continue
 			}
-			methodCall.Names = append(methodCall.Names, argIdent.Name)
+
+			methodCall.Names = append(methodCall.Names, argName)
 		}
 		method.RenderCalls = append(method.RenderCalls, methodCall)
 		return true

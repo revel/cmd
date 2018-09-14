@@ -160,7 +160,7 @@ func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast
 	)
 
 	// For each source file in the package...
-	utils.Logger.Info("Exaiming files in path", "package", pkgPath)
+	utils.Logger.Info("Exaimining files in path", "package", pkgPath)
 	for fname, file := range pkg.Files {
 		// Imports maps the package key to the full import path.
 		// e.g. import "sample/app/models" => "models": "sample/app/models"

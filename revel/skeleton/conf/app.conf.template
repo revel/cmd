@@ -3,6 +3,22 @@
 # More info at http://revel.github.io/manual/appconf.html
 ################################################################################
 
+# Revel build section
+# This section contains values that are not reloadable
+################################################################################
+
+# Comma delimited list of folders that are included with the package, or build commands
+# If you want to not include folders within these ones prefix the folder with a . to make it hidden
+package.folders = conf, public, app/views
+
+
+
+
+# Revel reconfigurable section
+#
+################################################################################
+
+
 # Sets `revel.AppName` for use in-app.
 # Example:
 #   `if revel.AppName {...}`
@@ -197,9 +213,9 @@ watch = false
 
 module.testrunner =
 
-log.warn.output  = log/%(app.name)-warn.json    # Log all warn messages to file
-log.error.output = log/%(app.name)-error.json   # Log all errors to file
-log.crit.output = log/%(app.name)-critical.json # Log all critical to file
+log.warn.output  = log/%(app.name)s-warn.json    # Log all warn messages to file
+log.error.output = log/%(app.name)s-error.json   # Log all errors to file
+log.crit.output = log/%(app.name)s-critical.json # Log all critical to file
 
 # Revel request access log (json format)
 # Example:

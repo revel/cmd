@@ -287,6 +287,7 @@ func runTestSuites(paths *model.RevelContainer, baseURL, resultPath string, test
 			err = json.NewDecoder(resp.Body).Decode(&testResult)
 			if err == nil && !testResult.Passed {
 				suiteResult.Passed = false
+				utils.Logger.Error("Test Failed","suite", suite.Name, "test", test.Name)
 				fmt.Printf("   %s.%s : FAILED\n", suite.Name, test.Name)
 			} else {
 				fmt.Printf("   %s.%s : PASSED\n", suite.Name, test.Name)

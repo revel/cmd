@@ -7,7 +7,7 @@ type (
 	// The Command config for the line input
 	CommandConfig struct {
 		Index        COMMAND  // The index
-		Verbose      bool     `short:"v" long:"debug" description:"If set the logger is set to verbose"` // True if debug is active
+		Verbose      bool     `short:"v" long:"debug" description:"If set the logger is set to verbose"`              // True if debug is active
 		HistoricMode bool     `long:"historic-run-mode" description:"If set the runmode is passed a string not json"` // True if debug is active
 		ImportPath   string   // The import path (converted from various commands)
 		GoPath       string   // The GoPath
@@ -30,6 +30,7 @@ type (
 			TargetPath string `short:"t" long:"target-path" description:"Path to target folder. Folder will be completely deleted if it exists" required:"true"`
 			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" required:"true"`
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
+			CopySource bool   `short:"s" long:"include-source" description:"Copy the source code as well"`
 		} `command:"build"`
 		// The run command
 		Run struct {
@@ -42,6 +43,7 @@ type (
 		Package struct {
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
 			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" required:"true"`
+			CopySource bool   `short:"s" long:"include-source" description:"Copy the source code as well"`
 		} `command:"package"`
 		// The clean command
 		Clean struct {

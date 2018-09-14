@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"fmt"
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
-	"go/build"
 	"github.com/revel/cmd/utils"
-	"fmt"
+	"go/build"
 )
 
 var cmdBuild = &Command{
@@ -36,7 +36,7 @@ func init() {
 }
 
 // The update config updates the configuration command so that it can run
-func updateBuildConfig(c *model.CommandConfig, args []string) (bool) {
+func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = BUILD
 	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
@@ -44,7 +44,7 @@ func updateBuildConfig(c *model.CommandConfig, args []string) (bool) {
 	}
 	c.Build.ImportPath = args[0]
 	c.Build.TargetPath = args[1]
-	if len(args)>2 {
+	if len(args) > 2 {
 		c.Build.Mode = args[1]
 	}
 	return true
@@ -53,7 +53,7 @@ func updateBuildConfig(c *model.CommandConfig, args []string) (bool) {
 // The main entry point to build application from command line
 func buildApp(c *model.CommandConfig) {
 	c.ImportPath = c.Build.ImportPath
-	appImportPath, destPath, mode := c.Build.ImportPath , c.Build.TargetPath, DefaultRunMode
+	appImportPath, destPath, mode := c.Build.ImportPath, c.Build.TargetPath, DefaultRunMode
 	if len(c.Build.Mode) > 0 {
 		mode = c.Build.Mode
 	}
@@ -71,18 +71,18 @@ func buildApp(c *model.CommandConfig) {
 	}
 
 	if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
-		utils.Logger.Error("Remove all error","error", err)
+		utils.Logger.Error("Remove all error", "error", err)
 		return
 	}
 
 	if err := os.MkdirAll(destPath, 0777); err != nil {
-		utils.Logger.Error("makedir error","error",err)
+		utils.Logger.Error("makedir error", "error", err)
 		return
 	}
 
-	app, reverr := harness.Build(c,revel_paths)
-	if reverr!=nil {
-		utils.Logger.Error("Failed to build application","error",reverr)
+	app, reverr := harness.Build(c, revel_paths)
+	if reverr != nil {
+		utils.Logger.Error("Failed to build application", "error", reverr)
 		return
 	}
 
@@ -98,14 +98,40 @@ func buildApp(c *model.CommandConfig) {
 	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(model.RevelImportPath))
 	utils.MustCopyFile(destBinaryPath, app.BinaryPath)
 	utils.MustChmod(destBinaryPath, 0755)
+
+	// Copy the templates  from the revel
 	_ = utils.MustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel_paths.RevelPath, "conf"), nil)
 	_ = utils.MustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel_paths.RevelPath, "templates"), nil)
-	_ = utils.MustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel_paths.BasePath, nil)
+
+	// Get the folders to be packaged
+	packageFolders := strings.Split(revel_paths.Config.StringDefault("package.folders", "conf,public,app/views"), ",")
+	for i,p:=range packageFolders {
+		// Clean spaces, reformat slash to filesystem
+		packageFolders[i]=filepath.FromSlash(strings.TrimSpace(p))
+	}
+
+	if c.Build.CopySource {
+		_ = utils.MustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel_paths.BasePath, nil)
+	} else {
+		for _, folder := range packageFolders {
+			_ = utils.MustCopyDir(
+				filepath.Join(srcPath, filepath.FromSlash(appImportPath), folder),
+				filepath.Join(revel_paths.BasePath, folder),
+				nil)
+		}
+	}
 
 	// Find all the modules used and copy them over.
 	config := revel_paths.Config.Raw()
 	modulePaths := make(map[string]string) // import path => filesystem path
+
+	// We should only copy over the section of options what the build is targeted for
+	// We will default to prod
 	for _, section := range config.Sections() {
+		// If the runmode is defined we will only import modules defined for that run mode
+		if c.Build.Mode != "" && c.Build.Mode != section {
+			continue
+		}
 		options, _ := config.SectionOptions(section)
 		for _, key := range options {
 			if !strings.HasPrefix(key, "module.") {
@@ -116,15 +142,28 @@ func buildApp(c *model.CommandConfig) {
 				continue
 			}
 
-			modPkg, err := build.Import(c.ImportPath, revel_paths.RevelPath, build.FindOnly)
+			modPkg, err := build.Import(moduleImportPath, revel_paths.RevelPath, build.FindOnly)
 			if err != nil {
 				utils.Logger.Fatalf("Failed to load module %s (%s): %s", key[len("module."):], c.ImportPath, err)
 			}
 			modulePaths[moduleImportPath] = modPkg.Dir
 		}
 	}
+
+	// Copy the the paths for each of the modules
 	for importPath, fsPath := range modulePaths {
-		_ = utils.MustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+		utils.Logger.Info("Copy files ", "to", filepath.Join(srcPath, importPath), "from", fsPath)
+		if c.Build.CopySource {
+			_ = utils.MustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+		} else {
+			for _, folder := range packageFolders {
+				_ = utils.MustCopyDir(
+					filepath.Join(srcPath, importPath, folder),
+					filepath.Join(fsPath, folder),
+					nil)
+			}
+		}
+		//
 	}
 
 	tmplData := map[string]interface{}{

@@ -69,7 +69,7 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 		if !utils.Exists(path) {
 			path = filepath.Join(h.paths.RevelPath, "templates", "errors", view)
 		}
-		println(path)
+
 		data,err := ioutil.ReadFile(path)
 		if err!=nil {
 			utils.Logger.Error("Unable to read template file", path)
@@ -127,7 +127,6 @@ func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Flush any change events and rebuild app if necessary.
 	// Render an error page if the rebuild / restart failed.
 	err := h.watcher.Notify()
-	println("Serving ", err)
 	if err != nil {
 		// In a thread safe manner update the flag so that a request for
 		// /favicon.ico does not trigger a rebuild
@@ -265,9 +264,12 @@ func (h *Harness) Run() {
 
 	if h.useProxy {
 		go func() {
+			// Check the port to start on a random port
+			if h.paths.HTTPPort==0 {
+				h.paths.HTTPPort = getFreePort()
+			}
 			addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)
 			utils.Logger.Infof("Proxy server is listening on %s", addr)
-			println("Proxy server is listening on ", addr)
 
 			var err error
 			if h.paths.HTTPSsl {

@@ -45,9 +45,8 @@ func versionApp(c *model.CommandConfig) {
 		utils.Logger.Errorf("Failed to find Revel with error:", "error", err)
 	}
 
-
+	utils.Logger.Info("Fullpath to revel", revelPkg.Dir)
 	fset := token.NewFileSet() // positions are relative to fset
-
 
 	version, err := ioutil.ReadFile(filepath.Join(revelPkg.Dir,"version.go"))
 	if err != nil {

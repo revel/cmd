@@ -98,6 +98,8 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 			// 1st arg is the run mode
 			c.Run.Mode = args[0]
 		}
+	case 0:
+		return false
 	}
 	c.Index = RUN
 	return true

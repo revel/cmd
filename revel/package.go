@@ -76,8 +76,11 @@ func packageApp(c *model.CommandConfig) {
 
 	// Build expects the command the build to contain the proper data
 	c.Build.ImportPath = appImportPath
-	c.Build.Mode = mode
+	if len(c.Package.Mode) >= 0 {
+		c.Build.Mode = c.Package.Mode
+	}
 	c.Build.TargetPath = tmpDir
+	c.Build.CopySource = c.Package.CopySource
 	buildApp(c)
 
 	// Create the zip file.

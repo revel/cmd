@@ -6,39 +6,52 @@ package main
 
 import (
 	"fmt"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
 	"go/build"
 	"os"
 	"path/filepath"
 )
 
 var cmdClean = &Command{
-	UsageLine: "clean [import path]",
+	UsageLine: "clean -i [import path]",
 	Short:     "clean a Revel application's temp files",
 	Long: `
 Clean the Revel web application named by the given import path.
 
 For example:
 
-    revel clean github.com/revel/examples/chat
+    revel clean -a github.com/revel/examples/chat
 
 It removes the app/tmp and app/routes directory.
+
+
 `,
 }
 
 func init() {
-	cmdClean.Run = cleanApp
+	cmdClean.UpdateConfig = updateCleanConfig
+	cmdClean.RunWith = cleanApp
 }
 
-func cleanApp(args []string) {
+// Update the clean command configuration, using old method
+func updateCleanConfig(c *model.CommandConfig, args []string) bool {
+	c.Index = CLEAN
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, cmdClean.Long)
-		return
+		return false
 	}
+	c.Clean.ImportPath = args[0]
+	return true
+}
 
-	appPkg, err := build.Import(args[0], "", build.FindOnly)
+// Clean the source directory of generated files
+func cleanApp(c *model.CommandConfig) {
+	c.ImportPath = c.Clean.ImportPath
+
+	appPkg, err := build.Import(c.ImportPath, "", build.FindOnly)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Abort: Failed to find import path:", err)
-		return
+		utils.Logger.Fatal("Abort: Failed to find import path:", "error", err)
 	}
 
 	purgeDirs := []string{
@@ -50,7 +63,7 @@ func cleanApp(args []string) {
 		fmt.Println("Removing:", dir)
 		err = os.RemoveAll(dir)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Abort:", err)
+			utils.Logger.Error("Failed to clean dir", "error", err)
 			return
 		}
 	}

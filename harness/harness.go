@@ -28,8 +28,12 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/revel/revel"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"github.com/revel/cmd/watcher"
 	"sync"
+	"html/template"
+	"io/ioutil"
 )
 
 var (
@@ -41,20 +45,75 @@ var (
 // Harness reverse proxies requests to the application server.
 // It builds / runs / rebuilds / restarts the server when code is changed.
 type Harness struct {
-	app        *App
-	serverHost string
-	port       int
-	proxy      *httputil.ReverseProxy
-	watcher    *revel.Watcher
-	mutex      *sync.Mutex
+	app        *App                   // The application
+	useProxy   bool                   // True if proxy is in use
+	serverHost string                 // The proxy server host
+	port       int                    // The proxy serber port
+	proxy      *httputil.ReverseProxy // The proxy
+	watcher    *watcher.Watcher       // The file watched
+	mutex      *sync.Mutex            // A mutex to prevent concurrent updates
+	paths      *model.RevelContainer  // The Revel container
+	config     *model.CommandConfig   // The configuration
+	runMode    string                 // The runmode the harness is running in
 }
 
-func renderError(iw http.ResponseWriter, ir *http.Request, err error) {
-	context := revel.NewGoContext(nil)
-	context.Request.SetRequest(ir)
-	context.Response.SetResponse(iw)
-	c := revel.NewController(context)
-	c.RenderError(err).Apply(c.Request, c.Response)
+func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err error) {
+	// Render error here
+	// Grab the template from three places
+	// 1) Application/views/errors
+	// 2) revel_home/views/errors
+	// 3) views/errors
+	templateSet := template.New("__root__")
+	seekViewOnPath:=func(view string) (path string) {
+		path = filepath.Join(h.paths.ViewsPath, "errors", view)
+		if !utils.Exists(path) {
+			path = filepath.Join(h.paths.RevelPath, "templates", "errors", view)
+		}
+
+		data,err := ioutil.ReadFile(path)
+		if err!=nil {
+			utils.Logger.Error("Unable to read template file", path)
+		}
+		_,err = templateSet.New("errors/"+view).Parse(string(data))
+		if err!=nil {
+			utils.Logger.Error("Unable to parse template file", path)
+		}
+		return
+	}
+	target := []string{seekViewOnPath("500.html"),seekViewOnPath("500-dev.html")}
+	if !utils.Exists(target[0]) {
+			fmt.Fprint(iw, "An error occurred %s", err)
+			return
+	}
+	var revelError *utils.Error
+	switch e := err.(type) {
+	case *utils.Error:
+		revelError = e
+	case error:
+		revelError = &utils.Error{
+			Title:       "Server Error",
+			Description: e.Error(),
+		}
+	}
+
+	if revelError == nil {
+		panic("no error provided")
+	}
+	viewArgs := map[string]interface{}{}
+	viewArgs["RunMode"] = h.paths.RunMode
+	viewArgs["DevMode"] = h.paths.DevMode
+	viewArgs["Error"] = revelError
+
+
+
+	// Render the template from the file
+	err = templateSet.ExecuteTemplate(iw,"errors/500.html",viewArgs)
+	if err!=nil {
+		utils.Logger.Error("Failed to execute","error",err)
+	}
+	fmt.Println("template ",templateSet.Templates()[0].Name(), templateSet.Templates()[1].Name())
+	//utils.MustRenderTemplateToStream(iw,target, viewArgs)
+
 }
 
 // ServeHTTP handles all requests.
@@ -72,7 +131,7 @@ func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// In a thread safe manner update the flag so that a request for
 		// /favicon.ico does not trigger a rebuild
 		atomic.CompareAndSwapInt32(&lastRequestHadError, 0, 1)
-		renderError(w, r, err)
+		h.renderError(w, r, err)
 		return
 	}
 
@@ -83,7 +142,7 @@ func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Reverse proxy the request.
 	// (Need special code for websockets, courtesy of bradfitz)
 	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
-		proxyWebsocket(w, r, h.serverHost)
+		h.proxyWebsocket(w, r, h.serverHost)
 	} else {
 		h.proxy.ServeHTTP(w, r)
 	}
@@ -91,24 +150,26 @@ func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // NewHarness method returns a reverse proxy that forwards requests
 // to the given port.
-func NewHarness() *Harness {
+func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode string, noProxy bool) *Harness {
 	// Get a template loader to render errors.
 	// Prefer the app's views/errors directory, and fall back to the stock error pages.
-	revel.MainTemplateLoader = revel.NewTemplateLoader(
-		[]string{filepath.Join(revel.RevelPath, "templates")})
-	if err := revel.MainTemplateLoader.Refresh(); err != nil {
-		revel.RevelLog.Error("Template loader error", "error", err)
-	}
+	//revel.MainTemplateLoader = revel.NewTemplateLoader(
+	//	[]string{filepath.Join(revel.RevelPath, "templates")})
+	//if err := revel.MainTemplateLoader.Refresh(); err != nil {
+	//	revel.RevelLog.Error("Template loader error", "error", err)
+	//}
 
-	addr := revel.HTTPAddr
-	port := revel.Config.IntDefault("harness.port", 0)
+	addr := paths.HTTPAddr
+	port := paths.Config.IntDefault("harness.port", 0)
 	scheme := "http"
-	if revel.HTTPSsl {
+	if paths.HTTPSsl {
 		scheme = "https"
 	}
 
 	// If the server is running on the wildcard address, use "localhost"
 	if addr == "" {
+		utils.Logger.Warn("No http.addr specified in the app.conf listening on localhost interface only. " +
+			"This will not allow external access to your application")
 		addr = "localhost"
 	}
 
@@ -123,9 +184,14 @@ func NewHarness() *Harness {
 		serverHost: serverURL.String()[len(scheme+"://"):],
 		proxy:      httputil.NewSingleHostReverseProxy(serverURL),
 		mutex:      &sync.Mutex{},
+		paths:      paths,
+		useProxy:   !noProxy,
+		config:     c,
+		runMode:    runMode,
+
 	}
 
-	if revel.HTTPSsl {
+	if paths.HTTPSsl {
 		serverHarness.proxy.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
@@ -134,8 +200,13 @@ func NewHarness() *Harness {
 }
 
 // Refresh method rebuilds the Revel application and run it on the given port.
-func (h *Harness) Refresh() (err *revel.Error) {
+// called by the watcher
+func (h *Harness) Refresh() (err *utils.Error) {
 	// Allow only one thread to rebuild the process
+	// If multiple requests to rebuild are queued only the last one is executed on
+	// So before a build is started we wait for a second to determine if
+	// more requests for a build are triggered.
+	// Once no more requests are triggered the build will be processed
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -143,18 +214,24 @@ func (h *Harness) Refresh() (err *revel.Error) {
 		h.app.Kill()
 	}
 
-	revel.RevelLog.Debug("Rebuild Called")
-	h.app, err = Build()
+	utils.Logger.Info("Rebuild Called")
+	h.app, err = Build(h.config, h.paths)
 	if err != nil {
+		utils.Logger.Error("Build detected an error", "error", err)
 		return
 	}
 
-	h.app.Port = h.port
-	if err2 := h.app.Cmd().Start(); err2 != nil {
-		return &revel.Error{
-			Title:       "App failed to start up",
-			Description: err2.Error(),
+	if h.useProxy {
+		h.app.Port = h.port
+		if err2 := h.app.Cmd(h.runMode).Start(h.config); err2 != nil {
+			utils.Logger.Error("Could not start application", "error", err2)
+			return &utils.Error{
+				Title:       "App failed to start up",
+				Description: err2.Error(),
+			}
 		}
+	} else {
+		h.app = nil
 	}
 
 	return
@@ -163,7 +240,7 @@ func (h *Harness) Refresh() (err *revel.Error) {
 // WatchDir method returns false to file matches with doNotWatch
 // otheriwse true
 func (h *Harness) WatchDir(info os.FileInfo) bool {
-	return !revel.ContainsString(doNotWatch, info.Name())
+	return !utils.ContainsString(doNotWatch, info.Name())
 }
 
 // WatchFile method returns true given filename HasSuffix of ".go"
@@ -176,34 +253,40 @@ func (h *Harness) WatchFile(filename string) bool {
 // server, which it runs and rebuilds as necessary.
 func (h *Harness) Run() {
 	var paths []string
-	if revel.Config.BoolDefault("watch.gopath", false) {
+	if h.paths.Config.BoolDefault("watch.gopath", false) {
 		gopaths := filepath.SplitList(build.Default.GOPATH)
 		paths = append(paths, gopaths...)
 	}
-	paths = append(paths, revel.CodePaths...)
-	h.watcher = revel.NewWatcher()
+	paths = append(paths, h.paths.CodePaths...)
+	h.watcher = watcher.NewWatcher(h.paths, false)
 	h.watcher.Listen(h, paths...)
 	h.watcher.Notify()
 
-	go func() {
-		addr := fmt.Sprintf("%s:%d", revel.HTTPAddr, revel.HTTPPort)
-		revel.RevelLog.Infof("Listening on %s", addr)
+	if h.useProxy {
+		go func() {
+			// Check the port to start on a random port
+			if h.paths.HTTPPort==0 {
+				h.paths.HTTPPort = getFreePort()
+			}
+			addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)
+			utils.Logger.Infof("Proxy server is listening on %s", addr)
 
-		var err error
-		if revel.HTTPSsl {
-			err = http.ListenAndServeTLS(
-				addr,
-				revel.HTTPSslCert,
-				revel.HTTPSslKey,
-				h)
-		} else {
-			err = http.ListenAndServe(addr, h)
-		}
-		if err != nil {
-			revel.RevelLog.Error("Failed to start reverse proxy:", "error", err)
-		}
-	}()
+			var err error
+			if h.paths.HTTPSsl {
+				err = http.ListenAndServeTLS(
+					addr,
+					h.paths.HTTPSslCert,
+					h.paths.HTTPSslKey,
+					h)
+			} else {
+				err = http.ListenAndServe(addr, h)
+			}
+			if err != nil {
+				utils.Logger.Error("Failed to start reverse proxy:", "error", err)
+			}
+		}()
 
+	}
 	// Kill the app on signal.
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt, os.Kill)
@@ -218,25 +301,25 @@ func (h *Harness) Run() {
 func getFreePort() (port int) {
 	conn, err := net.Listen("tcp", ":0")
 	if err != nil {
-		revel.RevelLog.Fatal("Unable to fetch a freee port address", "error", err)
+		utils.Logger.Fatal("Unable to fetch a freee port address", "error", err)
 	}
 
 	port = conn.Addr().(*net.TCPAddr).Port
 	err = conn.Close()
 	if err != nil {
-		revel.RevelLog.Fatal("Unable to close port", "error", err)
+		utils.Logger.Fatal("Unable to close port", "error", err)
 	}
 	return port
 }
 
 // proxyWebsocket copies data between websocket client and server until one side
 // closes the connection.  (ReverseProxy doesn't work with websocket requests.)
-func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
+func (h *Harness) proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 	var (
 		d   net.Conn
 		err error
 	)
-	if revel.HTTPSsl {
+	if h.paths.HTTPSsl {
 		// since this proxy isn't used in production,
 		// it's OK to set InsecureSkipVerify to true
 		// no need to add another configuration option.
@@ -246,7 +329,7 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 	}
 	if err != nil {
 		http.Error(w, "Error contacting backend server.", 500)
-		revel.RevelLog.Error("Error dialing websocket backend ", "host", host, "error", err)
+		utils.Logger.Error("Error dialing websocket backend ", "host", host, "error", err)
 		return
 	}
 	hj, ok := w.(http.Hijacker)
@@ -256,21 +339,21 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host string) {
 	}
 	nc, _, err := hj.Hijack()
 	if err != nil {
-		revel.RevelLog.Error("Hijack error", "error", err)
+		utils.Logger.Error("Hijack error", "error", err)
 		return
 	}
 	defer func() {
 		if err = nc.Close(); err != nil {
-			revel.RevelLog.Error("Connection close error", "error", err)
+			utils.Logger.Error("Connection close error", "error", err)
 		}
 		if err = d.Close(); err != nil {
-			revel.RevelLog.Error("Dial close error", "error", err)
+			utils.Logger.Error("Dial close error", "error", err)
 		}
 	}()
 
 	err = r.Write(d)
 	if err != nil {
-		revel.RevelLog.Error("Error copying request to target", "error", err)
+		utils.Logger.Error("Error copying request to target", "error", err)
 		return
 	}
 

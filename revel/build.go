@@ -5,70 +5,86 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"fmt"
 	"github.com/revel/cmd/harness"
-	"github.com/revel/revel"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"go/build"
 )
 
 var cmdBuild = &Command{
-	UsageLine: "build [import path] [target path] [run mode]",
+	UsageLine: "build -i [import path] -t [target path] -r [run mode]",
 	Short:     "build a Revel application (e.g. for deployment)",
 	Long: `
 Build the Revel web application named by the given import path.
 This allows it to be deployed and run on a machine that lacks a Go installation.
 
-The run mode is used to select which set of app.conf configuration should
-apply and may be used to determine logic in the application itself.
-
-Run mode defaults to "dev".
-
-WARNING: The target path will be completely deleted, if it already exists!
-
 For example:
 
-    revel build github.com/revel/examples/chat /tmp/chat
+    revel build -a github.com/revel/examples/chat -t /tmp/chat
+
 `,
 }
 
 func init() {
-	cmdBuild.Run = buildApp
+	cmdBuild.RunWith = buildApp
+	cmdBuild.UpdateConfig = updateBuildConfig
 }
 
-func buildApp(args []string) {
+// The update config updates the configuration command so that it can run
+func updateBuildConfig(c *model.CommandConfig, args []string) bool {
+	c.Index = BUILD
 	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
-		return
+		return false
+	}
+	c.Build.ImportPath = args[0]
+	c.Build.TargetPath = args[1]
+	if len(args) > 2 {
+		c.Build.Mode = args[1]
+	}
+	return true
+}
+
+// The main entry point to build application from command line
+func buildApp(c *model.CommandConfig) {
+	c.ImportPath = c.Build.ImportPath
+	appImportPath, destPath, mode := c.Build.ImportPath, c.Build.TargetPath, DefaultRunMode
+	if len(c.Build.Mode) > 0 {
+		mode = c.Build.Mode
 	}
 
-	appImportPath, destPath, mode := args[0], args[1], DefaultRunMode
-	if len(args) >= 3 {
-		mode = args[2]
-	}
+	// Convert target to absolute path
+	destPath, _ = filepath.Abs(destPath)
 
-	if !revel.Initialized {
-		revel.Init(mode, appImportPath, "")
-	}
+	revel_paths := model.NewRevelPaths(mode, appImportPath, "", model.DoNothingRevelCallback)
 
 	// First, verify that it is either already empty or looks like a previous
 	// build (to avoid clobbering anything)
-	if exists(destPath) && !empty(destPath) && !exists(filepath.Join(destPath, "run.sh")) {
-		errorf("Abort: %s exists and does not look like a build directory.", destPath)
+	if utils.Exists(destPath) && !utils.Empty(destPath) && !utils.Exists(filepath.Join(destPath, "run.sh")) {
+		utils.Logger.Errorf("Abort: %s exists and does not look like a build directory.", destPath)
+		return
 	}
 
 	if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
-		revel.RevelLog.Fatal("Remove all error","error", err)
+		utils.Logger.Error("Remove all error", "error", err)
+		return
 	}
 
 	if err := os.MkdirAll(destPath, 0777); err != nil {
-		revel.RevelLog.Fatal("makedir error","error",err)
+		utils.Logger.Error("makedir error", "error", err)
+		return
 	}
 
-	app, reverr := harness.Build()
-	panicOnError(reverr, "Failed to build")
+	app, reverr := harness.Build(c, revel_paths)
+	if reverr != nil {
+		utils.Logger.Error("Failed to build application", "error", reverr)
+		return
+	}
 
 	// Included are:
 	// - run scripts
@@ -79,17 +95,43 @@ func buildApp(args []string) {
 	// Revel and the app are in a directory structure mirroring import path
 	srcPath := filepath.Join(destPath, "src")
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
-	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(revel.RevelImportPath))
-	mustCopyFile(destBinaryPath, app.BinaryPath)
-	mustChmod(destBinaryPath, 0755)
-	_ = mustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel.RevelPath, "conf"), nil)
-	_ = mustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel.RevelPath, "templates"), nil)
-	_ = mustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel.BasePath, nil)
+	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(model.RevelImportPath))
+	utils.MustCopyFile(destBinaryPath, app.BinaryPath)
+	utils.MustChmod(destBinaryPath, 0755)
+
+	// Copy the templates  from the revel
+	_ = utils.MustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel_paths.RevelPath, "conf"), nil)
+	_ = utils.MustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel_paths.RevelPath, "templates"), nil)
+
+	// Get the folders to be packaged
+	packageFolders := strings.Split(revel_paths.Config.StringDefault("package.folders", "conf,public,app/views"), ",")
+	for i,p:=range packageFolders {
+		// Clean spaces, reformat slash to filesystem
+		packageFolders[i]=filepath.FromSlash(strings.TrimSpace(p))
+	}
+
+	if c.Build.CopySource {
+		_ = utils.MustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel_paths.BasePath, nil)
+	} else {
+		for _, folder := range packageFolders {
+			_ = utils.MustCopyDir(
+				filepath.Join(srcPath, filepath.FromSlash(appImportPath), folder),
+				filepath.Join(revel_paths.BasePath, folder),
+				nil)
+		}
+	}
 
 	// Find all the modules used and copy them over.
-	config := revel.Config.Raw()
+	config := revel_paths.Config.Raw()
 	modulePaths := make(map[string]string) // import path => filesystem path
+
+	// We should only copy over the section of options what the build is targeted for
+	// We will default to prod
 	for _, section := range config.Sections() {
+		// If the runmode is defined we will only import modules defined for that run mode
+		if c.Build.Mode != "" && c.Build.Mode != section {
+			continue
+		}
 		options, _ := config.SectionOptions(section)
 		for _, key := range options {
 			if !strings.HasPrefix(key, "module.") {
@@ -99,32 +141,59 @@ func buildApp(args []string) {
 			if moduleImportPath == "" {
 				continue
 			}
-			modulePath, err := revel.ResolveImportPath(moduleImportPath)
+
+			modPkg, err := build.Import(moduleImportPath, revel_paths.RevelPath, build.FindOnly)
 			if err != nil {
-				revel.RevelLog.Fatalf("Failed to load module %s: %s", key[len("module."):], err)
+				utils.Logger.Fatalf("Failed to load module %s (%s): %s", key[len("module."):], c.ImportPath, err)
 			}
-			modulePaths[moduleImportPath] = modulePath
+			modulePaths[moduleImportPath] = modPkg.Dir
 		}
 	}
+
+	// Copy the the paths for each of the modules
 	for importPath, fsPath := range modulePaths {
-		_ = mustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+		utils.Logger.Info("Copy files ", "to", filepath.Join(srcPath, importPath), "from", fsPath)
+		if c.Build.CopySource {
+			_ = utils.MustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+		} else {
+			for _, folder := range packageFolders {
+				_ = utils.MustCopyDir(
+					filepath.Join(srcPath, importPath, folder),
+					filepath.Join(fsPath, folder),
+					nil)
+			}
+		}
+		//
 	}
 
-	tmplData, runShPath := map[string]interface{}{
+	tmplData := map[string]interface{}{
 		"BinName":    filepath.Base(app.BinaryPath),
 		"ImportPath": appImportPath,
 		"Mode":       mode,
-	}, filepath.Join(destPath, "run.sh")
+	}
 
-	mustRenderTemplate(
-		runShPath,
-		filepath.Join(revel.RevelPath, "..", "cmd", "revel", "package_run.sh.template"),
-		tmplData)
-
-	mustChmod(runShPath, 0755)
-
-	mustRenderTemplate(
+	utils.MustGenerateTemplate(
+		filepath.Join(destPath, "run.sh"),
+		PACKAGE_RUN_SH,
+		tmplData,
+	)
+	utils.MustChmod(filepath.Join(destPath, "run.sh"), 0755)
+	utils.MustGenerateTemplate(
 		filepath.Join(destPath, "run.bat"),
-		filepath.Join(revel.RevelPath, "..", "cmd", "revel", "package_run.bat.template"),
-		tmplData)
+		PACKAGE_RUN_BAT,
+		tmplData,
+	)
+
+	fmt.Println("Your application has been built in:", destPath)
+
 }
+
+const PACKAGE_RUN_SH = `#!/bin/sh
+
+SCRIPTPATH=$(cd "$(dirname "$0")"; pwd)
+"$SCRIPTPATH/{{.BinName}}" -importPath {{.ImportPath}} -srcPath "$SCRIPTPATH/src" -runMode {{.Mode}}
+`
+const PACKAGE_RUN_BAT = `@echo off
+
+{{.BinName}} -importPath {{.ImportPath}} -srcPath "%CD%\src" -runMode {{.Mode}}
+`

@@ -10,11 +10,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/revel/revel"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
 )
 
 var cmdPackage = &Command{
-	UsageLine: "package [import path] [run mode]",
+	UsageLine: "package -i [import path] -r [run mode]",
 	Short:     "package a Revel application (e.g. for deployment)",
 	Long: `
 Package the Revel web application named by the given import path.
@@ -27,43 +28,63 @@ Run mode defaults to "dev".
 
 For example:
 
-    revel package github.com/revel/examples/chat
+    revel package -i github.com/revel/examples/chat
 `,
 }
 
 func init() {
-	cmdPackage.Run = packageApp
+	cmdPackage.RunWith = packageApp
+	cmdPackage.UpdateConfig = updatePackageConfig
 }
 
-func packageApp(args []string) {
+// Called when unable to parse the command line automatically and assumes an old launch
+func updatePackageConfig(c *model.CommandConfig, args []string) bool {
+	c.Index = PACAKAGE
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, cmdPackage.Long)
-		return
+		fmt.Fprintf(os.Stderr, cmdPackage.Long)
+		return false
 	}
+	c.New.ImportPath = args[0]
+	if len(args)>1 {
+		c.New.Skeleton = args[1]
+	}
+	return true
+
+}
+
+func packageApp(c *model.CommandConfig) {
 
 	// Determine the run mode.
 	mode := DefaultRunMode
-	if len(args) >= 2 {
-		mode = args[1]
+	if len(c.Package.Mode) >= 0 {
+		mode = c.Package.Mode
 	}
 
-	appImportPath := args[0]
-	revel.Init(mode, appImportPath, "")
+	appImportPath := c.Package.ImportPath
+	revel_paths := model.NewRevelPaths(mode, appImportPath, "", model.DoNothingRevelCallback)
 
 	// Remove the archive if it already exists.
-	destFile := filepath.Base(revel.BasePath) + ".tar.gz"
+	destFile := filepath.Base(revel_paths.BasePath) + ".tar.gz"
 	if err := os.Remove(destFile); err != nil && !os.IsNotExist(err) {
-		revel.RevelLog.Fatal("Unable to remove target file","error",err,"file",destFile)
+		utils.Logger.Error("Unable to remove target file","error",err,"file",destFile)
+		os.Exit(1)
 	}
 
 	// Collect stuff in a temp directory.
-	tmpDir, err := ioutil.TempDir("", filepath.Base(revel.BasePath))
-	panicOnError(err, "Failed to get temp dir")
+	tmpDir, err := ioutil.TempDir("", filepath.Base(revel_paths.BasePath))
+	utils.PanicOnError(err, "Failed to get temp dir")
 
-	buildApp([]string{args[0], tmpDir, mode})
+	// Build expects the command the build to contain the proper data
+	c.Build.ImportPath = appImportPath
+	if len(c.Package.Mode) >= 0 {
+		c.Build.Mode = c.Package.Mode
+	}
+	c.Build.TargetPath = tmpDir
+	c.Build.CopySource = c.Package.CopySource
+	buildApp(c)
 
 	// Create the zip file.
-	archiveName := mustTarGzDir(destFile, tmpDir)
+	archiveName := utils.MustTarGzDir(destFile, tmpDir)
 
 	fmt.Println("Your archive is ready:", archiveName)
 }

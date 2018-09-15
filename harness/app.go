@@ -13,7 +13,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/revel/revel"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"log"
 )
 
 // App contains the configuration for running a Revel app.  (Not for the app itself)
@@ -22,16 +24,17 @@ type App struct {
 	BinaryPath string // Path to the app executable
 	Port       int    // Port to pass as a command line argument.
 	cmd        AppCmd // The last cmd returned.
+	Paths      *model.RevelContainer
 }
 
 // NewApp returns app instance with binary path in it
-func NewApp(binPath string) *App {
-	return &App{BinaryPath: binPath}
+func NewApp(binPath string, paths *model.RevelContainer) *App {
+	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort}
 }
 
 // Cmd returns a command to run the app server using the current configuration.
-func (a *App) Cmd() AppCmd {
-	a.cmd = NewAppCmd(a.BinaryPath, a.Port)
+func (a *App) Cmd(runMode string) AppCmd {
+	a.cmd = NewAppCmd(a.BinaryPath, a.Port, runMode, a.Paths)
 	return a.cmd
 }
 
@@ -47,22 +50,22 @@ type AppCmd struct {
 }
 
 // NewAppCmd returns the AppCmd with parameters initialized for running app
-func NewAppCmd(binPath string, port int) AppCmd {
+func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelContainer) AppCmd {
 	cmd := exec.Command(binPath,
 		fmt.Sprintf("-port=%d", port),
-		fmt.Sprintf("-importPath=%s", revel.ImportPath),
-		fmt.Sprintf("-runMode=%s", revel.RunMode))
+		fmt.Sprintf("-importPath=%s", paths.ImportPath),
+		fmt.Sprintf("-runMode=%s", runMode))
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	return AppCmd{cmd}
 }
 
 // Start the app server, and wait until it is ready to serve requests.
-func (cmd AppCmd) Start() error {
-	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool)}
+func (cmd AppCmd) Start(c *model.CommandConfig) error {
+	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool),c}
 	cmd.Stdout = listeningWriter
-	revel.RevelLog.Debug("Exec app:", "path", cmd.Path, "args", cmd.Args)
+	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Start(); err != nil {
-		revel.RevelLog.Fatal("Error running:", "error", err)
+		utils.Logger.Fatal("Error running:", "error", err)
 	}
 
 	select {
@@ -70,7 +73,7 @@ func (cmd AppCmd) Start() error {
 		return errors.New("revel/harness: app died")
 
 	case <-time.After(30 * time.Second):
-		revel.RevelLog.Debug("Killing revel server process did not respond after wait timeout", "processid", cmd.Process.Pid)
+		log.Println("Killing revel server process did not respond after wait timeout", "processid", cmd.Process.Pid)
 		cmd.Kill()
 		return errors.New("revel/harness: app timed out")
 
@@ -84,19 +87,19 @@ func (cmd AppCmd) Start() error {
 
 // Run the app server inline.  Never returns.
 func (cmd AppCmd) Run() {
-	revel.RevelLog.Debug("Exec app:", "path", cmd.Path, "args", cmd.Args)
+	log.Println("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Run(); err != nil {
-		revel.RevelLog.Fatal("Error running:", "error", err)
+		utils.Logger.Fatal("Error running:", "error", err)
 	}
 }
 
 // Kill terminates the app server if it's running.
 func (cmd AppCmd) Kill() {
 	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
-		revel.RevelLog.Debug("Killing revel server pid", "pid", cmd.Process.Pid)
+		utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
 		err := cmd.Process.Kill()
 		if err != nil {
-			revel.RevelLog.Fatal("Failed to kill revel server:", "error", err)
+			utils.Logger.Fatal("Failed to kill revel server:", "error", err)
 		}
 	}
 }
@@ -111,18 +114,25 @@ func (cmd AppCmd) waitChan() <-chan struct{} {
 	return ch
 }
 
-// A io.Writer that copies to the destination, and listens for "Listening on.."
+// A io.Writer that copies to the destination, and listens for "Revel engine is listening on.."
 // in the stream.  (Which tells us when the revel server has finished starting up)
 // This is super ghetto, but by far the simplest thing that should work.
 type startupListeningWriter struct {
 	dest        io.Writer
 	notifyReady chan bool
+	c *model.CommandConfig
 }
 
-func (w *startupListeningWriter) Write(p []byte) (n int, err error) {
-	if w.notifyReady != nil && bytes.Contains(p, []byte("Listening")) {
+func (w *startupListeningWriter) Write(p []byte) (int, error) {
+	if w.notifyReady != nil && bytes.Contains(p, []byte("Revel engine is listening on")) {
 		w.notifyReady <- true
 		w.notifyReady = nil
+	}
+	if w.c.HistoricMode {
+		if w.notifyReady != nil && bytes.Contains(p, []byte("Listening on")) {
+			w.notifyReady <- true
+			w.notifyReady = nil
+		}
 	}
 	return w.dest.Write(p)
 }

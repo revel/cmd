@@ -2,7 +2,7 @@
 // Revel Framework source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package harness
+package parser
 
 import (
 	"go/ast"
@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/revel/revel"
+	"github.com/revel/cmd/model"
 )
 
 const validationKeysSource = `
@@ -80,7 +81,7 @@ func TestGetValidationKeys(t *testing.T) {
 	}
 
 	for i, decl := range file.Decls {
-		lineKeys := getValidationKeys(fset, decl.(*ast.FuncDecl), map[string]string{"revel": revel.RevelImportPath})
+		lineKeys := getValidationKeys("test", fset, decl.(*ast.FuncDecl), map[string]string{"revel": revel.RevelImportPath})
 		for k, v := range expectedValidationKeys[i] {
 			if lineKeys[k] != v {
 				t.Errorf("Not found - %d: %v - Actual Map: %v", k, v, lineKeys)
@@ -93,7 +94,7 @@ func TestGetValidationKeys(t *testing.T) {
 	}
 }
 
-var TypeExprs = map[string]TypeExpr{
+var TypeExprs = map[string]model.TypeExpr{
 	"int":             {"int", "", 0, true},
 	"*int":            {"*int", "", 1, true},
 	"[]int":           {"[]int", "", 2, true},
@@ -136,7 +137,7 @@ func TestTypeExpr(t *testing.T) {
 			expr = &ast.Ellipsis{Ellipsis: expr.Pos(), Elt: expr}
 		}
 
-		actual := NewTypeExpr("pkg", expr)
+		actual := model.NewTypeExpr("pkg", expr)
 		if !reflect.DeepEqual(expected, actual) {
 			t.Error("Fail, expected", expected, ", was", actual)
 		}
@@ -151,7 +152,7 @@ func TestProcessBookingSource(t *testing.T) {
 	}
 
 	controllerPackage := "github.com/revel/examples/booking/app/controllers"
-	expectedControllerSpecs := []*TypeInfo{
+	expectedControllerSpecs := []*model.TypeInfo{
 		{"GorpController", controllerPackage, "controllers", nil, nil},
 		{"Application", controllerPackage, "controllers", nil, nil},
 		{"Hotels", controllerPackage, "controllers", nil, nil},

@@ -146,7 +146,7 @@ func NewRevelPaths(mode, importPath, srcPath string, callback RevelCallback) (rp
 		mode = config.DefaultSection
 	}
 	if !rp.Config.HasSection(mode) {
-		utils.Logger.Fatal("app.conf: No mode found:", mode)
+		utils.Logger.Fatal("app.conf: No mode found:","run-more", mode)
 	}
 	rp.Config.SetSection(mode)
 

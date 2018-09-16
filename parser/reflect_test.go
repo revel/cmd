@@ -2,7 +2,7 @@
 // Revel Framework source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package parser
+package parser_test
 
 import (
 	"go/ast"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/revel/revel"
 	"github.com/revel/cmd/model"
+	revelParser "github.com/revel/cmd/parser"
 )
 
 const validationKeysSource = `
@@ -81,7 +81,7 @@ func TestGetValidationKeys(t *testing.T) {
 	}
 
 	for i, decl := range file.Decls {
-		lineKeys := getValidationKeys("test", fset, decl.(*ast.FuncDecl), map[string]string{"revel": revel.RevelImportPath})
+		lineKeys := revelParser.GetValidationKeys("test", fset, decl.(*ast.FuncDecl), map[string]string{"revel": model.RevelImportPath})
 		for k, v := range expectedValidationKeys[i] {
 			if lineKeys[k] != v {
 				t.Errorf("Not found - %d: %v - Actual Map: %v", k, v, lineKeys)
@@ -95,20 +95,20 @@ func TestGetValidationKeys(t *testing.T) {
 }
 
 var TypeExprs = map[string]model.TypeExpr{
-	"int":             {"int", "", 0, true},
-	"*int":            {"*int", "", 1, true},
-	"[]int":           {"[]int", "", 2, true},
-	"...int":          {"[]int", "", 2, true},
-	"[]*int":          {"[]*int", "", 3, true},
-	"...*int":         {"[]*int", "", 3, true},
-	"MyType":          {"MyType", "pkg", 0, true},
-	"*MyType":         {"*MyType", "pkg", 1, true},
-	"[]MyType":        {"[]MyType", "pkg", 2, true},
-	"...MyType":       {"[]MyType", "pkg", 2, true},
-	"[]*MyType":       {"[]*MyType", "pkg", 3, true},
-	"...*MyType":      {"[]*MyType", "pkg", 3, true},
-	"map[int]MyType":  {"map[int]MyType", "pkg", 8, true},
-	"map[int]*MyType": {"map[int]*MyType", "pkg", 9, true},
+	"int":             model.NewTypeExprFromData("int", "", 0, true),
+	"*int":            model.NewTypeExprFromData("*int", "", 1, true),
+	"[]int":           model.NewTypeExprFromData("[]int", "", 2, true),
+	"...int":          model.NewTypeExprFromData("[]int", "", 2, true),
+	"[]*int":          model.NewTypeExprFromData("[]*int", "", 3, true),
+	"...*int":         model.NewTypeExprFromData("[]*int", "", 3, true),
+	"MyType":          model.NewTypeExprFromData("MyType", "pkg", 0, true),
+	"*MyType":         model.NewTypeExprFromData("*MyType", "pkg", 1, true),
+	"[]MyType":        model.NewTypeExprFromData("[]MyType", "pkg", 2, true),
+	"...MyType":       model.NewTypeExprFromData("[]MyType", "pkg", 2, true),
+	"[]*MyType":       model.NewTypeExprFromData("[]*MyType", "pkg", 3, true),
+	"...*MyType":      model.NewTypeExprFromData("[]*MyType", "pkg", 3, true),
+	"map[int]MyType":  model.NewTypeExprFromData("map[int]MyType", "pkg", 8, true),
+	"map[int]*MyType": model.NewTypeExprFromData("map[int]*MyType", "pkg", 9, true),
 }
 
 func TestTypeExpr(t *testing.T) {
@@ -137,60 +137,9 @@ func TestTypeExpr(t *testing.T) {
 			expr = &ast.Ellipsis{Ellipsis: expr.Pos(), Elt: expr}
 		}
 
-		actual := model.NewTypeExpr("pkg", expr)
+		actual := model.NewTypeExprFromAst("pkg", expr)
 		if !reflect.DeepEqual(expected, actual) {
 			t.Error("Fail, expected", expected, ", was", actual)
-		}
-	}
-}
-
-func TestProcessBookingSource(t *testing.T) {
-	revel.Init("prod", "github.com/revel/examples/booking", "")
-	sourceInfo, err := ProcessSource([]string{revel.AppPath})
-	if err != nil {
-		t.Fatal("Failed to process booking source with error:", err)
-	}
-
-	controllerPackage := "github.com/revel/examples/booking/app/controllers"
-	expectedControllerSpecs := []*model.TypeInfo{
-		{"GorpController", controllerPackage, "controllers", nil, nil},
-		{"Application", controllerPackage, "controllers", nil, nil},
-		{"Hotels", controllerPackage, "controllers", nil, nil},
-	}
-	if len(sourceInfo.ControllerSpecs()) != len(expectedControllerSpecs) {
-		t.Errorf("Unexpected number of controllers found.  Expected %d, Found %d",
-			len(expectedControllerSpecs), len(sourceInfo.ControllerSpecs()))
-	}
-
-NEXT_TEST:
-	for _, expected := range expectedControllerSpecs {
-		for _, actual := range sourceInfo.ControllerSpecs() {
-			if actual.StructName == expected.StructName {
-				if actual.ImportPath != expected.ImportPath {
-					t.Errorf("%s expected to have import path %s, actual %s",
-						actual.StructName, expected.ImportPath, actual.ImportPath)
-				}
-				if actual.PackageName != expected.PackageName {
-					t.Errorf("%s expected to have package name %s, actual %s",
-						actual.StructName, expected.PackageName, actual.PackageName)
-				}
-				continue NEXT_TEST
-			}
-		}
-		t.Errorf("Expected to find controller %s, but did not.  Actuals: %s",
-			expected.StructName, sourceInfo.ControllerSpecs())
-	}
-}
-
-func BenchmarkProcessBookingSource(b *testing.B) {
-	revel.Init("", "github.com/revel/examples/booking", "")
-	revel.GetRootLogHandler().Disable()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		_, err := ProcessSource(revel.CodePaths)
-		if err != nil {
-			b.Error("Unexpected error:", err)
 		}
 	}
 }

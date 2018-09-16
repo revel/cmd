@@ -1,11 +1,9 @@
 package model
 
-
-
 // TypeExpr provides a type name that may be rewritten to use a package name.
 import (
-	"go/ast"
 	"fmt"
+	"go/ast"
 )
 
 type TypeExpr struct {
@@ -13,6 +11,45 @@ type TypeExpr struct {
 	PkgName  string // The default package idenifier
 	pkgIndex int    // The index where the package identifier should be inserted.
 	Valid    bool
+}
+
+// Returns a new type from the data
+func NewTypeExprFromData(expr, pkgName string, pkgIndex int, valid bool) TypeExpr {
+	return TypeExpr{expr, pkgName, pkgIndex, valid}
+}
+
+// NewTypeExpr returns the syntactic expression for referencing this type in Go.
+func NewTypeExprFromAst(pkgName string, expr ast.Expr) TypeExpr {
+	error := ""
+	switch t := expr.(type) {
+	case *ast.Ident:
+		if IsBuiltinType(t.Name) {
+			pkgName = ""
+		}
+		return TypeExpr{t.Name, pkgName, 0, true}
+	case *ast.SelectorExpr:
+		e := NewTypeExprFromAst(pkgName, t.X)
+		return NewTypeExprFromData(t.Sel.Name, e.Expr, 0, e.Valid)
+	case *ast.StarExpr:
+		e := NewTypeExprFromAst(pkgName, t.X)
+		return NewTypeExprFromData("*"+e.Expr, e.PkgName, e.pkgIndex+1, e.Valid)
+	case *ast.ArrayType:
+		e := NewTypeExprFromAst(pkgName, t.Elt)
+		return NewTypeExprFromData("[]"+e.Expr, e.PkgName, e.pkgIndex+2, e.Valid)
+	case *ast.MapType:
+		if identKey, ok := t.Key.(*ast.Ident); ok && IsBuiltinType(identKey.Name) {
+			e := NewTypeExprFromAst(pkgName, t.Value)
+			return NewTypeExprFromData("map["+identKey.Name+"]"+e.Expr, e.PkgName, e.pkgIndex+len("map["+identKey.Name+"]"), e.Valid)
+		}
+		error = fmt.Sprintf("Failed to generate name for Map field :%v. Make sure the field name is valid.", t.Key)
+	case *ast.Ellipsis:
+		e := NewTypeExprFromAst(pkgName, t.Elt)
+		return NewTypeExprFromData("[]"+e.Expr, e.PkgName, e.pkgIndex+2, e.Valid)
+	default:
+		error = fmt.Sprintf("Failed to generate name for field: %v Package: %v. Make sure the field name is valid.", expr, pkgName)
+
+	}
+	return NewTypeExprFromData(error, "", 0, false)
 }
 
 // TypeName returns the fully-qualified type name for this expression.
@@ -23,40 +60,6 @@ func (e TypeExpr) TypeName(pkgOverride string) string {
 		return e.Expr
 	}
 	return e.Expr[:e.pkgIndex] + pkgName + "." + e.Expr[e.pkgIndex:]
-}
-
-// NewTypeExpr returns the syntactic expression for referencing this type in Go.
-func NewTypeExpr(pkgName string, expr ast.Expr) TypeExpr {
-	error := ""
-	switch t := expr.(type) {
-	case *ast.Ident:
-		if IsBuiltinType(t.Name) {
-			pkgName = ""
-		}
-		return TypeExpr{t.Name, pkgName, 0, true}
-	case *ast.SelectorExpr:
-		e := NewTypeExpr(pkgName, t.X)
-		return TypeExpr{t.Sel.Name, e.Expr, 0, e.Valid}
-	case *ast.StarExpr:
-		e := NewTypeExpr(pkgName, t.X)
-		return TypeExpr{"*" + e.Expr, e.PkgName, e.pkgIndex + 1, e.Valid}
-	case *ast.ArrayType:
-		e := NewTypeExpr(pkgName, t.Elt)
-		return TypeExpr{"[]" + e.Expr, e.PkgName, e.pkgIndex + 2, e.Valid}
-	case *ast.MapType:
-		if identKey, ok := t.Key.(*ast.Ident); ok && IsBuiltinType(identKey.Name) {
-			e := NewTypeExpr(pkgName, t.Value)
-			return TypeExpr{"map[" + identKey.Name + "]" + e.Expr, e.PkgName, e.pkgIndex + len("map["+identKey.Name+"]"), e.Valid}
-		}
-		error = fmt.Sprintf("Failed to generate name for Map field :%v. Make sure the field name is valid.", t.Key)
-	case *ast.Ellipsis:
-		e := NewTypeExpr(pkgName, t.Elt)
-		return TypeExpr{"[]" + e.Expr, e.PkgName, e.pkgIndex + 2, e.Valid}
-	default:
-		error = fmt.Sprintf("Failed to generate name for field: %v Package: %v. Make sure the field name is valid.", expr, pkgName)
-
-	}
-	return TypeExpr{Valid: false, Expr:error}
 }
 
 var builtInTypes = map[string]struct{}{
@@ -97,4 +100,3 @@ func FirstNonEmpty(strs ...string) string {
 	}
 	return ""
 }
-

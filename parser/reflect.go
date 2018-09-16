@@ -181,7 +181,7 @@ func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast
 			// If this is a func... (ignore nil for external (non-Go) function)
 			if funcDecl, ok := decl.(*ast.FuncDecl); ok && funcDecl.Body != nil {
 				// Scan it for validation calls
-				lineKeys := getValidationKeys(fname, fset, funcDecl, imports)
+				lineKeys := GetValidationKeys(fname, fset, funcDecl, imports)
 				if len(lineKeys) > 0 {
 					validationKeys[pkgImportPath+"."+getFuncName(funcDecl)] = lineKeys
 				}
@@ -392,7 +392,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 	for _, field := range funcDecl.Type.Params.List {
 		for _, name := range field.Names {
 			var importPath string
-			typeExpr := model.NewTypeExpr(pkgName, field.Type)
+			typeExpr := model.NewTypeExprFromAst(pkgName, field.Type)
 			if !typeExpr.Valid {
 				utils.Logger.Warn("Warn: Didn't understand argument '%s' of action %s. Ignoring.", name, getFuncName(funcDecl))
 				return // We didn't understand one of the args.  Ignore this action.
@@ -478,7 +478,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 //
 // The end result is that we can set the default validation key for each call to
 // be the same as the local variable.
-func getValidationKeys(fname string, fset *token.FileSet, funcDecl *ast.FuncDecl, imports map[string]string) map[int]string {
+func GetValidationKeys(fname string, fset *token.FileSet, funcDecl *ast.FuncDecl, imports map[string]string) map[int]string {
 	var (
 		lineKeys = make(map[int]string)
 
@@ -534,7 +534,7 @@ func getValidationKeys(fname string, fset *token.FileSet, funcDecl *ast.FuncDecl
 			return true
 		}
 
-		if typeExpr := model.NewTypeExpr("", key); typeExpr.Valid {
+		if typeExpr := model.NewTypeExprFromAst("", key); typeExpr.Valid {
 			lineKeys[fset.Position(callExpr.End()).Line] = typeExpr.TypeName("")
 		} else {
 			utils.Logger.Error("Error: Failed to generate key for field validation. Make sure the field name is valid.", "file", fname,

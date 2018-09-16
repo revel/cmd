@@ -44,9 +44,9 @@ func updatePackageConfig(c *model.CommandConfig, args []string) bool {
 		fmt.Fprintf(os.Stderr, cmdPackage.Long)
 		return false
 	}
-	c.New.ImportPath = args[0]
+	c.Package.ImportPath = args[0]
 	if len(args)>1 {
-		c.New.Skeleton = args[1]
+		c.Package.Mode = args[1]
 	}
 	return true
 

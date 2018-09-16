@@ -1,11 +1,11 @@
 language: go
 
 go:
-  - 1.8
-  - 1.9
-  - 1.10
-  - 1.11
-  - tip
+  - "1.8"
+  - "1.9"
+  - "1.10"
+  - "1.11"
+  - "tip"
 
 os:
   - linux
@@ -40,13 +40,13 @@ install:
   - 'if [[ "$TRAVIS_BRANCH" == "master" ]]; then export REVEL_BRANCH="master"; fi'
   - 'echo "Travis branch: $TRAVIS_BRANCH, Revel dependency branch: $REVEL_BRANCH"'
   - git clone -b $REVEL_BRANCH git://github.com/revel/modules ../modules/
-  - git clone -b $REVEL_BRANCH git://github.com/revel/cmd ../cmd/
+  - git clone -b $REVEL_BRANCH git://github.com/revel/revel ../revel/
   - git clone -b $REVEL_BRANCH git://github.com/revel/config ../config/
   - git clone -b $REVEL_BRANCH git://github.com/revel/cron ../cron/
   - git clone -b $REVEL_BRANCH git://github.com/revel/examples ../examples/
   - go get -v github.com/revel/revel/...
   - go get -v github.com/revel/cmd/revel
-  - go get -v github.com/golang/deps
+  - go get -u github.com/golang/dep/cmd/dep
 
 script:
   - go test -v github.com/revel/cmd/...

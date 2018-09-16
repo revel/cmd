@@ -7,5 +7,11 @@ Provides the `revel` command, used to create and run Revel apps.
 Install
 ------------
 ```bash
-go get github.com/revel/cmd/revel
+go get -u github.com/revel/cmd/revel
+```
+
+New Application
+-------------
+```commandline
+revel new my/app
 ```

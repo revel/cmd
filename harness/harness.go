@@ -63,6 +63,9 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 	// 1) Application/views/errors
 	// 2) revel_home/views/errors
 	// 3) views/errors
+	if err==nil {
+		utils.Logger.Panic("Caller passed in a nil error")
+	}
 	templateSet := template.New("__root__")
 	seekViewOnPath:=func(view string) (path string) {
 		path = filepath.Join(h.paths.ViewsPath, "errors", view)
@@ -82,7 +85,8 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 	}
 	target := []string{seekViewOnPath("500.html"),seekViewOnPath("500-dev.html")}
 	if !utils.Exists(target[0]) {
-			fmt.Fprint(iw, "An error occurred %s", err)
+		fmt.Fprintf(iw, "Target template not found not found %s<br />\n", target[0])
+		fmt.Fprintf(iw, "An error ocurred %s", err.Error())
 			return
 	}
 	var revelError *utils.Error

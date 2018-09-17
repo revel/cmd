@@ -45,7 +45,7 @@ func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	c.Build.ImportPath = args[0]
 	c.Build.TargetPath = args[1]
 	if len(args) > 2 {
-		c.Build.Mode = args[1]
+		c.Build.Mode = args[2]
 	}
 	return true
 }

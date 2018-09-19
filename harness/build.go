@@ -36,7 +36,7 @@ func (c ByString) Less(i, j int) bool { return c[i].String() < c[j].String() }
 // 2. Run the appropriate "go build" command.
 // Requires that revel.Init has been called previously.
 // Returns the path to the built binary, and an error if there was a problem building it.
-func Build(c *model.CommandConfig, paths *model.RevelContainer, buildFlags ...string) (app *App, compileError *utils.Error) {
+func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compileError *utils.Error) {
 	// First, clear the generated files (to avoid them messing with ProcessSource).
 	cleanSource(paths, "tmp", "routes")
 
@@ -56,12 +56,20 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer, buildFlags ...st
 
 	// Generate two source files.
 	templateArgs := map[string]interface{}{
+		"ImportPath":     paths.ImportPath,
 		"Controllers":    controllers,
 		"ValidationKeys": sourceInfo.ValidationKeys,
 		"ImportPaths":    calcImportAliases(sourceInfo),
 		"TestSuites":     sourceInfo.TestSuites(),
 	}
+
+	// Generate code for the main, run and routes file.
+	// The run file allows external programs to launch and run the application
+	// without being the main thread
+	cleanSource(paths, "tmp", "routes")
+
 	genSource(paths, "tmp", "main.go", RevelMainTemplate, templateArgs)
+	genSource(paths, filepath.Join("tmp", "run"), "run.go", RevelRunTemplate, templateArgs)
 	genSource(paths, "routes", "routes.go", RevelRoutesTemplate, templateArgs)
 
 	// Read build config.
@@ -126,14 +134,14 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer, buildFlags ...st
 	}
 
 	gotten := make(map[string]struct{})
-	contains := func (s []string, e string) bool {
-				for _, a := range s {
-					if a == e {
-					return true
-				}
+	contains := func(s []string, e string) bool {
+		for _, a := range s {
+			if a == e {
+				return true
 			}
-		return false
 		}
+		return false
+	}
 
 	for {
 		appVersion := getAppVersion(paths)
@@ -144,7 +152,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer, buildFlags ...st
 
 		// Append any build flags specified, they will override existing flags
 		flags := []string{}
-		if len(c.BuildFlags)==0 {
+		if len(c.BuildFlags) == 0 {
 			flags = []string{
 				"build",
 				"-i",
@@ -152,24 +160,23 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer, buildFlags ...st
 				"-tags", buildTags,
 				"-o", binName}
 		} else {
-			if !contains(c.BuildFlags,"build") {
+			if !contains(c.BuildFlags, "build") {
 				flags = []string{"build"}
 			}
-			flags = append(flags,c.BuildFlags...)
+			flags = append(flags, c.BuildFlags...)
 			if !contains(flags, "-ldflags") {
-				flags = append(flags,"-ldflags", versionLinkerFlags)
+				flags = append(flags, "-ldflags", versionLinkerFlags)
 			}
 			if !contains(flags, "-tags") {
-				flags = append(flags,"-tags", buildTags)
+				flags = append(flags, "-tags", buildTags)
 			}
 			if !contains(flags, "-o") {
-				flags = append(flags,"-o", binName)
+				flags = append(flags, "-o", binName)
 			}
 		}
 
-
 		// Add in build flags
-		flags = append(flags, buildFlags...)
+		flags = append(flags, c.BuildFlags...)
 
 		// This is Go main path
 		gopath := c.GoPath
@@ -236,7 +243,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer, buildFlags ...st
 			getOutput, err := getCmd.CombinedOutput()
 			if err != nil {
 				utils.Logger.Error("Build failed", "message", stOutput)
-				utils.Logger.Error("Failed to fetch the output", string(getOutput))
+				utils.Logger.Error("Failed to fetch the output", "getOutput", string(getOutput))
 				return nil, newCompileError(paths, output)
 			}
 		}
@@ -329,7 +336,6 @@ func cleanDir(paths *model.RevelContainer, dir string) {
 // genSource renders the given template to produce source code, which it writes
 // to the given directory and file.
 func genSource(paths *model.RevelContainer, dir, filename, templateSource string, args map[string]interface{}) {
-	cleanSource(paths, dir)
 
 	err := utils.MustGenerateTemplate(filepath.Join(paths.AppPath, dir, filename), templateSource, args)
 	if err != nil {
@@ -469,14 +475,13 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 }
 
 // RevelMainTemplate template for app/tmp/main.go
-const RevelMainTemplate = `// GENERATED CODE - DO NOT EDIT
-// This file is the main file for Revel.
+const RevelRunTemplate = `// GENERATED CODE - DO NOT EDIT
+// This file is the run file for Revel.
 // It registers all the controllers and provides details for the Revel server engine to
 // properly inject parameters directly into the action endpoints.
-package main
+package run
 
 import (
-	"flag"
 	"reflect"
 	"github.com/revel/revel"{{range $k, $v := $.ImportPaths}}
 	{{$v}} "{{$k}}"{{end}}
@@ -484,18 +489,18 @@ import (
 )
 
 var (
-	runMode    *string = flag.String("runMode", "", "Run mode.")
-	port       *int    = flag.Int("port", 0, "By default, read from app.conf")
-	importPath *string = flag.String("importPath", "", "Go Import Path for the app.")
-	srcPath    *string = flag.String("srcPath", "", "Path to the source root.")
-
 	// So compiler won't complain if the generated code doesn't reference reflect package...
 	_ = reflect.Invalid
 )
 
-func main() {
-	flag.Parse()
-	revel.Init(*runMode, *importPath, *srcPath)
+// Register and run the application
+func Run(port int) {
+	Register()
+	revel.Run(port)
+}
+
+// Register all the controllers
+func Register() {
 	revel.AppLog.Info("Running revel server")
 	{{range $i, $c := .Controllers}}
 	revel.RegisterController((*{{index $.ImportPaths .ImportPath}}.{{.StructName}})(nil),
@@ -522,8 +527,32 @@ func main() {
 	testing.TestSuites = []interface{}{ {{range .TestSuites}}
 		(*{{index $.ImportPaths .ImportPath}}.{{.StructName}})(nil),{{end}}
 	}
+}
+`
+const RevelMainTemplate = `// GENERATED CODE - DO NOT EDIT
+// This file is the main file for Revel.
+// It registers all the controllers and provides details for the Revel server engine to
+// properly inject parameters directly into the action endpoints.
+package main
 
-	revel.Run(*port)
+import (
+	"flag"
+	"{{.ImportPath}}/app/tmp/run"
+	"github.com/revel/revel"
+)
+
+var (
+	runMode    *string = flag.String("runMode", "", "Run mode.")
+	port       *int    = flag.Int("port", 0, "By default, read from app.conf")
+	importPath *string = flag.String("importPath", "", "Go Import Path for the app.")
+	srcPath    *string = flag.String("srcPath", "", "Path to the source root.")
+
+)
+
+func main() {
+	flag.Parse()
+	revel.Init(*runMode, *importPath, *srcPath)
+	run.Run(*port)
 }
 `
 

@@ -78,6 +78,7 @@ func testApp(c *model.CommandConfig) {
 	if c.Test.Mode != "" {
 		mode = c.Test.Mode
 	}
+	c.ImportPath = c.Test.ImportPath
 
 	// Find and parse app.conf
 	revel_path := model.NewRevelPaths(mode, c.Test.ImportPath, "", model.DoNothingRevelCallback)

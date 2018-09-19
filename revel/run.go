@@ -109,6 +109,7 @@ func runApp(c *model.CommandConfig) {
 	if c.Run.Mode == "" {
 		c.Run.Mode = "dev"
 	}
+	c.ImportPath = c.Run.ImportPath
 
 	revel_path := model.NewRevelPaths(c.Run.Mode, c.Run.ImportPath, "", model.DoNothingRevelCallback)
 	if c.Run.Port != "" {

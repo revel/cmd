@@ -69,11 +69,11 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	}
 
 	select {
-	case <-cmd.waitChan():
-		return errors.New("revel/harness: app died")
+	case exitState := <-cmd.waitChan():
+		return errors.New("revel/harness: app died reason: " + exitState)
 
-	case <-time.After(30 * time.Second):
-		log.Println("Killing revel server process did not respond after wait timeout", "processid", cmd.Process.Pid)
+	case <-time.After(60 * time.Second):
+		log.Println("Killing revel server process did not respond after wait timeout.", "processid", cmd.Process.Pid)
 		cmd.Kill()
 		return errors.New("revel/harness: app timed out")
 
@@ -105,11 +105,17 @@ func (cmd AppCmd) Kill() {
 }
 
 // Return a channel that is notified when Wait() returns.
-func (cmd AppCmd) waitChan() <-chan struct{} {
-	ch := make(chan struct{}, 1)
+func (cmd AppCmd) waitChan() <-chan string {
+	ch := make(chan string, 1)
 	go func() {
 		_ = cmd.Wait()
-		ch <- struct{}{}
+		state := cmd.ProcessState
+		exitStatus := " unknown "
+		if state!=nil {
+			exitStatus = state.String()
+		}
+
+		ch <- exitStatus
 	}()
 	return ch
 }

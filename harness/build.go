@@ -196,6 +196,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compi
 
 		// If the build succeeded, we're done.
 		if err == nil {
+			utils.Logger.Info("Build successful continuing")
 			return NewApp(binName, paths), nil
 		}
 

@@ -5,8 +5,8 @@ package model
 import (
 	"github.com/revel/cmd/utils"
 	"path/filepath"
-	"unicode"
 	"strings"
+	"unicode"
 )
 
 type SourceInfo struct {
@@ -41,9 +41,9 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 		processed []string
 	)
 	for len(nodeQueue) > 0 {
-		controllerSimpleName := nodeQueue[0]
+		typeSimpleName := nodeQueue[0]
 		nodeQueue = nodeQueue[1:]
-		processed = append(processed, controllerSimpleName)
+		processed = append(processed, typeSimpleName)
 
 		// Look through all known structs.
 		for _, spec := range s.StructSpecs {
@@ -58,7 +58,7 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 
 				// If so, add this type's simple name to the nodeQueue, and its spec to
 				// the filtered list.
-				if controllerSimpleName == embeddedType.String() {
+				if typeSimpleName == embeddedType.String() {
 					nodeQueue = append(nodeQueue, spec.String())
 					filtered = append(filtered, spec)
 					break
@@ -66,6 +66,7 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 			}
 		}
 	}
+
 	// Strip out any specifications that contain a lower case
 	for exit := false; !exit; exit = true {
 		for i, filteredItem := range filtered {
@@ -84,25 +85,28 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 	for _, spec := range s.StructSpecs {
 		if spec.PackageName == packageFilter {
 			found := false
+			unfoundNames := ""
 			for _, filteredItem := range filtered {
 				if filteredItem.StructName == spec.StructName {
 					found = true
 					break
+				} else {
+					unfoundNames += filteredItem.StructName + ","
 				}
 			}
 
 			// Report non controller structures in controller folder.
 			if !found && !strings.HasPrefix(spec.StructName, "Test") {
-				utils.Logger.Warn("Type found in package: " + packageFilter +
-					", but did not embed from: " + filepath.Base(targetType),
-					"name", spec.StructName, "path", spec.ImportPath)
+				utils.Logger.Warn("Type found in package: "+packageFilter+
+					", but did not embed from: "+filepath.Base(targetType),
+					"name", spec.StructName, "importpath", spec.ImportPath, "foundstructures", unfoundNames)
 			}
 		}
 	}
 	return
 }
 
-// ControllerSpecs returns the all the contollers that embeds
+// ControllerSpecs returns the all the controllers that embeds
 // `revel.Controller`
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
 	if s.controllerSpecs == nil {

@@ -94,18 +94,19 @@ func ProcessSource(paths *model.RevelContainer) (*model.SourceInfo, *utils.Error
 			// Skip "main" packages.
 			delete(pkgs, "main")
 
-			// If there is no code in this directory, skip it.
-			if len(pkgs) == 0 {
-				return nil
-			}
-
 			// Ignore packages that end with _test
+			// These cannot be included in source code that is not generated specifically as a test
 			for i := range pkgs {
 				if len(i) > 6 {
 					if string(i[len(i)-5:]) == "_test" {
 						delete(pkgs, i)
 					}
 				}
+			}
+
+			// If there is no code in this directory, skip it.
+			if len(pkgs) == 0 {
+				return nil
 			}
 
 			// There should be only one package in this directory.
@@ -116,12 +117,17 @@ func ProcessSource(paths *model.RevelContainer) (*model.SourceInfo, *utils.Error
 				utils.Logger.Fatal("Most unexpected! Multiple packages in a single directory:", "packages", pkgs)
 			}
 
+
 			var pkg *ast.Package
 			for _, v := range pkgs {
 				pkg = v
 			}
 
-			srcInfo = appendSourceInfo(srcInfo, processPackage(fset, pkgImportPath, path, pkg))
+			if pkg != nil {
+				srcInfo = appendSourceInfo(srcInfo, processPackage(fset, pkgImportPath, path, pkg))
+			} else {
+				utils.Logger.Info("Ignoring package, because it contained no packages", "path", path)
+			}
 			return nil
 		})
 	}

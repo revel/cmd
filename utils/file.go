@@ -71,7 +71,7 @@ func MustGenerateTemplate(filename, templateSource string, args map[string]inter
 	sourceCode := b.String()
 	filePath := filepath.Dir(filename)
 	if !DirExists(filePath) {
-		err = os.Mkdir(filePath, 0777)
+		err = os.MkdirAll(filePath, 0777)
 		if err != nil && !os.IsExist(err) {
 			Logger.Fatal("Failed to make directory","dir", filePath, "error", err)
 		}

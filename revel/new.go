@@ -108,8 +108,6 @@ func newApp(c *model.CommandConfig) {
 		if err != nil {
 			utils.Logger.Fatal(string(getOutput))
 		}
-
-		// TODO build.Default.GOPATH = build.Default.GOPATH + string(os.PathListSeparator) + c.ImportPath
 	}
 
 
@@ -164,8 +162,12 @@ func setApplicationPath(c *model.CommandConfig) {
 		_, err = build.Import(model.RevelImportPath, "", build.FindOnly)
 		if err != nil {
 			// Go get the revel project
-
-			utils.Logger.Fatal("Abort: Could not find Revel source code:", "error", err)
+			getCmd := exec.Command(c.GoCmd, "get", model.RevelImportPath)
+			utils.Logger.Info("Exec:" + c.GoCmd, "args", getCmd.Args)
+			getOutput, err := getCmd.CombinedOutput()
+			if err != nil {
+				utils.Logger.Fatal("Failed to fetch revel " + model.RevelImportPath, "getOutput", string(getOutput))
+			}
 		}
 	}
 
@@ -208,7 +210,19 @@ func setSkeletonPath(c *model.CommandConfig) {
 		// use the revel default
 		revelCmdPkg, err := build.Import(RevelCmdImportPath, "", build.FindOnly)
 		if err != nil {
-			utils.Logger.Fatalf("Abort: Could not find Revel Cmd source code: %s\n", err)
+			if err != nil {
+				// Go get the revel project
+				getCmd := exec.Command(c.GoCmd, "get", RevelCmdImportPath + "/revel")
+				utils.Logger.Info("Exec:" + c.GoCmd, "args", getCmd.Args)
+				getOutput, err := getCmd.CombinedOutput()
+				if err != nil {
+					utils.Logger.Fatal("Failed to fetch revel cmd " + RevelCmdImportPath, "getOutput", string(getOutput))
+				}
+				revelCmdPkg, err = build.Import(RevelCmdImportPath, "", build.FindOnly)
+				if err!= nil {
+					utils.Logger.Fatal("Failed to find source of revel cmd " + RevelCmdImportPath, "getOutput", string(getOutput), "error",err, "dir", revelCmdPkg.Dir)
+				}
+			}
 		}
 
 		c.SkeletonPath = filepath.Join(revelCmdPkg.Dir, "revel", "skeleton")

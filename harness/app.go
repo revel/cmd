@@ -73,7 +73,7 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 		return errors.New("revel/harness: app died reason: " + exitState)
 
 	case <-time.After(60 * time.Second):
-		log.Println("Killing revel server process did not respond after wait timeout.", "processid", cmd.Process.Pid)
+		utils.Logger.Error("Killing revel server process did not respond after wait timeout.", "processid", cmd.Process.Pid)
 		cmd.Kill()
 		return errors.New("revel/harness: app timed out")
 

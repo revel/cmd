@@ -47,13 +47,13 @@ type (
 		// The build command
 		Build struct {
 			TargetPath string `short:"t" long:"target-path" description:"Path to target folder. Folder will be completely deleted if it exists" required:"true"`
-			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" `
+			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder"  required:"true"`
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
 			CopySource bool   `short:"s" long:"include-source" description:"Copy the source code as well"`
 		} `command:"build"`
 		// The run command
 		Run struct {
-			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" `
+			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder"  required:"true"`
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
 			Port       string `short:"p" long:"port" description:"The port to listen"`
 			NoProxy    bool   `short:"n" long:"no-proxy" description:"True if proxy server should not be started. This will only update the main and routes files on change"`
@@ -61,17 +61,17 @@ type (
 		// The package command
 		Package struct {
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" `
+			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder"  required:"true"`
 			CopySource bool   `short:"s" long:"include-source" description:"Copy the source code as well"`
 		} `command:"package"`
 		// The clean command
 		Clean struct {
-			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" `
+			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder"  required:"true"`
 		} `command:"clean"`
 		// The test command
 		Test struct {
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" `
+			ImportPath string `short:"a" long:"application-path" description:"Path to applicaiton folder" required:"true"`
 			Function   string `short:"f" long:"suite-function" description:"The suite.function"`
 		} `command:"test"`
 		// The version command
@@ -133,6 +133,6 @@ func (c *CommandConfig) UpdateImportPath() bool {
 	}
 
 	c.ImportPath = importPath
-	utils.Logger.Info("Returned import path", "path", importPath)
+	utils.Logger.Info("Returned import path", "path", importPath, "buildpath",build.Default.GOPATH)
 	return (len(importPath) > 0 || !required)
 }

@@ -243,7 +243,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compi
 			utils.Logger.Info("Exec:", "args", getCmd.Args)
 			getOutput, err := getCmd.CombinedOutput()
 			if err != nil {
-				utils.Logger.Error("Build failed", "message", stOutput)
+				utils.Logger.Error("Build failed", "message", stOutput, "error", err)
 				utils.Logger.Error("Failed to fetch the output", "getOutput", string(getOutput))
 				return nil, newCompileError(paths, output)
 			}

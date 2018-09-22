@@ -52,16 +52,6 @@ func (cmd *Command) Name() string {
 	return name
 }
 
-// The constants
-const (
-	NEW model.COMMAND = iota +1
-	RUN
-	BUILD
-	PACAKAGE
-	CLEAN
-	TEST
-	VERSION
-)
 // The commands
 var commands = []*Command{
 	nil, // Safety net, prevent missing index from running
@@ -113,19 +103,19 @@ func main() {
 		} else {
 			switch parser.Active.Name {
 			case "new":
-				c.Index = NEW
+				c.Index = model.NEW
 			case "run":
-				c.Index = RUN
+				c.Index = model.RUN
 			case "build":
-				c.Index = BUILD
+				c.Index = model.BUILD
 			case "package":
-				c.Index = PACAKAGE
+				c.Index = model.PACKAGE
 			case "clean":
-				c.Index = CLEAN
+				c.Index = model.CLEAN
 			case "test":
-				c.Index = TEST
+				c.Index = model.TEST
 			case "version":
-				c.Index = VERSION
+				c.Index = model.VERSION
 			}
 		}
 	}
@@ -136,9 +126,17 @@ func main() {
 	} else {
 		utils.InitLogger(wd, logger.LvlWarn)
 	}
+
+	if c.Index==0 {
+		utils.Logger.Fatal("Unknown command line arguements")
+	}
+	if !c.UpdateImportPath() {
+		utils.Logger.Fatal("Unable to determine application path")
+	}
 	println("Revel executing:", commands[c.Index].Short)
 	// checking and setting go paths
 	initGoPaths(c)
+
 
 	commands[c.Index].RunWith(c)
 
@@ -292,7 +290,10 @@ func initGoPaths(c *model.CommandConfig) {
 	}
 
 	if len(c.SrcRoot) == 0 {
-		utils.Logger.Fatal("Abort: could not create a Revel application outside of GOPATH.")
+		if c.Index != model.VERSION {
+			utils.Logger.Fatal("Abort: could not create a Revel application outside of GOPATH.")
+		}
+		return
 	}
 
 	// set go src path

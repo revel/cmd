@@ -37,7 +37,7 @@ func init() {
 
 // The update config updates the configuration command so that it can run
 func updateBuildConfig(c *model.CommandConfig, args []string) bool {
-	c.Index = BUILD
+	c.Index = model.BUILD
 	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
 		return false
@@ -52,8 +52,7 @@ func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 
 // The main entry point to build application from command line
 func buildApp(c *model.CommandConfig) {
-	c.ImportPath = c.Build.ImportPath
-	appImportPath, destPath, mode := c.Build.ImportPath, c.Build.TargetPath, DefaultRunMode
+	appImportPath, destPath, mode := c.ImportPath, c.Build.TargetPath, DefaultRunMode
 	if len(c.Build.Mode) > 0 {
 		mode = c.Build.Mode
 	}

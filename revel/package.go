@@ -39,7 +39,7 @@ func init() {
 
 // Called when unable to parse the command line automatically and assumes an old launch
 func updatePackageConfig(c *model.CommandConfig, args []string) bool {
-	c.Index = PACAKAGE
+	c.Index = model.PACKAGE
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, cmdPackage.Long)
 		return false
@@ -60,7 +60,7 @@ func packageApp(c *model.CommandConfig) {
 		mode = c.Package.Mode
 	}
 
-	appImportPath := c.Package.ImportPath
+	appImportPath := c.ImportPath
 	revel_paths := model.NewRevelPaths(mode, appImportPath, "", model.DoNothingRevelCallback)
 
 	// Remove the archive if it already exists.
@@ -75,7 +75,6 @@ func packageApp(c *model.CommandConfig) {
 	utils.PanicOnError(err, "Failed to get temp dir")
 
 	// Build expects the command the build to contain the proper data
-	c.Build.ImportPath = appImportPath
 	if len(c.Package.Mode) >= 0 {
 		c.Build.Mode = c.Package.Mode
 	}

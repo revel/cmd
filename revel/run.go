@@ -101,7 +101,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 	case 0:
 		return false
 	}
-	c.Index = RUN
+	c.Index = model.RUN
 	return true
 }
 
@@ -109,9 +109,8 @@ func runApp(c *model.CommandConfig) {
 	if c.Run.Mode == "" {
 		c.Run.Mode = "dev"
 	}
-	c.ImportPath = c.Run.ImportPath
 
-	revel_path := model.NewRevelPaths(c.Run.Mode, c.Run.ImportPath, "", model.DoNothingRevelCallback)
+	revel_path := model.NewRevelPaths(c.Run.Mode, c.ImportPath, "", model.DoNothingRevelCallback)
 	if c.Run.Port != "" {
 		port, err := strconv.Atoi(c.Run.Port)
 		if err != nil {

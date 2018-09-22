@@ -45,7 +45,7 @@ func init() {
 
 // Called when unable to parse the command line automatically and assumes an old launch
 func updateNewConfig(c *model.CommandConfig, args []string) bool {
-	c.Index = NEW
+	c.Index = model.NEW
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, cmdNew.Long)
 		return false
@@ -61,7 +61,6 @@ func updateNewConfig(c *model.CommandConfig, args []string) bool {
 // Call to create a new application
 func newApp(c *model.CommandConfig) {
 	// check for proper args by count
-	c.ImportPath = c.New.ImportPath
 	c.SkeletonPath = c.New.Skeleton
 
 	// Check for an existing folder so we dont clober it
@@ -125,7 +124,6 @@ func newApp(c *model.CommandConfig) {
 	fmt.Fprintln(os.Stdout, "Your application is ready:\n  ", c.AppPath)
 	// Check to see if it should be run right off
 	if c.New.Run {
-		c.Run.ImportPath = c.ImportPath
 		runApp(c)
 	} else {
 		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a ", c.ImportPath)

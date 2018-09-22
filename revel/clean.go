@@ -36,7 +36,7 @@ func init() {
 
 // Update the clean command configuration, using old method
 func updateCleanConfig(c *model.CommandConfig, args []string) bool {
-	c.Index = CLEAN
+	c.Index = model.CLEAN
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, cmdClean.Long)
 		return false
@@ -47,8 +47,6 @@ func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 
 // Clean the source directory of generated files
 func cleanApp(c *model.CommandConfig) {
-	c.ImportPath = c.Clean.ImportPath
-
 	appPkg, err := build.Import(c.ImportPath, "", build.FindOnly)
 	if err != nil {
 		utils.Logger.Fatal("Abort: Failed to find import path:", "error", err)

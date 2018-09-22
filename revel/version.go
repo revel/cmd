@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"github.com/revel/cmd/utils"
+	"github.com/revel/cmd"
 )
 
 var cmdVersion = &Command{
@@ -40,40 +41,60 @@ func init() {
 
 // Displays the version of go and Revel
 func versionApp(c *model.CommandConfig) {
-	revelPkg, err := build.Import(model.RevelImportPath, c.Version.ImportPath, build.FindOnly)
+
+	var (
+		revelPkg *build.Package
+		err error
+	)
+	if len(c.ImportPath)>0 {
+		appPkg, err := build.Import(c.ImportPath, "", build.FindOnly)
+			if err != nil {
+				utils.Logger.Fatal("Failed to import " + c.ImportPath + " with error:", "error", err)
+			}
+			revelPkg, err = build.Import(model.RevelImportPath, appPkg.Dir, build.FindOnly)
+	} else {
+		revelPkg, err = build.Import(model.RevelImportPath, "" , build.FindOnly)
+	}
+
+	fmt.Println("\nRevel Framework")
 	if err != nil {
-		utils.Logger.Errorf("Failed to find Revel with error:", "error", err)
-	}
+		utils.Logger.Info("Failed to find Revel in GOPATH with error:", "error", err, "gopath", build.Default.GOPATH)
+		fmt.Println("Information not available (not on GOPATH)")
+	} else {
+		utils.Logger.Info("Fullpath to revel", revelPkg.Dir)
+		fset := token.NewFileSet() // positions are relative to fset
 
-	utils.Logger.Info("Fullpath to revel", revelPkg.Dir)
-	fset := token.NewFileSet() // positions are relative to fset
-
-	version, err := ioutil.ReadFile(filepath.Join(revelPkg.Dir,"version.go"))
-	if err != nil {
-		utils.Logger.Errorf("Failed to find Revel version:", "error", err)
-	}
-
-	// Parse src but stop after processing the imports.
-	f, err := parser.ParseFile(fset, "", version, parser.ParseComments)
-	if err != nil {
-		utils.Logger.Errorf("Failed to parse Revel version error:", "error", err)
-	}
-
-	// Print the imports from the file's AST.
-	for _, s := range f.Decls {
-		genDecl, ok := s.(*ast.GenDecl)
-		if !ok {
-			continue
+		version, err := ioutil.ReadFile(filepath.Join(revelPkg.Dir, "version.go"))
+		if err != nil {
+			utils.Logger.Errorf("Failed to find Revel version:", "error", err)
 		}
-		if genDecl.Tok != token.CONST {
-			continue
+
+		// Parse src but stop after processing the imports.
+		f, err := parser.ParseFile(fset, "", version, parser.ParseComments)
+		if err != nil {
+			utils.Logger.Errorf("Failed to parse Revel version error:", "error", err)
 		}
-		for _, a := range genDecl.Specs {
-			spec := a.(*ast.ValueSpec)
-			r := spec.Values[0].(*ast.BasicLit)
-			fmt.Printf("Revel %s = %s\n",spec.Names[0].Name,r.Value)
+
+		// Print the imports from the file's AST.
+		for _, s := range f.Decls {
+			genDecl, ok := s.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			if genDecl.Tok != token.CONST {
+				continue
+			}
+			for _, a := range genDecl.Specs {
+				spec := a.(*ast.ValueSpec)
+				r := spec.Values[0].(*ast.BasicLit)
+				fmt.Printf("Revel %s = %s\n", spec.Names[0].Name, r.Value)
+			}
 		}
 	}
+	fmt.Println("\nRevel Command Utility Tool")
+	fmt.Println("Version", cmd.Version)
+	fmt.Println("Build Date", cmd.BuildDate)
+	fmt.Println("Minimum Go Version", cmd.MinimumGoVersion)
 
 	fmt.Printf("\n   %s %s/%s\n\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }

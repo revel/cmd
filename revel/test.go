@@ -54,7 +54,7 @@ func init() {
 
 // Called to update the config command with from the older stype
 func updateTestConfig(c *model.CommandConfig, args []string) bool {
-	c.Index = TEST
+	c.Index = model.TEST
 	// The full test runs
 	// revel test <import path> (run mode) (suite(.function))
 	if len(args) < 1 {
@@ -78,10 +78,9 @@ func testApp(c *model.CommandConfig) {
 	if c.Test.Mode != "" {
 		mode = c.Test.Mode
 	}
-	c.ImportPath = c.Test.ImportPath
 
 	// Find and parse app.conf
-	revel_path := model.NewRevelPaths(mode, c.Test.ImportPath, "", model.DoNothingRevelCallback)
+	revel_path := model.NewRevelPaths(mode, c.ImportPath, "", model.DoNothingRevelCallback)
 
 	// Ensure that the testrunner is loaded in this mode.
 	// todo checkTestRunner()

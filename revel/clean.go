@@ -14,14 +14,14 @@ import (
 )
 
 var cmdClean = &Command{
-	UsageLine: "clean -i [import path]",
+	UsageLine: "clean [import path]",
 	Short:     "clean a Revel application's temp files",
 	Long: `
 Clean the Revel web application named by the given import path.
 
 For example:
 
-    revel clean -a github.com/revel/examples/chat
+    revel clean github.com/revel/examples/chat
 
 It removes the app/tmp and app/routes directory.
 
@@ -46,7 +46,7 @@ func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 }
 
 // Clean the source directory of generated files
-func cleanApp(c *model.CommandConfig) {
+func cleanApp(c *model.CommandConfig) (err error) {
 	appPkg, err := build.Import(c.ImportPath, "", build.FindOnly)
 	if err != nil {
 		utils.Logger.Fatal("Abort: Failed to find import path:", "error", err)
@@ -65,4 +65,5 @@ func cleanApp(c *model.CommandConfig) {
 			return
 		}
 	}
+	return err
 }

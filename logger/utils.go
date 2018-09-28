@@ -1,9 +1,9 @@
 package logger
 
 import (
-	"gopkg.in/stack.v0"
 	"github.com/revel/config"
 	"github.com/revel/log15"
+	"gopkg.in/stack.v0"
 	"log"
 	"os"
 	"path/filepath"
@@ -43,14 +43,13 @@ func GetLogger(name string, logger MultiLogger) (l *log.Logger) {
 // Get all handlers based on the Config (if available)
 func InitializeFromConfig(basePath string, config *config.Context) (c *CompositeMultiHandler) {
 	// If running in test mode suppress anything that is not an error
-	if  config!=nil && config.BoolDefault("testModeFlag",false) {
-		config.SetOption("log.info.output","none")
-		config.SetOption("log.debug.output","none")
-		config.SetOption("log.warn.output","none")
-		config.SetOption("log.error.output","stderr")
-		config.SetOption("log.crit.output","stderr")
+	if config != nil && config.BoolDefault("testModeFlag", false) {
+		config.SetOption("log.info.output", "off")
+		config.SetOption("log.debug.output", "off")
+		config.SetOption("log.warn.output", "off")
+		config.SetOption("log.error.output", "stderr")
+		config.SetOption("log.crit.output", "stderr")
 	}
-
 
 	// If the configuration has an all option we can skip some
 	c, _ = NewCompositeMultiHandler()

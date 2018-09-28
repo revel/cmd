@@ -13,7 +13,6 @@ import (
 	"github.com/revel/cmd/utils"
 )
 
-
 // TestSuiteDesc is used for storing information about a single test suite.
 // This structure is required by revel test cmd.
 type TestSuiteDesc struct {
@@ -146,7 +145,6 @@ func errorSummary(err *utils.Error) (message string) {
 
 	return
 }
-
 
 //sortbySuiteName sorts the testsuites by name.
 type sortBySuiteName []interface{}

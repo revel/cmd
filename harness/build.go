@@ -36,12 +36,12 @@ func (c ByString) Less(i, j int) bool { return c[i].String() < c[j].String() }
 // 2. Run the appropriate "go build" command.
 // Requires that revel.Init has been called previously.
 // Returns the path to the built binary, and an error if there was a problem building it.
-func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compileError *utils.Error) {
+func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err error) {
 	// First, clear the generated files (to avoid them messing with ProcessSource).
 	cleanSource(paths, "tmp", "routes")
 
-	sourceInfo, compileError := parser.ProcessSource(paths)
-	if compileError != nil {
+	sourceInfo, err := parser.ProcessSource(paths)
+	if err != nil {
 		return
 	}
 
@@ -68,9 +68,15 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compi
 	// without being the main thread
 	cleanSource(paths, "tmp", "routes")
 
-	genSource(paths, "tmp", "main.go", RevelMainTemplate, templateArgs)
-	genSource(paths, filepath.Join("tmp", "run"), "run.go", RevelRunTemplate, templateArgs)
-	genSource(paths, "routes", "routes.go", RevelRoutesTemplate, templateArgs)
+	if err = genSource(paths, "tmp", "main.go", RevelMainTemplate, templateArgs); err != nil {
+		return
+	}
+	if err = genSource(paths, filepath.Join("tmp", "run"), "run.go", RevelRunTemplate, templateArgs); err != nil {
+		return
+	}
+	if err = genSource(paths, "routes", "routes.go", RevelRoutesTemplate, templateArgs); err != nil {
+		return
+	}
 
 	// Read build config.
 	buildTags := paths.Config.StringDefault("build.tags", "")
@@ -102,23 +108,9 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compi
 		}
 	}
 
-	var depPath string
-	if useVendor {
-		utils.Logger.Info("Vendor folder detected, scanning for deps in path")
-		depPath, err = exec.LookPath("dep")
-		if err != nil {
-			// Do not halt build unless a new package needs to be imported
-			utils.Logger.Warn("Build: `dep` executable not found in PATH, but vendor folder detected." +
-				"Packages can only be added automatically to the vendor folder using the `dep` tool. " +
-				"You can install the `dep` tool by doing a `go get -u github.com/golang/dep/cmd/dep`")
-		}
-	} else {
-		utils.Logger.Info("No vendor folder detected, not using dependency manager to import files")
-	}
-
 	pkg, err := build.Default.Import(paths.ImportPath, "", build.FindOnly)
 	if err != nil {
-		utils.Logger.Fatal("Failure importing", "path", paths.ImportPath)
+		return
 	}
 
 	// Binary path is a combination of $GOBIN/revel.d directory, app's import path and its name.
@@ -191,6 +183,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compi
 		buildCmd.Env = append(os.Environ(),
 			"GOPATH="+gopath,
 		)
+		utils.CmdInit(buildCmd, c.AppPath)
 		utils.Logger.Info("Exec:", "args", buildCmd.Args)
 		output, err := buildCmd.CombinedOutput()
 
@@ -220,32 +213,9 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (app *App, compi
 				return nil, newCompileError(paths, output)
 			}
 			gotten[pkgName] = struct{}{}
-
-			// Execute "go get <pkg>"
-			// Or dep `dep ensure -add <pkg>` if it is there
-			var getCmd *exec.Cmd
-			if useVendor {
-				if depPath == "" {
-					utils.Logger.Warn("Build: Vendor folder found, but the `dep` tool was not found, " +
-						"if you use a different vendoring (package management) tool please add the following packages by hand, " +
-						"or install the `dep` tool into your gopath by doing a `go get -u github.com/golang/dep/cmd/dep`. " +
-						"For more information and usage of the tool please see http://github.com/golang/dep")
-					for _, pkg := range matches {
-						utils.Logger.Warn("Missing package", "package", pkg[1])
-					}
-				}
-				getCmd = exec.Command(depPath, "ensure", "-add", pkgName)
-				getCmd.Dir = paths.AppPath
-
-			} else {
-				getCmd = exec.Command(goPath, "get", pkgName)
-			}
-			utils.Logger.Info("Exec:", "args", getCmd.Args)
-			getOutput, err := getCmd.CombinedOutput()
-			if err != nil {
-				utils.Logger.Error("Build failed", "message", stOutput, "error", err)
-				utils.Logger.Error("Failed to fetch the output", "getOutput", string(getOutput))
-				return nil, newCompileError(paths, output)
+			if err := c.PackageResolver(pkgName); err != nil {
+				utils.Logger.Error("Unable to resolve package", "package", pkgName, "error", err)
+				return nil, newCompileError(paths, []byte(err.Error()))
 			}
 		}
 
@@ -336,12 +306,9 @@ func cleanDir(paths *model.RevelContainer, dir string) {
 
 // genSource renders the given template to produce source code, which it writes
 // to the given directory and file.
-func genSource(paths *model.RevelContainer, dir, filename, templateSource string, args map[string]interface{}) {
+func genSource(paths *model.RevelContainer, dir, filename, templateSource string, args map[string]interface{}) error {
 
-	err := utils.MustGenerateTemplate(filepath.Join(paths.AppPath, dir, filename), templateSource, args)
-	if err != nil {
-		utils.Logger.Fatal("Failed to generate template for source file", "error", err)
-	}
+	return utils.GenerateTemplate(filepath.Join(paths.AppPath, dir, filename), templateSource, args)
 }
 
 // Looks through all the method args and returns a set of unique import paths
@@ -433,7 +400,8 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 		// Extract the paths from the gopaths, and search for file there first
 		gopaths := filepath.SplitList(build.Default.GOPATH)
 		for _, gp := range gopaths {
-			newPath := filepath.Join(gp, relFilename)
+			newPath := filepath.Join(gp,"src", paths.ImportPath, relFilename)
+			println(newPath)
 			if utils.Exists(newPath) {
 				return newPath
 			}
@@ -442,6 +410,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 		utils.Logger.Warn("Could not find in GO path", "file", relFilename)
 		return newPath
 	}
+
 
 	// Read the source for the offending file.
 	var (
@@ -467,7 +436,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 	fileStr, err := utils.ReadLines(absFilename)
 	if err != nil {
 		compileError.MetaError = absFilename + ": " + err.Error()
-		utils.Logger.Error("Unable to readlines "+compileError.MetaError, "error", err)
+		utils.Logger.Info("Unable to readlines "+compileError.MetaError, "error", err)
 		return compileError
 	}
 

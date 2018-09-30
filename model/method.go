@@ -1,6 +1,5 @@
 package model
 
-
 // methodCall describes a call to c.Render(..)
 // It documents the argument names used, in order to propagate them to RenderArgs.
 type MethodCall struct {
@@ -22,4 +21,3 @@ type MethodArg struct {
 	TypeExpr   TypeExpr // The name of the type, e.g. "int", "*pkg.UserType"
 	ImportPath string   // If the arg is of an imported type, this is the import path.
 }
-

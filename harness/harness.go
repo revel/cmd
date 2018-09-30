@@ -31,9 +31,9 @@ import (
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
 	"github.com/revel/cmd/watcher"
-	"sync"
 	"html/template"
 	"io/ioutil"
+	"sync"
 )
 
 var (
@@ -63,31 +63,31 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 	// 1) Application/views/errors
 	// 2) revel_home/views/errors
 	// 3) views/errors
-	if err==nil {
+	if err == nil {
 		utils.Logger.Panic("Caller passed in a nil error")
 	}
 	templateSet := template.New("__root__")
-	seekViewOnPath:=func(view string) (path string) {
+	seekViewOnPath := func(view string) (path string) {
 		path = filepath.Join(h.paths.ViewsPath, "errors", view)
 		if !utils.Exists(path) {
 			path = filepath.Join(h.paths.RevelPath, "templates", "errors", view)
 		}
 
-		data,err := ioutil.ReadFile(path)
-		if err!=nil {
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
 			utils.Logger.Error("Unable to read template file", path)
 		}
-		_,err = templateSet.New("errors/"+view).Parse(string(data))
-		if err!=nil {
+		_, err = templateSet.New("errors/" + view).Parse(string(data))
+		if err != nil {
 			utils.Logger.Error("Unable to parse template file", path)
 		}
 		return
 	}
-	target := []string{seekViewOnPath("500.html"),seekViewOnPath("500-dev.html")}
+	target := []string{seekViewOnPath("500.html"), seekViewOnPath("500-dev.html")}
 	if !utils.Exists(target[0]) {
 		fmt.Fprintf(iw, "Target template not found not found %s<br />\n", target[0])
 		fmt.Fprintf(iw, "An error ocurred %s", err.Error())
-			return
+		return
 	}
 	var revelError *utils.Error
 	switch e := err.(type) {
@@ -108,16 +108,11 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 	viewArgs["DevMode"] = h.paths.DevMode
 	viewArgs["Error"] = revelError
 
-
-
 	// Render the template from the file
-	err = templateSet.ExecuteTemplate(iw,"errors/500.html",viewArgs)
-	if err!=nil {
-		utils.Logger.Error("Failed to execute","error",err)
+	err = templateSet.ExecuteTemplate(iw, "errors/500.html", viewArgs)
+	if err != nil {
+		utils.Logger.Error("Failed to execute", "error", err)
 	}
-	fmt.Println("template ",templateSet.Templates()[0].Name(), templateSet.Templates()[1].Name())
-	//utils.MustRenderTemplateToStream(iw,target, viewArgs)
-
 }
 
 // ServeHTTP handles all requests.
@@ -192,7 +187,6 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 		useProxy:   !noProxy,
 		config:     c,
 		runMode:    runMode,
-
 	}
 
 	if paths.HTTPSsl {
@@ -219,9 +213,17 @@ func (h *Harness) Refresh() (err *utils.Error) {
 	}
 
 	utils.Logger.Info("Rebuild Called")
-	h.app, err = Build(h.config, h.paths)
-	if err != nil {
-		utils.Logger.Error("Build detected an error", "error", err)
+	var newErr error
+	h.app, newErr = Build(h.config, h.paths)
+	if newErr != nil {
+		utils.Logger.Error("Build detected an error", "error", newErr)
+		if castErr, ok := newErr.(*utils.Error); ok {
+			return castErr
+		}
+		err = &utils.Error{
+			Title:       "App failed to start up",
+			Description: err.Error(),
+		}
 		return
 	}
 
@@ -269,7 +271,7 @@ func (h *Harness) Run() {
 	if h.useProxy {
 		go func() {
 			// Check the port to start on a random port
-			if h.paths.HTTPPort==0 {
+			if h.paths.HTTPPort == 0 {
 				h.paths.HTTPPort = getFreePort()
 			}
 			addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)

@@ -61,28 +61,30 @@ func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelConta
 
 // Start the app server, and wait until it is ready to serve requests.
 func (cmd AppCmd) Start(c *model.CommandConfig) error {
-	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool),c}
+	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c}
 	cmd.Stdout = listeningWriter
-	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args)
+	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
+	utils.CmdInit(cmd.Cmd, c.AppPath)
 	if err := cmd.Cmd.Start(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)
 	}
 
 	select {
 	case exitState := <-cmd.waitChan():
+		println("Revel proxy is listening, point your browser to :", c.Run.Port)
 		return errors.New("revel/harness: app died reason: " + exitState)
 
 	case <-time.After(60 * time.Second):
+		println("Revel proxy is listening, point your browser to :", c.Run.Port)
 		utils.Logger.Error("Killing revel server process did not respond after wait timeout.", "processid", cmd.Process.Pid)
 		cmd.Kill()
 		return errors.New("revel/harness: app timed out")
 
 	case <-listeningWriter.notifyReady:
+		println("Revel proxy is listening, point your browser to :", c.Run.Port)
 		return nil
 	}
 
-	// TODO remove this unreachable code and document it
-	panic("Impossible")
 }
 
 // Run the app server inline.  Never returns.
@@ -111,7 +113,7 @@ func (cmd AppCmd) waitChan() <-chan string {
 		_ = cmd.Wait()
 		state := cmd.ProcessState
 		exitStatus := " unknown "
-		if state!=nil {
+		if state != nil {
 			exitStatus = state.String()
 		}
 
@@ -126,7 +128,7 @@ func (cmd AppCmd) waitChan() <-chan string {
 type startupListeningWriter struct {
 	dest        io.Writer
 	notifyReady chan bool
-	c *model.CommandConfig
+	c           *model.CommandConfig
 }
 
 func (w *startupListeningWriter) Write(p []byte) (int, error) {

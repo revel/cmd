@@ -15,7 +15,7 @@ import (
 )
 
 var cmdPackage = &Command{
-	UsageLine: "package -i [import path] -r [run mode]",
+	UsageLine: "package [-r [run mode]] [application] ",
 	Short:     "package a Revel application (e.g. for deployment)",
 	Long: `
 Package the Revel web application named by the given import path.
@@ -28,7 +28,7 @@ Run mode defaults to "dev".
 
 For example:
 
-    revel package -i github.com/revel/examples/chat
+    revel package github.com/revel/examples/chat
 `,
 }
 
@@ -40,19 +40,16 @@ func init() {
 // Called when unable to parse the command line automatically and assumes an old launch
 func updatePackageConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.PACKAGE
-	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, cmdPackage.Long)
-		return false
-	}
 	c.Package.ImportPath = args[0]
-	if len(args)>1 {
+	if len(args) > 1 {
 		c.Package.Mode = args[1]
 	}
 	return true
 
 }
 
-func packageApp(c *model.CommandConfig) {
+// Called to package the app
+func packageApp(c *model.CommandConfig) (err error) {
 
 	// Determine the run mode.
 	mode := DefaultRunMode
@@ -61,13 +58,22 @@ func packageApp(c *model.CommandConfig) {
 	}
 
 	appImportPath := c.ImportPath
-	revel_paths := model.NewRevelPaths(mode, appImportPath, "", model.DoNothingRevelCallback)
+	revel_paths, err := model.NewRevelPaths(mode, appImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	if err != nil {
+		return
+	}
 
 	// Remove the archive if it already exists.
-	destFile := filepath.Base(revel_paths.BasePath) + ".tar.gz"
+	destFile := filepath.Join(c.AppPath, filepath.Base(revel_paths.BasePath)+".tar.gz")
+	if c.Package.TargetPath != "" {
+		if filepath.IsAbs(c.Package.TargetPath) {
+			destFile = c.Package.TargetPath
+		} else {
+			destFile = filepath.Join(c.AppPath, c.Package.TargetPath)
+		}
+	}
 	if err := os.Remove(destFile); err != nil && !os.IsNotExist(err) {
-		utils.Logger.Error("Unable to remove target file","error",err,"file",destFile)
-		os.Exit(1)
+		return utils.NewBuildError("Unable to remove target file", "error", err, "file", destFile)
 	}
 
 	// Collect stuff in a temp directory.
@@ -83,7 +89,12 @@ func packageApp(c *model.CommandConfig) {
 	buildApp(c)
 
 	// Create the zip file.
-	archiveName := utils.MustTarGzDir(destFile, tmpDir)
+
+	archiveName, err := utils.TarGzDir(destFile, tmpDir)
+	if err != nil {
+		return
+	}
 
 	fmt.Println("Your archive is ready:", archiveName)
+	return
 }

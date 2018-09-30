@@ -12,67 +12,73 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/revel/cmd/model"
-	"go/build"
-	"go/token"
-	"go/parser"
-	"go/ast"
-	"io/ioutil"
-	"path/filepath"
-	"github.com/revel/cmd/utils"
 	"github.com/revel/cmd"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"go/ast"
+	"go/build"
+	"go/parser"
+	"go/token"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 )
 
 var cmdVersion = &Command{
-	UsageLine: "version",
+	UsageLine: "revel version",
 	Short:     "displays the Revel Framework and Go version",
 	Long: `
 Displays the Revel Framework and Go version.
 
 For example:
 
-    revel version
+    revel version [<application path>]
 `,
 }
 
 func init() {
 	cmdVersion.RunWith = versionApp
+	cmdVersion.UpdateConfig = updateVersionConfig
+}
+
+// Update the version
+func updateVersionConfig(c *model.CommandConfig, args []string) bool {
+	if len(args) > 0 {
+		c.Version.ImportPath = args[0]
+	}
+	return true
 }
 
 // Displays the version of go and Revel
-func versionApp(c *model.CommandConfig) {
+func versionApp(c *model.CommandConfig) (err error) {
 
-	var (
-		revelPkg *build.Package
-		err error
-	)
-	if len(c.ImportPath)>0 {
-		appPkg, err := build.Import(c.ImportPath, "", build.FindOnly)
-			if err != nil {
-				utils.Logger.Fatal("Failed to import " + c.ImportPath + " with error:", "error", err)
-			}
-			revelPkg, err = build.Import(model.RevelImportPath, appPkg.Dir, build.FindOnly)
-	} else {
-		revelPkg, err = build.Import(model.RevelImportPath, "" , build.FindOnly)
+	var revelPath, appPath string
+
+
+	appPath, revelPath, err = utils.FindSrcPaths(c.ImportPath, model.RevelImportPath, c.PackageResolver)
+	if err != nil {
+		return utils.NewBuildError("Failed to import "+c.ImportPath+" with error:", "error", err)
 	}
+	revelPath = revelPath + model.RevelImportPath
 
-	fmt.Println("\nRevel Framework")
+	fmt.Println("\nRevel Framework",revelPath, appPath )
 	if err != nil {
 		utils.Logger.Info("Failed to find Revel in GOPATH with error:", "error", err, "gopath", build.Default.GOPATH)
 		fmt.Println("Information not available (not on GOPATH)")
 	} else {
-		utils.Logger.Info("Fullpath to revel", revelPkg.Dir)
+		utils.Logger.Info("Fullpath to revel", "dir", revelPath)
 		fset := token.NewFileSet() // positions are relative to fset
 
-		version, err := ioutil.ReadFile(filepath.Join(revelPkg.Dir, "version.go"))
+		version, err := ioutil.ReadFile(filepath.Join(revelPath, "version.go"))
 		if err != nil {
-			utils.Logger.Errorf("Failed to find Revel version:", "error", err)
+			utils.Logger.Error("Failed to find Revel version:", "error", err, "path", revelPath)
 		}
 
 		// Parse src but stop after processing the imports.
 		f, err := parser.ParseFile(fset, "", version, parser.ParseComments)
 		if err != nil {
-			utils.Logger.Errorf("Failed to parse Revel version error:", "error", err)
+			return utils.NewBuildError("Failed to parse Revel version error:", "error", err)
 		}
 
 		// Print the imports from the file's AST.
@@ -96,5 +102,19 @@ func versionApp(c *model.CommandConfig) {
 	fmt.Println("Build Date", cmd.BuildDate)
 	fmt.Println("Minimum Go Version", cmd.MinimumGoVersion)
 
-	fmt.Printf("\n   %s %s/%s\n\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("Compiled By   %s %s/%s\n\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	// Extract the goversion detected
+	if len(c.GoCmd) > 0 {
+		cmd := exec.Command(c.GoCmd, "version")
+		cmd.Stdout = os.Stdout
+		if e := cmd.Start(); e != nil {
+			fmt.Println("Go command error ", e)
+		} else {
+			cmd.Wait()
+		}
+	} else {
+		fmt.Println("Go command not found ")
+	}
+
+	return
 }

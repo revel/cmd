@@ -1,15 +1,15 @@
 language: go
 
 go:
-  - "1.8"
+  - "1.8.7"
   - "1.9"
   - "1.10"
   - "1.11"
   - "tip"
 
 os:
-  - linux
   - osx
+  - linux
   - windows
 
 sudo: false
@@ -19,19 +19,6 @@ branches:
     - master
     - develop
 
-services:
-  - memcache
-  - redis-server
-
-before_install:
-  # TRAVIS_OS_NAME - linux and osx
-  - echo $TRAVIS_OS_NAME
-  - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew update && brew install memcached redis && brew services start redis && brew services start memcached
-    fi
-  - redis-server --daemonize yes
-  - redis-cli info
 
 install:
   # Setting environments variables
@@ -39,17 +26,13 @@ install:
   - export REVEL_BRANCH="develop"
   - 'if [[ "$TRAVIS_BRANCH" == "master" ]]; then export REVEL_BRANCH="master"; fi'
   - 'echo "Travis branch: $TRAVIS_BRANCH, Revel dependency branch: $REVEL_BRANCH"'
-  - git clone -b $REVEL_BRANCH git://github.com/revel/modules ../modules/
-  - git clone -b $REVEL_BRANCH git://github.com/revel/revel ../revel/
-  - git clone -b $REVEL_BRANCH git://github.com/revel/config ../config/
-  - git clone -b $REVEL_BRANCH git://github.com/revel/cron ../cron/
-  - git clone -b $REVEL_BRANCH git://github.com/revel/examples ../examples/
-  - go get -v github.com/revel/revel/...
-  - go get -v github.com/revel/cmd/revel
+  - go get -t -v github.com/revel/cmd/revel
   - go get -u github.com/golang/dep/cmd/dep
-
+  - echo $GOPATH
+  - echo $PATH
+  - pwd
 script:
-  - go test -v github.com/revel/cmd/...
+  - go test -v github.com/revel/cmd/revel/...
 
   # Ensure the new-app flow works (plus the other commands).
   - revel version
@@ -65,21 +48,19 @@ script:
   - revel new     -a my/testapp2
   - revel test    -a my/testapp2
   - revel clean   -a my/testapp2
-  - revel build   -a my/testapp2 -t build/testapp
-  - revel build   -a my/testapp2 -t build/testapp -m prod
+  - revel build   -a my/testapp2 -t build/testapp2
+  - revel build   -a my/testapp2 -t build/testapp2 -m prod
   - revel package -a my/testapp2
   - revel package -a my/testapp2 -m prod
 
-  - revel new     -a my/testapp3 -V
-  - revel test    -a my/testapp3
-  - revel clean   -a my/testapp3
-  - revel build   -a my/testapp3 -t build/testapp
-  - revel build   -a my/testapp3 -t build/testapp -m prod
+  - revel new     -v -a my/testapp3 -V
+  - revel test    -v -a my/testapp3
+  - revel clean   -v -a my/testapp3
+  - revel build   -a my/testapp3 -t build/testapp3
+  - revel build   -a my/testapp3 -t build/testapp3 -m prod
   - revel package -a my/testapp3
   - revel package -a my/testapp3 -m prod
 
 matrix:
   allow_failures:
     - go: tip
-    - go: 1.6
-      os: osx

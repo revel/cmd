@@ -121,6 +121,7 @@ func SetDefaultLog(fromLog MultiLogger) {
 func (rl *RevelLogger) Debugf(msg string, param ...interface{}) {
 	rl.Debug(fmt.Sprintf(msg, param...))
 }
+
 // Formatted info call
 func (rl *RevelLogger) Infof(msg string, param ...interface{}) {
 	rl.Info(fmt.Sprintf(msg, param...))

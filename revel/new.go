@@ -205,7 +205,7 @@ func setApplicationPath(c *model.CommandConfig) (err error) {
 // Set the skeleton path
 func setSkeletonPath(c *model.CommandConfig) (err error) {
 	if len(c.New.SkeletonPath) == 0 {
-		c.New.SkeletonPath = RevelCmdImportPath + ":skeleton"
+		c.New.SkeletonPath = "git://" + RevelSkeletonsImportPath + ":basic/bootstrap4"
 	}
 
 	// First check to see the protocol of the string
@@ -218,12 +218,13 @@ func setSkeletonPath(c *model.CommandConfig) (err error) {
 			if err := newLoadFromGit(c, sp); err != nil {
 				return err
 			}
-		case "":
-			if err := newLoadFromGo(c, sp); err != nil {
-				return err
-			}
+		//case "":
+
+			//if err := newLoadFromGo(c, sp); err != nil {
+			//	return err
+			//}
 		default:
-			utils.Logger.Fatal("Unsupported")
+			utils.Logger.Fatal("Unsupported skeleton schema ", "path", c.New.SkeletonPath)
 
 		}
 		// TODO check to see if the path needs to be extracted
@@ -256,30 +257,6 @@ func newLoadFromGit(c *model.CommandConfig, sp *url.URL) (err error) {
 	}
 
 	c.New.SkeletonPath = outputPath
-	return
-}
-
-// Load from GO
-func newLoadFromGo(c *model.CommandConfig, sp *url.URL) (err error) {
-	// Find the source paths, download packages automatically
-	pathpart := strings.Split(sp.Path, ":")
-	_, skeletonImportPath , err := utils.FindSrcPaths(c.ImportPath,sp.Host+pathpart[0],c.PackageResolver)
-	if err!=nil {
-		return
-	}
-
-	skeletonImportPath = filepath.Join(skeletonImportPath,sp.Host,pathpart[0])
-	// Add in anything after the "Root" path
-	if len(pathpart) > 1 {
-		pathpart[0] = skeletonImportPath
-		newdir, _ := filepath.Abs(filepath.Join(pathpart...))
-		if !strings.HasPrefix(newdir, skeletonImportPath) {
-			utils.Logger.Fatal("Unusual target path outside root path", "target", newdir, "root", skeletonImportPath)
-		}
-		skeletonImportPath = newdir
-	}
-
-	c.New.SkeletonPath = skeletonImportPath
 	return
 }
 

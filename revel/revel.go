@@ -26,6 +26,9 @@ const (
 	// RevelCmdImportPath Revel framework cmd tool import path
 	RevelCmdImportPath = "github.com/revel/cmd"
 
+	// RevelCmdImportPath Revel framework cmd tool import path
+	RevelSkeletonsImportPath = "github.com/revel/skeletons"
+
 	// DefaultRunMode for revel's application
 	DefaultRunMode = "dev"
 )

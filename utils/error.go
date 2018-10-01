@@ -7,15 +7,22 @@ import (
 )
 
 // The error is a wrapper for the
-type Error struct {
-	SourceType               string   // The type of source that failed to build.
-	Title, Path, Description string   // Description of the error, as presented to the user.
-	Line, Column             int      // Where the error was encountered.
-	SourceLines              []string // The entire source file, split into lines.
-	Stack                    string   // The raw stack trace string from debug.Stack().
-	MetaError                string   // Error that occurred producing the error page.
-	Link                     string   // A configurable link to wrap the error source in
-}
+type (
+	Error struct {
+		SourceType               string   // The type of source that failed to build.
+		Title, Path, Description string   // Description of the error, as presented to the user.
+		Line, Column             int      // Where the error was encountered.
+		SourceLines              []string // The entire source file, split into lines.
+		Stack                    string   // The raw stack trace string from debug.Stack().
+		MetaError                string   // Error that occurred producing the error page.
+		Link                     string   // A configurable link to wrap the error source in
+	}
+	SourceLine struct {
+		Source  string
+		Line    int
+		IsError bool
+	}
+)
 
 // Creates a link based on the configuration setting "errors.link"
 func (e *Error) SetLink(errorLink string) {
@@ -50,6 +57,7 @@ func (e *Error) Error() string {
 	}
 	return fmt.Sprintf("%s%s", header, e.Description)
 }
+
 // ContextSource method returns a snippet of the source around
 // where the error occurred.
 func (e *Error) ContextSource() []SourceLine {
@@ -71,11 +79,4 @@ func (e *Error) ContextSource() []SourceLine {
 		lines[i] = SourceLine{src, fileLine, fileLine == e.Line}
 	}
 	return lines
-}
-
-// SourceLine structure to hold the per-source-line details.
-type SourceLine struct {
-	Source  string
-	Line    int
-	IsError bool
 }

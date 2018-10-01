@@ -1,9 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"github.com/revel/cmd/logger"
 	"github.com/revel/config"
-	"fmt"
 	"os"
 	"strings"
 )
@@ -12,16 +12,21 @@ var Logger = logger.New()
 
 func InitLogger(basePath string, logLevel logger.LogLevel) {
 	newContext := config.NewContext()
-	if logLevel<logger.LvlInfo {
-		newContext.SetOption("log.info.output", "none")
-		newContext.SetOption("log.debug.output", "none")
-	} else {
-		newContext.SetOption("log.info.output", "stdout")
+	if logLevel == logger.LvlDebug {
 		newContext.SetOption("log.debug.output", "stdout")
+		println("Debug on")
+	} else {
+		newContext.SetOption("log.debug.output", "off")
 	}
-	newContext.SetOption("log.warn.output","stderr")
-	newContext.SetOption("log.error.output","stderr")
-	newContext.SetOption("log.crit.output","stderr")
+	if logLevel >= logger.LvlInfo {
+		newContext.SetOption("log.info.output", "stdout")
+	} else {
+		newContext.SetOption("log.inf.output", "off")
+	}
+
+	newContext.SetOption("log.warn.output", "stderr")
+	newContext.SetOption("log.error.output", "stderr")
+	newContext.SetOption("log.crit.output", "stderr")
 	Logger.SetHandler(logger.InitializeFromConfig(basePath, newContext))
 }
 

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/build"
 	"math/rand"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
+	"net/url"
 )
 
 var cmdNew = &Command{
@@ -51,83 +51,105 @@ func updateNewConfig(c *model.CommandConfig, args []string) bool {
 		return false
 	}
 	c.New.ImportPath = args[0]
-	if len(args)>1 {
-		c.New.Skeleton = args[1]
+	if len(args) > 1 {
+		c.New.SkeletonPath = args[1]
 	}
 	return true
 
 }
 
 // Call to create a new application
-func newApp(c *model.CommandConfig) {
-	// check for proper args by count
-	c.SkeletonPath = c.New.Skeleton
-
-	// Check for an existing folder so we dont clober it
-	c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
-	_, err := build.Import(c.ImportPath, "", build.FindOnly)
-	if err==nil || !utils.Empty(c.AppPath) {
-		utils.Logger.Fatal("Abort: Import path already exists.","path", c.ImportPath)
+func newApp(c *model.CommandConfig) (err error) {
+	// Check for an existing folder so we don't clobber it
+	_, err = build.Import(c.ImportPath, "", build.FindOnly)
+	if err == nil || !utils.Empty(c.AppPath) {
+		return utils.NewBuildError("Abort: Import path already exists.", "path", c.ImportPath)
+	}
+	if err := os.MkdirAll(c.AppPath, os.ModePerm); err != nil {
+		return utils.NewBuildError("Abort: Unable to create app path.", "path", c.AppPath)
 	}
 
 	if c.New.Vendored {
-		depPath, err := exec.LookPath("dep")
-		if err != nil {
-			// Do not halt build unless a new package needs to be imported
-			utils.Logger.Fatal("New: `dep` executable not found in PATH, but vendor folder requested." +
-				"You must install the dep tool before creating a vendored project. " +
-				"You can install the `dep` tool by doing a `go get -u github.com/golang/dep/cmd/dep`")
-		}
-		vendorPath := filepath.Join(c.ImportPath,"vendor")
-		if !utils.DirExists(vendorPath) {
-			err := os.MkdirAll(vendorPath,os.ModePerm)
-			utils.PanicOnError(err, "Failed to create " + vendorPath)
-		}
-		// In order for dep to run there needs to be a source file in the folder
-		tempPath := filepath.Join(c.ImportPath,"tmp")
-		if !utils.DirExists(tempPath) {
-			err := os.MkdirAll(tempPath,os.ModePerm)
-			utils.PanicOnError(err, "Failed to create " + vendorPath)
-			err = utils.MustGenerateTemplate(filepath.Join(tempPath,"main.go"), NEW_MAIN_FILE, nil)
-			utils.PanicOnError(err, "Failed to create main file " + vendorPath)
+		utils.Logger.Info("Creating a new vendor app")
 
+		vendorPath := filepath.Join(c.AppPath, "vendor")
+		if !utils.DirExists(vendorPath) {
+
+			if err := os.MkdirAll(vendorPath, os.ModePerm); err != nil {
+				return utils.NewBuildError("Failed to create "+vendorPath, "error", err)
+			}
 		}
-		packageFile := filepath.Join(c.ImportPath,"Gopkg.toml")
+
+		// In order for dep to run there needs to be a source file in the folder
+		tempPath := filepath.Join(c.AppPath, "tmp")
+		utils.Logger.Info("Checking for temp folder for source code", "path", tempPath)
+		if !utils.DirExists(tempPath) {
+			if err := os.MkdirAll(tempPath, os.ModePerm); err != nil {
+				return utils.NewBuildIfError(err, "Failed to create "+vendorPath)
+			}
+
+			if err = utils.GenerateTemplate(filepath.Join(tempPath, "main.go"), NEW_MAIN_FILE, nil); err != nil {
+				return utils.NewBuildIfError(err, "Failed to create main file "+vendorPath)
+			}
+		}
+
+		// Create a package template file if it does not exist
+		packageFile := filepath.Join(c.AppPath, "Gopkg.toml")
+		utils.Logger.Info("Checking for Gopkg.toml", "path", packageFile)
 		if !utils.Exists(packageFile) {
-			utils.MustGenerateTemplate(packageFile,VENDOR_GOPKG,nil)
+			utils.Logger.Info("Generating Gopkg.toml", "path", packageFile)
+			if err := utils.GenerateTemplate(packageFile, VENDOR_GOPKG, nil); err != nil {
+				return utils.NewBuildIfError(err, "Failed to generate template")
+			}
 		} else {
 			utils.Logger.Info("Package file exists in skeleto, skipping adding")
 		}
 
-		getCmd := exec.Command(depPath, "ensure", "-v")
-		getCmd.Dir = c.ImportPath
+		getCmd := exec.Command("dep", "ensure", "-v")
+		utils.CmdInit(getCmd, c.AppPath)
 		utils.Logger.Info("Exec:", "args", getCmd.Args)
-		getCmd.Dir = c.ImportPath
+		getOutput, err := getCmd.CombinedOutput()
+		if err != nil {
+			return utils.NewBuildIfError(err, string(getOutput))
+		}
+	}
+
+	// checking and setting application
+
+	if err = setApplicationPath(c); err != nil {
+		return err
+	}
+
+	// checking and setting skeleton
+	if err=setSkeletonPath(c);err!=nil {
+		return
+	}
+
+	// copy files to new app directory
+	if err = copyNewAppFiles(c);err != nil {
+		return
+	}
+
+	// Rerun the dep tool if vendored
+	if c.New.Vendored {
+		getCmd := exec.Command("dep", "ensure", "-v")
+		utils.CmdInit(getCmd, c.AppPath)
+		utils.Logger.Info("Exec:", "args", getCmd.Args)
 		getOutput, err := getCmd.CombinedOutput()
 		if err != nil {
 			utils.Logger.Fatal(string(getOutput))
 		}
 	}
 
-
-	// checking and setting application
-	setApplicationPath(c)
-
-	// checking and setting skeleton
-	setSkeletonPath(c)
-
-	// copy files to new app directory
-	copyNewAppFiles(c)
-
-
 	// goodbye world
-	fmt.Fprintln(os.Stdout, "Your application is ready:\n  ", c.AppPath)
+	fmt.Fprintln(os.Stdout, "Your application has been created in:\n  ", c.AppPath)
 	// Check to see if it should be run right off
 	if c.New.Run {
 		runApp(c)
 	} else {
 		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a ", c.ImportPath)
 	}
+	return
 }
 
 // Used to generate a new secret key
@@ -143,7 +165,7 @@ func generateSecret() string {
 }
 
 // Sets the applicaiton path
-func setApplicationPath(c *model.CommandConfig) {
+func setApplicationPath(c *model.CommandConfig) (err error) {
 
 	// revel/revel#1014 validate relative path, we cannot use built-in functions
 	// since Go import path is valid relative path too.
@@ -153,95 +175,111 @@ func setApplicationPath(c *model.CommandConfig) {
 			c.ImportPath)
 	}
 
-
 	// If we are running a vendored version of Revel we do not need to check for it.
 	if !c.New.Vendored {
-		var err error
 		_, err = build.Import(model.RevelImportPath, "", build.FindOnly)
 		if err != nil {
-			// Go get the revel project
-			getCmd := exec.Command(c.GoCmd, "get", model.RevelImportPath)
-			utils.Logger.Info("Exec:" + c.GoCmd, "args", getCmd.Args)
-			getOutput, err := getCmd.CombinedOutput()
+			//// Go get the revel project
+			err = c.PackageResolver(model.RevelImportPath)
 			if err != nil {
-				utils.Logger.Fatal("Failed to fetch revel " + model.RevelImportPath, "getOutput", string(getOutput))
+				return utils.NewBuildIfError(err, "Failed to fetch revel "+model.RevelImportPath)
 			}
 		}
 	}
 
 	c.AppName = filepath.Base(c.AppPath)
-	c.BasePath = filepath.ToSlash(filepath.Dir(c.ImportPath))
 
-	if c.BasePath == "." {
-		// we need to remove the a single '.' when
-		// the app is in the $GOROOT/src directory
-		c.BasePath = ""
-	} else {
-		// we need to append a '/' when the app is
-		// is a subdirectory such as $GOROOT/src/path/to/revelapp
-		c.BasePath += "/"
-	}
+	//if c.BasePath == "." {
+	//	// we need to remove the a single '.' when
+	//	// the app is in the $GOROOT/src directory
+	//	c.BasePath = ""
+	//} else {
+	//	// we need to append a '/' when the app is
+	//	// is a subdirectory such as $GOROOT/src/path/to/revelapp
+	//	c.BasePath += "/"
+	//}
+
+	return nil
 }
 
 // Set the skeleton path
-func setSkeletonPath(c *model.CommandConfig) {
-	var err error
-	if len(c.SkeletonPath) > 0 { // user specified
-
-		_, err = build.Import(c.SkeletonPath, "", build.FindOnly)
-		if err != nil {
-			// Execute "go get <pkg>"
-			getCmd := exec.Command(c.GoCmd, "get", "-d", c.SkeletonPath)
-			fmt.Println("Exec:", getCmd.Args)
-			getOutput, err := getCmd.CombinedOutput()
-
-			// check getOutput for no buildible string
-			bpos := bytes.Index(getOutput, []byte("no buildable Go source files in"))
-			if err != nil && bpos == -1 {
-				utils.Logger.Fatalf("Abort: Could not find or 'go get' Skeleton  source code: %s\n%s\n", getOutput, c.SkeletonPath)
-			}
-		}
-		// use the
-		c.SkeletonPath = filepath.Join(c.SrcRoot, c.SkeletonPath)
-
-	} else {
-		// use the revel default
-		revelCmdPkg, err := build.Import(RevelCmdImportPath, "", build.FindOnly)
-		if err != nil {
-			if err != nil {
-				// Go get the revel project
-				getCmd := exec.Command(c.GoCmd, "get", RevelCmdImportPath + "/revel")
-				utils.Logger.Info("Exec:" + c.GoCmd, "args", getCmd.Args)
-				getOutput, err := getCmd.CombinedOutput()
-				if err != nil {
-					utils.Logger.Fatal("Failed to fetch revel cmd " + RevelCmdImportPath, "getOutput", string(getOutput))
-				}
-				revelCmdPkg, err = build.Import(RevelCmdImportPath, "", build.FindOnly)
-				if err!= nil {
-					utils.Logger.Fatal("Failed to find source of revel cmd " + RevelCmdImportPath, "getOutput", string(getOutput), "error",err, "dir", revelCmdPkg.Dir)
-				}
-			}
-		}
-
-		c.SkeletonPath = filepath.Join(revelCmdPkg.Dir, "revel", "skeleton")
+func setSkeletonPath(c *model.CommandConfig) (err error) {
+	if len(c.New.SkeletonPath) == 0 {
+		c.New.SkeletonPath = "git://" + RevelSkeletonsImportPath + ":basic/bootstrap4"
 	}
+
+	// First check to see the protocol of the string
+	if sp, err := url.Parse(c.New.SkeletonPath); err == nil {
+		utils.Logger.Info("Detected skeleton path", "path", sp)
+
+		switch strings.ToLower(sp.Scheme) {
+		// TODO Add support for https, http, ftp, file
+		case "git":
+			if err := newLoadFromGit(c, sp); err != nil {
+				return err
+			}
+		//case "":
+
+			//if err := newLoadFromGo(c, sp); err != nil {
+			//	return err
+			//}
+		default:
+			utils.Logger.Fatal("Unsupported skeleton schema ", "path", c.New.SkeletonPath)
+
+		}
+		// TODO check to see if the path needs to be extracted
+	} else {
+		utils.Logger.Fatal("Invalid skeleton path format", "path", c.New.SkeletonPath)
+	}
+	return
 }
 
-func copyNewAppFiles(c *model.CommandConfig) {
-	var err error
-	err = os.MkdirAll(c.AppPath, 0777)
-	utils.PanicOnError(err, "Failed to create directory "+c.AppPath)
+// Load skeleton from git
+func newLoadFromGit(c *model.CommandConfig, sp *url.URL) (err error) {
+	// This method indicates we need to fetch from a repository using git
+	// Execute "git clone get <pkg>"
+	targetPath := filepath.Join(os.TempDir(), "revel", "skeleton")
+	os.RemoveAll(targetPath)
+	pathpart := strings.Split(sp.Path, ":")
+	getCmd := exec.Command("git", "clone", sp.Scheme+"://"+sp.Host+pathpart[0], targetPath)
+	utils.Logger.Info("Exec:", "args", getCmd.Args)
+	getOutput, err := getCmd.CombinedOutput()
+	if err != nil {
+		utils.Logger.Fatalf("Abort: could not clone the  Skeleton  source code: \n%s\n%s\n", getOutput, c.New.SkeletonPath)
+	}
+	outputPath := targetPath
+	if len(pathpart) > 1 {
+		outputPath = filepath.Join(targetPath, filepath.Join(strings.Split(pathpart[1], string('/'))...))
+	}
+	outputPath, _ = filepath.Abs(outputPath)
+	if !strings.HasPrefix(outputPath, targetPath) {
+		utils.Logger.Fatal("Unusual target path outside root path", "target", outputPath, "root", targetPath)
+	}
 
-	_ = utils.MustCopyDir(c.AppPath, c.SkeletonPath, map[string]interface{}{
+	c.New.SkeletonPath = outputPath
+	return
+}
+
+func copyNewAppFiles(c *model.CommandConfig) (err error) {
+	err = os.MkdirAll(c.AppPath, 0777)
+	if err != nil {
+		return utils.NewBuildIfError(err, "MKDIR failed")
+	}
+
+	err = utils.CopyDir(c.AppPath, c.New.SkeletonPath, map[string]interface{}{
 		// app.conf
 		"AppName":  c.AppName,
-		"BasePath": c.BasePath,
+		"BasePath": c.AppPath,
 		"Secret":   generateSecret(),
 	})
+	if err != nil {
+		fmt.Printf("err %v", err)
+		return utils.NewBuildIfError(err, "Copy Dir failed")
+	}
 
 	// Dotfiles are skipped by mustCopyDir, so we have to explicitly copy the .gitignore.
 	gitignore := ".gitignore"
-	utils.MustCopyFile(filepath.Join(c.AppPath, gitignore), filepath.Join(c.SkeletonPath, gitignore))
+	return utils.CopyFile(filepath.Join(c.AppPath, gitignore), filepath.Join(c.New.SkeletonPath, gitignore))
 
 }
 

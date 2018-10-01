@@ -22,7 +22,7 @@ import (
 )
 
 var cmdTest = &Command{
-	UsageLine: "test [import path] [run mode] [suite.method]",
+	UsageLine: "test <import path> [<run mode> <suite.method>]",
 	Short:     "run all tests from the command-line",
 	Long: `
 Run all tests for the Revel app named by the given import path.
@@ -71,38 +71,38 @@ func updateTestConfig(c *model.CommandConfig, args []string) bool {
 }
 
 // Called to test the application
-func testApp(c *model.CommandConfig) {
-	var err error
-
+func testApp(c *model.CommandConfig) (err error) {
 	mode := DefaultRunMode
 	if c.Test.Mode != "" {
 		mode = c.Test.Mode
 	}
 
 	// Find and parse app.conf
-	revel_path := model.NewRevelPaths(mode, c.ImportPath, "", model.DoNothingRevelCallback)
+	revel_path, err := model.NewRevelPaths(mode, c.ImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	if err != nil {
+		return
+	}
 
-	// Ensure that the testrunner is loaded in this mode.
-	// todo checkTestRunner()
+	// todo Ensure that the testrunner is loaded in this mode.
 
 	// Create a directory to hold the test result files.
 	resultPath := filepath.Join(revel_path.BasePath, "test-results")
 	if err = os.RemoveAll(resultPath); err != nil {
-		utils.Logger.Errorf("Failed to remove test result directory %s: %s", resultPath, err)
+		return utils.NewBuildError("Failed to remove test result directory ", "path", resultPath, "error", err)
 	}
 	if err = os.Mkdir(resultPath, 0777); err != nil {
-		utils.Logger.Errorf("Failed to create test result directory %s: %s", resultPath, err)
+		return utils.NewBuildError("Failed to create test result directory ", "path", resultPath, "error", err)
 	}
 
 	// Direct all the output into a file in the test-results directory.
 	file, err := os.OpenFile(filepath.Join(resultPath, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		utils.Logger.Errorf("Failed to create test result log file: %s", err)
+		return utils.NewBuildError("Failed to create test result log file: ", "error", err)
 	}
 
 	app, reverr := harness.Build(c, revel_path)
 	if reverr != nil {
-		utils.Logger.Errorf("Error building: %s", reverr)
+		return utils.NewBuildIfError(reverr, "Error building: ")
 	}
 	runMode := fmt.Sprintf(`{"mode":"%s","testModeFlag":true, "specialUseFlag":%v}`, app.Paths.RunMode, c.Verbose)
 	if c.HistoricMode {
@@ -115,7 +115,7 @@ func testApp(c *model.CommandConfig) {
 
 	// Start the app...
 	if err := cmd.Start(c); err != nil {
-		utils.Logger.Errorf("%s", err)
+		return utils.NewBuildError("Unable to start server", "error", err)
 	}
 	defer cmd.Kill()
 
@@ -164,6 +164,8 @@ func testApp(c *model.CommandConfig) {
 		writeResultFile(resultPath, "result.failed", "failed")
 		utils.Logger.Errorf("Some tests failed.  See file://%s for results.", resultPath)
 	}
+
+	return
 }
 
 // Outputs the results to a file
@@ -287,7 +289,7 @@ func runTestSuites(paths *model.RevelContainer, baseURL, resultPath string, test
 			err = json.NewDecoder(resp.Body).Decode(&testResult)
 			if err == nil && !testResult.Passed {
 				suiteResult.Passed = false
-				utils.Logger.Error("Test Failed","suite", suite.Name, "test", test.Name)
+				utils.Logger.Error("Test Failed", "suite", suite.Name, "test", test.Name)
 				fmt.Printf("   %s.%s : FAILED\n", suite.Name, test.Name)
 			} else {
 				fmt.Printf("   %s.%s : PASSED\n", suite.Name, test.Name)
@@ -306,7 +308,9 @@ func runTestSuites(paths *model.RevelContainer, baseURL, resultPath string, test
 		// Create the result HTML file.
 		suiteResultFilename := filepath.Join(resultPath,
 			fmt.Sprintf("%s.%s.html", suite.Name, strings.ToLower(suiteResultStr)))
-		utils.MustRenderTemplate(suiteResultFilename, resultFilePath, suiteResult)
+		if err := utils.RenderTemplate(suiteResultFilename, resultFilePath, suiteResult); err != nil {
+			utils.Logger.Error("Failed to render template", "error", err)
+		}
 	}
 
 	return &failedResults, overallSuccess

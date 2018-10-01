@@ -17,7 +17,7 @@ import (
 )
 
 var cmdBuild = &Command{
-	UsageLine: "build -i [import path] -t [target path] -r [run mode]",
+	UsageLine: "revel build [-r [run mode]] [import path] [target path] ",
 	Short:     "build a Revel application (e.g. for deployment)",
 	Long: `
 Build the Revel web application named by the given import path.
@@ -25,7 +25,7 @@ This allows it to be deployed and run on a machine that lacks a Go installation.
 
 For example:
 
-    revel build -a github.com/revel/examples/chat -t /tmp/chat
+    revel build github.com/revel/examples/chat /tmp/chat
 
 `,
 }
@@ -38,10 +38,12 @@ func init() {
 // The update config updates the configuration command so that it can run
 func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.BUILD
+	// If arguments were passed in then there must be two
 	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
 		return false
 	}
+
 	c.Build.ImportPath = args[0]
 	c.Build.TargetPath = args[1]
 	if len(args) > 2 {
@@ -51,75 +53,101 @@ func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 }
 
 // The main entry point to build application from command line
-func buildApp(c *model.CommandConfig) {
+func buildApp(c *model.CommandConfig) (err error) {
 	appImportPath, destPath, mode := c.ImportPath, c.Build.TargetPath, DefaultRunMode
 	if len(c.Build.Mode) > 0 {
 		mode = c.Build.Mode
 	}
 
 	// Convert target to absolute path
-	destPath, _ = filepath.Abs(destPath)
+	c.Build.TargetPath, _ = filepath.Abs(destPath)
+	c.Build.Mode = mode
 
-	revel_paths := model.NewRevelPaths(mode, appImportPath, "", model.DoNothingRevelCallback)
-
-	// First, verify that it is either already empty or looks like a previous
-	// build (to avoid clobbering anything)
-	if utils.Exists(destPath) && !utils.Empty(destPath) && !utils.Exists(filepath.Join(destPath, "run.sh")) {
-		utils.Logger.Errorf("Abort: %s exists and does not look like a build directory.", destPath)
+	revel_paths, err := model.NewRevelPaths(mode, appImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	if err != nil {
 		return
 	}
 
-	if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
-		utils.Logger.Error("Remove all error", "error", err)
-		return
-	}
+	buildSafetyCheck(destPath)
 
-	if err := os.MkdirAll(destPath, 0777); err != nil {
-		utils.Logger.Error("makedir error", "error", err)
-		return
+	// Ensure the application can be built, this generates the main file
+	app, err := harness.Build(c, revel_paths)
+	if err != nil {
+		return err
 	}
-
-	app, reverr := harness.Build(c, revel_paths)
-	if reverr != nil {
-		utils.Logger.Error("Failed to build application", "error", reverr)
-		return
-	}
-
+	// Copy files
 	// Included are:
 	// - run scripts
 	// - binary
 	// - revel
 	// - app
 
+	packageFolders, err := buildCopyFiles(c, app, revel_paths)
+	if err != nil {
+		return
+	}
+	err = buildCopyModules(c, revel_paths, packageFolders)
+	if err != nil {
+		return
+	}
+	err = buildWriteScripts(c, app)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// Copy the files to the target
+func buildCopyFiles(c *model.CommandConfig, app *harness.App, revel_paths *model.RevelContainer) (packageFolders []string, err error) {
+	appImportPath, destPath := c.ImportPath, c.Build.TargetPath
+
 	// Revel and the app are in a directory structure mirroring import path
 	srcPath := filepath.Join(destPath, "src")
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
 	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(model.RevelImportPath))
-	utils.MustCopyFile(destBinaryPath, app.BinaryPath)
+	if err = utils.CopyFile(destBinaryPath, app.BinaryPath); err != nil {
+		return
+	}
 	utils.MustChmod(destBinaryPath, 0755)
 
 	// Copy the templates  from the revel
-	_ = utils.MustCopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel_paths.RevelPath, "conf"), nil)
-	_ = utils.MustCopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel_paths.RevelPath, "templates"), nil)
+	if err = utils.CopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel_paths.RevelPath, "conf"), nil); err != nil {
+		return
+	}
+	if err = utils.CopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel_paths.RevelPath, "templates"), nil); err != nil {
+		return
+	}
 
 	// Get the folders to be packaged
-	packageFolders := strings.Split(revel_paths.Config.StringDefault("package.folders", "conf,public,app/views"), ",")
-	for i,p:=range packageFolders {
+	packageFolders = strings.Split(revel_paths.Config.StringDefault("package.folders", "conf,public,app/views"), ",")
+	for i, p := range packageFolders {
 		// Clean spaces, reformat slash to filesystem
-		packageFolders[i]=filepath.FromSlash(strings.TrimSpace(p))
+		packageFolders[i] = filepath.FromSlash(strings.TrimSpace(p))
 	}
 
 	if c.Build.CopySource {
-		_ = utils.MustCopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel_paths.BasePath, nil)
+		err = utils.CopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel_paths.BasePath, nil)
+		if err != nil {
+			return
+		}
 	} else {
 		for _, folder := range packageFolders {
-			_ = utils.MustCopyDir(
+			err = utils.CopyDir(
 				filepath.Join(srcPath, filepath.FromSlash(appImportPath), folder),
 				filepath.Join(revel_paths.BasePath, folder),
 				nil)
+			if err != nil {
+				return
+			}
 		}
 	}
 
+	return
+}
+
+// Based on the section copy over the build modules
+func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer, packageFolders []string) (err error) {
+	destPath := filepath.Join(c.Build.TargetPath, "src")
 	// Find all the modules used and copy them over.
 	config := revel_paths.Config.Raw()
 	modulePaths := make(map[string]string) // import path => filesystem path
@@ -151,40 +179,76 @@ func buildApp(c *model.CommandConfig) {
 
 	// Copy the the paths for each of the modules
 	for importPath, fsPath := range modulePaths {
-		utils.Logger.Info("Copy files ", "to", filepath.Join(srcPath, importPath), "from", fsPath)
+		utils.Logger.Info("Copy files ", "to", filepath.Join(destPath, importPath), "from", fsPath)
 		if c.Build.CopySource {
-			_ = utils.MustCopyDir(filepath.Join(srcPath, importPath), fsPath, nil)
+			err = utils.CopyDir(filepath.Join(destPath, importPath), fsPath, nil)
+			if err != nil {
+				return
+			}
 		} else {
 			for _, folder := range packageFolders {
-				_ = utils.MustCopyDir(
-					filepath.Join(srcPath, importPath, folder),
+				err = utils.CopyDir(
+					filepath.Join(destPath, importPath, folder),
 					filepath.Join(fsPath, folder),
 					nil)
+				if err != nil {
+					return
+				}
 			}
 		}
-		//
 	}
 
+	return
+}
+
+// Write the run scripts for the build
+func buildWriteScripts(c *model.CommandConfig, app *harness.App) (err error) {
 	tmplData := map[string]interface{}{
 		"BinName":    filepath.Base(app.BinaryPath),
-		"ImportPath": appImportPath,
-		"Mode":       mode,
+		"ImportPath": c.Build.ImportPath,
+		"Mode":       c.Build.Mode,
 	}
 
-	utils.MustGenerateTemplate(
-		filepath.Join(destPath, "run.sh"),
+	err = utils.GenerateTemplate(
+		filepath.Join(c.Build.TargetPath, "run.sh"),
 		PACKAGE_RUN_SH,
 		tmplData,
 	)
-	utils.MustChmod(filepath.Join(destPath, "run.sh"), 0755)
-	utils.MustGenerateTemplate(
-		filepath.Join(destPath, "run.bat"),
+	if err != nil {
+		return
+	}
+	utils.MustChmod(filepath.Join(c.Build.TargetPath, "run.sh"), 0755)
+	err = utils.GenerateTemplate(
+		filepath.Join(c.Build.TargetPath, "run.bat"),
 		PACKAGE_RUN_BAT,
 		tmplData,
 	)
+	if err != nil {
+		return
+	}
 
-	fmt.Println("Your application has been built in:", destPath)
+	fmt.Println("Your application has been built in:", c.Build.TargetPath)
 
+	return
+}
+
+// Checks to see if the target folder exists and can be created
+func buildSafetyCheck(destPath string) error {
+
+	// First, verify that it is either already empty or looks like a previous
+	// build (to avoid clobbering anything)
+	if utils.Exists(destPath) && !utils.Empty(destPath) && !utils.Exists(filepath.Join(destPath, "run.sh")) {
+		return utils.NewBuildError("Abort: %s exists and does not look like a build directory.", "path", destPath)
+	}
+
+	if err := os.RemoveAll(destPath); err != nil && !os.IsNotExist(err) {
+		return utils.NewBuildIfError(err, "Remove all error", "path", destPath)
+	}
+
+	if err := os.MkdirAll(destPath, 0777); err != nil {
+		return utils.NewBuildIfError(err, "MkDir all error", "path", destPath)
+	}
+	return nil
 }
 
 const PACKAGE_RUN_SH = `#!/bin/sh

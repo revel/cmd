@@ -15,23 +15,23 @@ import (
 )
 
 var cmdRun = &Command{
-	UsageLine: "run [import path] [run mode] [port]",
+	UsageLine: "run [-m [run mode] -p [port]] [import path] ",
 	Short:     "run a Revel application",
 	Long: `
 Run the Revel web application named by the given import path.
 
 For example, to run the chat room sample application:
 
-    revel run github.com/revel/examples/chat dev
+    revel run -m dev github.com/revel/examples/chat
 
 The run mode is used to select which set of app.conf configuration should
 apply and may be used to determine logic in the application itself.
 
 Run mode defaults to "dev".
 
-You can set a port as an optional third parameter.  For example:
+You can set a port as well.  For example:
 
-    revel run github.com/revel/examples/chat prod 8080`,
+    revel run -m prod -p 8080 github.com/revel/examples/chat `,
 }
 
 // RunArgs holds revel run parameters
@@ -47,14 +47,23 @@ func init() {
 }
 
 func updateRunConfig(c *model.CommandConfig, args []string) bool {
-
+	convertPort := func(value string) int {
+		if value != "" {
+			port, err := strconv.Atoi(value)
+			if err != nil {
+				utils.Logger.Fatalf("Failed to parse port as integer: %s", c.Run.Port)
+			}
+			return port
+		}
+		return 0
+	}
 	switch len(args) {
 	case 3:
 		// Possible combinations
 		// revel run [import-path] [run-mode] [port]
 		c.Run.ImportPath = args[0]
 		c.Run.Mode = args[1]
-		c.Run.Port = args[2]
+		c.Run.Port = convertPort(args[2])
 	case 2:
 		// Possible combinations
 		// 1. revel run [import-path] [run-mode]
@@ -68,7 +77,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 
 			if _, err := strconv.Atoi(args[1]); err == nil {
 				// 2nd arg is the port number
-				c.Run.Port = args[1]
+				c.Run.Port = convertPort(args[1])
 			} else {
 				// 2nd arg is the run mode
 				c.Run.Mode = args[1]
@@ -76,7 +85,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 		} else {
 			// 1st arg is the run mode
 			c.Run.Mode = args[0]
-			c.Run.Port = args[1]
+			c.Run.Port = convertPort(args[1])
 		}
 	case 1:
 		// Possible combinations
@@ -93,7 +102,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 			c.Run.ImportPath = args[0]
 		} else if _, err := strconv.Atoi(args[0]); err == nil {
 			// 1st arg is the port number
-			c.Run.Port = args[0]
+			c.Run.Port = convertPort(args[0])
 		} else {
 			// 1st arg is the run mode
 			c.Run.Mode = args[0]
@@ -105,18 +114,20 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 	return true
 }
 
-func runApp(c *model.CommandConfig) {
+// Called to run the app
+func runApp(c *model.CommandConfig) (err error) {
 	if c.Run.Mode == "" {
 		c.Run.Mode = "dev"
 	}
 
-	revel_path := model.NewRevelPaths(c.Run.Mode, c.ImportPath, "", model.DoNothingRevelCallback)
-	if c.Run.Port != "" {
-		port, err := strconv.Atoi(c.Run.Port)
-		if err != nil {
-			utils.Logger.Fatalf("Failed to parse port as integer: %s", c.Run.Port)
-		}
-		revel_path.HTTPPort = port
+	revel_path, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	if err != nil {
+		return utils.NewBuildIfError(err, "Revel paths")
+	}
+	if c.Run.Port > -1 {
+		revel_path.HTTPPort = c.Run.Port
+	} else {
+		c.Run.Port = revel_path.HTTPPort
 	}
 
 	utils.Logger.Infof("Running %s (%s) in %s mode\n", revel_path.AppName, revel_path.ImportPath, revel_path.RunMode)
@@ -145,4 +156,5 @@ func runApp(c *model.CommandConfig) {
 		runMode = revel_path.RunMode
 	}
 	app.Cmd(runMode).Run()
+	return
 }

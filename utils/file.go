@@ -1,21 +1,21 @@
 package utils
 
-
-// DirExists returns true if the given path exists and is a directory.
 import (
-	"os"
 	"archive/tar"
-	"strings"
-	"io"
-	"path/filepath"
-	"fmt"
-	"html/template"
-	"compress/gzip"
-	"go/build"
-	"io/ioutil"
 	"bytes"
+	"compress/gzip"
+	"errors"
+	"fmt"
+	"go/build"
+	"html/template"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
+// DirExists returns true if the given path exists and is a directory.
 func DirExists(filename string) bool {
 	fileInfo, err := os.Stat(filename)
 	return err == nil && fileInfo.IsDir()
@@ -39,49 +39,59 @@ func ReadLines(filename string) ([]string, error) {
 	return strings.Split(string(dataBytes), "\n"), nil
 }
 
-func MustCopyFile(destFilename, srcFilename string) {
+// Copy file returns error
+func CopyFile(destFilename, srcFilename string) (err error) {
+
 	destFile, err := os.Create(destFilename)
-	PanicOnError(err, "Failed to create file "+destFilename)
+	if err != nil {
+		return NewBuildIfError(err, "Failed to create file", "file", destFilename)
+	}
 
 	srcFile, err := os.Open(srcFilename)
-	PanicOnError(err, "Failed to open file "+srcFilename)
+	if err != nil {
+		return NewBuildIfError(err, "Failed to open file", "file", srcFilename)
+	}
 
 	_, err = io.Copy(destFile, srcFile)
-	PanicOnError(err,
-		fmt.Sprintf("Failed to copy data from %s to %s", srcFile.Name(), destFile.Name()))
+	if err != nil {
+		return NewBuildIfError(err, "Failed to copy data", "fromfile", srcFilename, "tofile", destFilename)
+	}
 
 	err = destFile.Close()
-	PanicOnError(err, "Failed to close file "+destFile.Name())
+	if err != nil {
+		return NewBuildIfError(err, "Failed to close file", "file", destFilename)
+	}
 
 	err = srcFile.Close()
-	PanicOnError(err, "Failed to close file "+srcFile.Name())
-}
+	if err != nil {
+		return NewBuildIfError(err, "Failed to close file", "file", srcFilename)
+	}
 
+	return
+}
 
 // GenerateTemplate renders the given template to produce source code, which it writes
 // to the given file.
-func MustGenerateTemplate(filename, templateSource string, args map[string]interface{}) (err error) {
+func GenerateTemplate(filename, templateSource string, args map[string]interface{}) (err error) {
 	tmpl := template.Must(template.New("").Parse(templateSource))
 
 	var b bytes.Buffer
 	if err = tmpl.Execute(&b, args); err != nil {
-		Logger.Fatal("ExecuteTemplate: Execute failed", "error", err)
-		return
+		return NewBuildIfError(err, "ExecuteTemplate: Execute failed")
 	}
 	sourceCode := b.String()
 	filePath := filepath.Dir(filename)
 	if !DirExists(filePath) {
 		err = os.MkdirAll(filePath, 0777)
 		if err != nil && !os.IsExist(err) {
-			Logger.Fatal("Failed to make directory","dir", filePath, "error", err)
+			return NewBuildIfError(err, "Failed to make directory", "dir", filePath)
 		}
 	}
-
 
 	// Create the file
 	file, err := os.Create(filename)
 	if err != nil {
-		Logger.Fatal("Failed to create file","error", err)
+		Logger.Fatal("Failed to create file", "error", err)
 		return
 	}
 	defer func() {
@@ -96,27 +106,41 @@ func MustGenerateTemplate(filename, templateSource string, args map[string]inter
 }
 
 // Given the target path and source path and data. A template
-func MustRenderTemplate(destPath, srcPath string, data interface{}) {
+func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 	tmpl, err := template.ParseFiles(srcPath)
-	PanicOnError(err, "Failed to parse template "+srcPath)
+	if err != nil {
+		return NewBuildIfError(err, "Failed to parse template "+srcPath)
+	}
 
 	f, err := os.Create(destPath)
-	PanicOnError(err, "Failed to create "+destPath)
+	if err != nil {
+		return NewBuildIfError(err, "Failed to create  ", "path", destPath)
+	}
 
 	err = tmpl.Execute(f, data)
-	PanicOnError(err, "Failed to render template "+srcPath)
+	if err != nil {
+		return NewBuildIfError(err, "Failed to Render template "+srcPath)
+	}
 
 	err = f.Close()
-	PanicOnError(err, "Failed to close "+f.Name())
+	if err != nil {
+		return NewBuildIfError(err, "Failed to close file stream "+destPath)
+	}
+	return
 }
 
 // Given the target path and source path and data. A template
-func MustRenderTemplateToStream(output io.Writer, srcPath []string, data interface{}) {
+func RenderTemplateToStream(output io.Writer, srcPath []string, data interface{}) (err error) {
 	tmpl, err := template.ParseFiles(srcPath...)
-	PanicOnError(err, "Failed to parse template "+srcPath[0])
+	if err != nil {
+		return NewBuildIfError(err, "Failed to parse template "+srcPath[0])
+	}
 
 	err = tmpl.Execute(output, data)
-	PanicOnError(err, "Failed to render template "+srcPath[0])
+	if err != nil {
+		return NewBuildIfError(err, "Failed to render template "+srcPath[0])
+	}
+	return
 }
 
 func MustChmod(filename string, mode os.FileMode) {
@@ -127,8 +151,7 @@ func MustChmod(filename string, mode os.FileMode) {
 // Called if panic
 func PanicOnError(err error, msg string) {
 	if revErr, ok := err.(*Error); (ok && revErr != nil) || (!ok && err != nil) {
-		Logger.Fatalf("Abort: %s: %s %s\n", msg, revErr, err)
-		//panic(NewLoggedError(err))
+		Logger.Panicf("Abort: %s: %s %s\n", msg, revErr, err)
 	}
 }
 
@@ -136,7 +159,7 @@ func PanicOnError(err error, msg string) {
 // ".template" are treated as a Go template and rendered using the given data.
 // Additionally, the trailing ".template" is stripped from the file name.
 // Also, dot files and dot directories are skipped.
-func MustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
+func CopyDir(destDir, srcDir string, data map[string]interface{}) error {
 	return fsWalk(srcDir, srcDir, func(srcPath string, info os.FileInfo, err error) error {
 		// Get the relative path from the source base, and the corresponding path in
 		// the dest directory.
@@ -155,26 +178,29 @@ func MustCopyDir(destDir, srcDir string, data map[string]interface{}) error {
 		if info.IsDir() {
 			err := os.MkdirAll(filepath.Join(destDir, relSrcPath), 0777)
 			if !os.IsExist(err) {
-				PanicOnError(err, "Failed to create directory")
+				return NewBuildIfError(err, "Failed to create directory", "path", destDir+"/"+relSrcPath)
 			}
 			return nil
 		}
 
 		// If this file ends in ".template", render it as a template.
 		if strings.HasSuffix(relSrcPath, ".template") {
-			MustRenderTemplate(destPath[:len(destPath)-len(".template")], srcPath, data)
-			return nil
+
+			return RenderTemplate(destPath[:len(destPath)-len(".template")], srcPath, data)
 		}
 
 		// Else, just copy it over.
-		MustCopyFile(destPath, srcPath)
-		return nil
+
+		return CopyFile(destPath, srcPath)
 	})
 }
 
+// Shortcut to fsWalk
 func Walk(root string, walkFn filepath.WalkFunc) error {
-	return fsWalk(root,root,walkFn)
+	return fsWalk(root, root, walkFn)
 }
+
+// Walk the tree using the function
 func fsWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 	fsWalkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -214,9 +240,13 @@ func fsWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 	return err
 }
 
-func MustTarGzDir(destFilename, srcDir string) string {
+// Tar gz the folder
+func TarGzDir(destFilename, srcDir string) (name string, err error) {
 	zipFile, err := os.Create(destFilename)
-	PanicOnError(err, "Failed to create archive")
+	if err != nil {
+		return "", NewBuildIfError(err, "Failed to create archive", "file", destFilename)
+	}
+
 	defer func() {
 		_ = zipFile.Close()
 	}()
@@ -231,13 +261,16 @@ func MustTarGzDir(destFilename, srcDir string) string {
 		_ = tarWriter.Close()
 	}()
 
-	_ = fsWalk(srcDir, srcDir, func(srcPath string, info os.FileInfo, err error) error {
+	err = fsWalk(srcDir, srcDir, func(srcPath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
 		srcFile, err := os.Open(srcPath)
-		PanicOnError(err, "Failed to read source file")
+		if err != nil {
+			return NewBuildIfError(err, "Failed to read file", "file", srcPath)
+		}
+
 		defer func() {
 			_ = srcFile.Close()
 		}()
@@ -248,17 +281,22 @@ func MustTarGzDir(destFilename, srcDir string) string {
 			Mode:    int64(info.Mode()),
 			ModTime: info.ModTime(),
 		})
-		PanicOnError(err, "Failed to write tar entry header")
+		if err != nil {
+			return NewBuildIfError(err, "Failed to write tar entry header", "file", srcPath)
+		}
 
 		_, err = io.Copy(tarWriter, srcFile)
-		PanicOnError(err, "Failed to copy")
+		if err != nil {
+			return NewBuildIfError(err, "Failed to copy file", "file", srcPath)
+		}
 
 		return nil
 	})
 
-	return zipFile.Name()
+	return zipFile.Name(), err
 }
 
+// Return true if the file exists
 func Exists(filename string) bool {
 	_, err := os.Stat(filename)
 	return err == nil
@@ -278,8 +316,50 @@ func Empty(dirname string) bool {
 	return len(results) == 0
 }
 
-func ImportPathFromCurrentDir() string {
-	pwd, _ := os.Getwd()
-	importPath, _ := filepath.Rel(filepath.Join(build.Default.GOPATH, "src"), pwd)
-	return filepath.ToSlash(importPath)
+// Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
+func FindSrcPaths(appImportPath, revelImportPath string, packageResolver func(pkgName string) error) (appSourcePath, revelSourcePath string, err error) {
+	var (
+		gopaths = filepath.SplitList(build.Default.GOPATH)
+		goroot  = build.Default.GOROOT
+	)
+
+	if len(gopaths) == 0 {
+		err = errors.New("GOPATH environment variable is not set. " +
+			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
+		return
+	}
+
+	if ContainsString(gopaths, goroot) {
+		err = fmt.Errorf("GOPATH (%s) must not include your GOROOT (%s). "+
+			"Please refer to http://golang.org/doc/code.html to configure your Go environment. ",
+			build.Default.GOPATH, goroot)
+		return
+
+	}
+
+	appPkgDir := ""
+	appPkgSrcDir := ""
+	if len(appImportPath)>0 {
+		Logger.Info("Seeking app package","app",appImportPath)
+		appPkg, err := build.Import(appImportPath, "", build.FindOnly)
+		if err != nil {
+			err = fmt.Errorf("Failed to import " + appImportPath + " with error %s", err.Error())
+			return "","",err
+		}
+		appPkgDir,appPkgSrcDir =appPkg.Dir, appPkg.SrcRoot
+	}
+	Logger.Info("Seeking remote package","using",appImportPath, "remote",revelImportPath)
+	revelPkg, err := build.Default.Import(revelImportPath, appPkgDir, build.FindOnly)
+	if err != nil {
+		Logger.Info("Resolved called Seeking remote package","using",appImportPath, "remote",revelImportPath)
+		packageResolver(revelImportPath)
+		revelPkg, err = build.Import(revelImportPath, appPkgDir, build.FindOnly)
+		if err != nil {
+			err = fmt.Errorf("Failed to find Revel with error: %s", err.Error())
+			return
+		}
+	}
+
+	revelSourcePath, appSourcePath = revelPkg.Dir[:len(revelPkg.Dir)-len(revelImportPath)], appPkgSrcDir
+	return
 }

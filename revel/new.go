@@ -307,19 +307,26 @@ const (
 # [[override]]
 #  name = "github.com/x/y"
 #  version = "2.4.0"
-required = ["github.com/revel/cmd/revel"]
+required = ["github.com/revel/revel", "github.com/revel/modules"]
+
+# Note to use a specific version changes this to
+#
+# [[override]]
+#   version = "0.20.1"
+#   name = "github.com/revel/modules"
 
 [[override]]
   branch = "master"
   name = "github.com/revel/modules"
 
+# Note to use a specific version changes this to
+#
+# [[override]]
+#   version = "0.20.0"
+#   name = "github.com/revel/revel"
 [[override]]
   branch = "master"
   name = "github.com/revel/revel"
-
-[[override]]
-  branch = "master"
-  name = "github.com/revel/cmd"
 
 [[override]]
   branch = "master"

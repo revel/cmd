@@ -245,7 +245,7 @@ func newLoadFromGit(c *model.CommandConfig, sp *url.URL) (err error) {
 	utils.Logger.Info("Exec:", "args", getCmd.Args)
 	getOutput, err := getCmd.CombinedOutput()
 	if err != nil {
-		utils.Logger.Fatalf("Abort: could not clone the  Skeleton  source code: \n%s\n%s\n", getOutput, c.New.SkeletonPath)
+		utils.Logger.Fatal("Abort: could not clone the  Skeleton  source code: ","output", getOutput, "path", c.New.SkeletonPath)
 	}
 	outputPath := targetPath
 	if len(pathpart) > 1 {

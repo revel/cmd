@@ -119,6 +119,8 @@ func newApp(c *model.CommandConfig) (err error) {
 	if err = setApplicationPath(c); err != nil {
 		return err
 	}
+	// At this point the versions can be set
+	c.SetVersions()
 
 	// checking and setting skeleton
 	if err=setSkeletonPath(c);err!=nil {
@@ -188,16 +190,6 @@ func setApplicationPath(c *model.CommandConfig) (err error) {
 	}
 
 	c.AppName = filepath.Base(c.AppPath)
-
-	//if c.BasePath == "." {
-	//	// we need to remove the a single '.' when
-	//	// the app is in the $GOROOT/src directory
-	//	c.BasePath = ""
-	//} else {
-	//	// we need to append a '/' when the app is
-	//	// is a subdirectory such as $GOROOT/src/path/to/revelapp
-	//	c.BasePath += "/"
-	//}
 
 	return nil
 }

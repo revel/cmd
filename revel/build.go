@@ -62,6 +62,7 @@ func buildApp(c *model.CommandConfig) (err error) {
 	// Convert target to absolute path
 	c.Build.TargetPath, _ = filepath.Abs(destPath)
 	c.Build.Mode = mode
+	c.Build.ImportPath = appImportPath
 
 	revel_paths, err := model.NewRevelPaths(mode, appImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {

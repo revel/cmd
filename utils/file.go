@@ -160,6 +160,9 @@ func PanicOnError(err error, msg string) {
 // Additionally, the trailing ".template" is stripped from the file name.
 // Also, dot files and dot directories are skipped.
 func CopyDir(destDir, srcDir string, data map[string]interface{}) error {
+	if !DirExists(srcDir) {
+		return nil
+	}
 	return fsWalk(srcDir, srcDir, func(srcPath string, info os.FileInfo, err error) error {
 		// Get the relative path from the source base, and the corresponding path in
 		// the dest directory.

@@ -15,7 +15,6 @@ import (
 
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"log"
 )
 
 // App contains the configuration for running a Revel app.  (Not for the app itself)
@@ -89,7 +88,7 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 
 // Run the app server inline.  Never returns.
 func (cmd AppCmd) Run() {
-	log.Println("Exec app:", "path", cmd.Path, "args", cmd.Args)
+	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Run(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)
 	}
@@ -97,12 +96,44 @@ func (cmd AppCmd) Run() {
 
 // Kill terminates the app server if it's running.
 func (cmd AppCmd) Kill() {
+
 	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
+		// Send an interrupt signal to allow for a graceful shutdown
 		utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
-		err := cmd.Process.Kill()
+		err := cmd.Process.Signal(os.Interrupt)
 		if err != nil {
 			utils.Logger.Fatal("Failed to kill revel server:", "error", err)
 		}
+
+		// Wait for the shutdown
+		ch := make(chan bool, 1)
+		go func() {
+			s, err := cmd.Process.Wait()
+			defer func() {
+				ch <- true
+			}()
+			if err != nil {
+				utils.Logger.Info("Wait failed for process ", "error", err)
+			}
+			if s != nil {
+				utils.Logger.Info("Revel App exited", "state", s.String())
+			}
+		}()
+
+		// Use a timer to ensure that the process exits
+		utils.Logger.Info("Waiting to exit")
+		select {
+		case <-ch:
+			return
+		case <-time.After(60 * time.Second):
+			// Kill the process
+			utils.Logger.Error(
+				"Revel app failed to exit in 60 seconds - killing.",
+				"processid", cmd.Process.Pid,
+				"killerror", cmd.Process.Kill())
+		}
+
+		utils.Logger.Info("Done Waiting to exit")
 	}
 }
 

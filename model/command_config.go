@@ -1,17 +1,22 @@
 package model
 
-// The constants
 import (
 	"fmt"
+	"github.com/revel/cmd"
 	"github.com/revel/cmd/logger"
 	"github.com/revel/cmd/utils"
+	"go/ast"
 	"go/build"
+	"go/parser"
+	"go/token"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
+// The constants
 const (
 	NEW COMMAND = iota + 1
 	RUN
@@ -28,17 +33,19 @@ type (
 
 	// The Command config for the line input
 	CommandConfig struct {
-		Index           COMMAND                    // The index
-		Verbose         []bool                       `short:"v" long:"debug" description:"If set the logger is set to verbose"`              // True if debug is active
-		HistoricMode    bool                       `long:"historic-run-mode" description:"If set the runmode is passed a string not json"` // True if debug is active
-		ImportPath      string                     // The import path (relative to a GOPATH)
-		GoPath          string                     // The GoPath
-		GoCmd           string                     // The full path to the go executable
-		SrcRoot         string                     // The source root
-		AppPath         string                     // The application path (absolute)
-		AppName         string                     // The application name
-		PackageResolver func(pkgName string) error //  a packge resolver for the config
-		BuildFlags      []string                   `short:"X" long:"build-flags" description:"These flags will be used when building the application. May be specified multiple times, only applicable for Build, Run, Package, Test commands"`
+		Index            COMMAND                    // The index
+		Verbose          []bool                     `short:"v" long:"debug" description:"If set the logger is set to verbose"` // True if debug is active
+		FrameworkVersion *Version                   // The framework version
+		CommandVersion   *Version                   // The command version
+		HistoricMode     bool                       `long:"historic-run-mode" description:"If set the runmode is passed a string not json"` // True if debug is active
+		ImportPath       string                     // The import path (relative to a GOPATH)
+		GoPath           string                     // The GoPath
+		GoCmd            string                     // The full path to the go executable
+		SrcRoot          string                     // The source root
+		AppPath          string                     // The application path (absolute)
+		AppName          string                     // The application name
+		PackageResolver  func(pkgName string) error //  a packge resolver for the config
+		BuildFlags       []string                   `short:"X" long:"build-flags" description:"These flags will be used when building the application. May be specified multiple times, only applicable for Build, Run, Package, Test commands"`
 		// The new command
 		New struct {
 			ImportPath   string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
@@ -57,7 +64,7 @@ type (
 		Run struct {
 			ImportPath string `short:"a" long:"application-path" description:"Path to application folder"  required:"false"`
 			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			Port       int `short:"p" long:"port" default:"-1" description:"The port to listen" `
+			Port       int    `short:"p" long:"port" default:"-1" description:"The port to listen" `
 			NoProxy    bool   `short:"n" long:"no-proxy" description:"True if proxy server should not be started. This will only update the main and routes files on change"`
 		} `command:"run"`
 		// The package command
@@ -138,6 +145,16 @@ func (c *CommandConfig) UpdateImportPath() bool {
 
 	c.ImportPath = importPath
 	utils.Logger.Info("Returned import path", "path", importPath, "buildpath", build.Default.GOPATH)
+	if required && c.Index != NEW {
+		if err := c.SetVersions(); err != nil {
+			utils.Logger.Panic("Failed to fetch revel versions", "error", err)
+		}
+		if err:=c.FrameworkVersion.CompatibleFramework(c);err!=nil {
+			utils.Logger.Fatal("Compatibility Error", "message", err,
+				"Revel framework version", c.FrameworkVersion.String(), "Revel tool version", c.CommandVersion.String())
+		}
+		utils.Logger.Info("Revel versions", "revel-tool", c.CommandVersion.String(), "Revel Framework", c.FrameworkVersion.String())
+	}
 	return (len(importPath) > 0 || !required)
 }
 
@@ -185,7 +202,7 @@ func (c *CommandConfig) InitPackageResolver() {
 			getCmd = exec.Command(depPath, "ensure", "-add", pkgName)
 		} else {
 			utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
-			getCmd = exec.Command(c.GoCmd, "get", pkgName)
+			getCmd = exec.Command(c.GoCmd, "get", "-u", pkgName)
 		}
 
 		utils.CmdInit(getCmd, c.AppPath)
@@ -237,7 +254,7 @@ func (c *CommandConfig) InitGoPaths() {
 		}
 	}
 
-	if len(c.SrcRoot)==0 && len(bestpath) > 0 {
+	if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
 		c.SrcRoot = bestpath
 	}
 	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath)
@@ -255,4 +272,49 @@ func (c *CommandConfig) InitGoPaths() {
 
 	c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
 	utils.Logger.Info("Set application path", "path", c.AppPath)
+}
+
+// Sets the versions on the command config
+func (c *CommandConfig) SetVersions() (err error) {
+	c.CommandVersion, _ = ParseVersion(cmd.Version)
+	_, revelPath, err := utils.FindSrcPaths(c.ImportPath, RevelImportPath, c.PackageResolver)
+	if err == nil {
+		utils.Logger.Info("Fullpath to revel", "dir", revelPath)
+		fset := token.NewFileSet() // positions are relative to fset
+
+		versionData, err := ioutil.ReadFile(filepath.Join(revelPath, RevelImportPath, "version.go"))
+		if err != nil {
+			utils.Logger.Error("Failed to find Revel version:", "error", err, "path", revelPath)
+		}
+
+		// Parse src but stop after processing the imports.
+		f, err := parser.ParseFile(fset, "", versionData, parser.ParseComments)
+		if err != nil {
+			return utils.NewBuildError("Failed to parse Revel version error:", "error", err)
+		}
+
+		// Print the imports from the file's AST.
+		for _, s := range f.Decls {
+			genDecl, ok := s.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			if genDecl.Tok != token.CONST {
+				continue
+			}
+			for _, a := range genDecl.Specs {
+				spec := a.(*ast.ValueSpec)
+				r := spec.Values[0].(*ast.BasicLit)
+				if spec.Names[0].Name == "Version" {
+					c.FrameworkVersion, err = ParseVersion(strings.Replace(r.Value, `"`, ``, -1))
+					if err != nil {
+						utils.Logger.Errorf("Failed to parse version")
+					} else {
+						utils.Logger.Info("Parsed revel version", "version", c.FrameworkVersion.String())
+					}
+				}
+			}
+		}
+	}
+	return
 }

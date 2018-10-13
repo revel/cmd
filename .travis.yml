@@ -26,6 +26,8 @@ install:
   - export REVEL_BRANCH="develop"
   - 'if [[ "$TRAVIS_BRANCH" == "master" ]]; then export REVEL_BRANCH="master"; fi'
   - 'echo "Travis branch: $TRAVIS_BRANCH, Revel dependency branch: $REVEL_BRANCH"'
+  - git clone -b $REVEL_BRANCH git://github.com/revel/revel ../revel/
+  - git clone -b $REVEL_BRANCH git://github.com/revel/modules ../modules/
   - go get -t -v github.com/revel/cmd/revel
   - go get -u github.com/golang/dep/cmd/dep
   - echo $GOPATH

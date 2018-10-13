@@ -12,6 +12,7 @@ import (
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
 	"go/build"
+	"os"
 )
 
 var cmdRun = &Command{
@@ -108,7 +109,8 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 			c.Run.Mode = args[0]
 		}
 	case 0:
-		return false
+		// Attempt to set the import path to the current working director.
+		c.Run.ImportPath,_ = os.Getwd()
 	}
 	c.Index = model.RUN
 	return true

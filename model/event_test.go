@@ -10,15 +10,15 @@ import (
 func TestEventHandler(t *testing.T) {
 	counter := 0
 	newListener := func(typeOf revel.Event, value interface{}) (responseOf revel.EventResponse) {
-		if typeOf == revel.REVEL_FAILURE {
+		if typeOf == revel.ENGINE_SHUTDOWN_REQUEST {
 			counter++
 		}
 		return
 	}
-	// Attach the same handlder twice so we expect to see the response twice as well
+	// Attach the same handler twice so we expect to see the response twice as well
 	revel.AddInitEventHandler(newListener)
 	revel.AddInitEventHandler(newListener)
-	revel.RaiseEvent(revel.REVEL_AFTER_MODULES_LOADED, nil)
-	revel.RaiseEvent(revel.REVEL_FAILURE, nil)
+	revel.StopServer(1)
 	assert.Equal(t, counter, 2, "Expected event handler to have been called")
 }
+

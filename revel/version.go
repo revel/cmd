@@ -118,3 +118,4 @@ func versionApp(c *model.CommandConfig) (err error) {
 
 	return
 }
+

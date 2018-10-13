@@ -16,7 +16,7 @@ type Version struct {
 }
 
 // The compatibility list
-var frameworkCompatibleList = [][]string{
+var frameworkCompatibleRangeList = [][]string{
 	{"0.0.0", "0.20.0"}, // minimum Revel version to use with this version of the tool
 	{"0.19.99", "0.30.0"},  // Compatible with Framework V 0.19.99 - 0.30.0
 }
@@ -56,7 +56,7 @@ func (v *Version) intOrZero(input string) (value int) {
 
 // Returns true if this major revision is compatible
 func (v *Version) CompatibleFramework(c *CommandConfig) error {
-	for i, rv := range frameworkCompatibleList {
+	for i, rv := range frameworkCompatibleRangeList {
 		start, _ := ParseVersion(rv[0])
 		end, _ := ParseVersion(rv[1])
 		if !v.Newer(start) || v.Newer(end) {
@@ -68,7 +68,7 @@ func (v *Version) CompatibleFramework(c *CommandConfig) error {
 		}
 		return nil
 	}
-	return errors.New("Unknown versions - do a 'go get -u github.com/revel/cmd/revel github.com/revel/modules github.com/revel/revel'")
+	return errors.New("Tool out of date - do a 'go get -u github.com/revel/cmd/revel'")
 }
 
 // Returns true if this major revision is newer then the passed in

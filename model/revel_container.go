@@ -120,8 +120,16 @@ func NewRevelPaths(mode, importPath, srcPath string, callback RevelCallback) (rp
 	rp.BasePath = filepath.Join(rp.SourcePath, filepath.FromSlash(importPath))
 	rp.PackageInfo.Vendor = utils.Exists(filepath.Join(rp.BasePath, "vendor"))
 	rp.AppPath = filepath.Join(rp.BasePath, "app")
-	rp.ViewsPath = filepath.Join(rp.AppPath, "views")
 
+	// Sanity check , ensure app and conf paths exist
+	if !utils.DirExists(rp.AppPath)  {
+		return rp, fmt.Errorf("No application found at path %s", rp.AppPath)
+	}
+	if !utils.DirExists(filepath.Join(rp.BasePath, "conf")) {
+		return rp, fmt.Errorf("No configuration found at path %s", filepath.Join(rp.BasePath, "conf"))
+	}
+
+	rp.ViewsPath = filepath.Join(rp.AppPath, "views")
 	rp.CodePaths = []string{rp.AppPath}
 	rp.TemplatePaths = []string{}
 

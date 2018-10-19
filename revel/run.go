@@ -13,6 +13,7 @@ import (
 	"github.com/revel/cmd/utils"
 	"go/build"
 	"os"
+	"path/filepath"
 )
 
 var cmdRun = &Command{
@@ -72,7 +73,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 		// 3. revel run [run-mode] [port]
 
 		// Check to see if the import path evaluates out to something that may be on a gopath
-		if _, err := build.Import(args[0], "", build.FindOnly); err == nil {
+		if runIsImportPath(args[0]) {
 			// 1st arg is the import path
 			c.Run.ImportPath = args[0]
 
@@ -93,12 +94,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 		// 1. revel run [import-path]
 		// 2. revel run [port]
 		// 3. revel run [run-mode]
-		_, err := build.Import(args[0], "", build.FindOnly)
-		if err != nil {
-			utils.Logger.Warn("Unable to run using an import path, assuming import path is working directory %s %s", "Argument", args[0], "error", err.Error())
-		}
-		utils.Logger.Info("Trying to build with", args[0], err)
-		if err == nil {
+		if runIsImportPath(args[0]) {
 			// 1st arg is the import path
 			c.Run.ImportPath = args[0]
 		} else if _, err := strconv.Atoi(args[0]); err == nil {
@@ -114,6 +110,14 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 	}
 	c.Index = model.RUN
 	return true
+}
+
+// Returns true if this is an absolute path or a relative gopath
+func runIsImportPath(pathToCheck string) bool {
+	if _, err := build.Import(pathToCheck, "", build.FindOnly);err==nil {
+		return true
+	}
+	return filepath.IsAbs(pathToCheck)
 }
 
 // Called to run the app

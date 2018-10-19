@@ -65,7 +65,7 @@ func newApp(name string, command model.COMMAND, precall func(c *model.CommandCon
 	if precall != nil {
 		precall(c)
 	}
-	if !c.UpdateImportPath() {
+	if c.UpdateImportPath()!=nil {
 		a.Fail("Unable to update import path")
 	}
 	c.InitGoPaths()

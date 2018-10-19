@@ -65,6 +65,13 @@ func newApp(c *model.CommandConfig) (err error) {
 	if err == nil || !utils.Empty(c.AppPath) {
 		return utils.NewBuildError("Abort: Import path already exists.", "path", c.ImportPath)
 	}
+
+	// checking and setting skeleton
+	if err=setSkeletonPath(c);err!=nil {
+		return
+	}
+
+	// Create application path
 	if err := os.MkdirAll(c.AppPath, os.ModePerm); err != nil {
 		return utils.NewBuildError("Abort: Unable to create app path.", "path", c.AppPath)
 	}
@@ -115,17 +122,11 @@ func newApp(c *model.CommandConfig) (err error) {
 	}
 
 	// checking and setting application
-
 	if err = setApplicationPath(c); err != nil {
 		return err
 	}
 	// At this point the versions can be set
 	c.SetVersions()
-
-	// checking and setting skeleton
-	if err=setSkeletonPath(c);err!=nil {
-		return
-	}
 
 	// copy files to new app directory
 	if err = copyNewAppFiles(c);err != nil {
@@ -201,11 +202,28 @@ func setSkeletonPath(c *model.CommandConfig) (err error) {
 	}
 
 	// First check to see the protocol of the string
-	if sp, err := url.Parse(c.New.SkeletonPath); err == nil {
+	sp, err := url.Parse(c.New.SkeletonPath)
+	if err == nil {
 		utils.Logger.Info("Detected skeleton path", "path", sp)
 
 		switch strings.ToLower(sp.Scheme) {
-		// TODO Add support for https, http, ftp, file
+		// TODO Add support for https, http, ftp
+		case "" :
+			sp.Scheme="file"
+			fallthrough
+		case "file" :
+			fullpath := sp.String()[7:]
+			if !filepath.IsAbs(fullpath) {
+				fullpath, err = filepath.Abs(fullpath)
+				if err!=nil {
+					return
+				}
+			}
+			c.New.SkeletonPath = fullpath
+			utils.Logger.Info("Set skeleton path to ", fullpath)
+			if !utils.DirExists(fullpath) {
+				return fmt.Errorf("Failed to find skeleton in filepath %s %s", fullpath, sp.String())
+			}
 		case "git":
 			if err := newLoadFromGit(c, sp); err != nil {
 				return err
@@ -237,7 +255,7 @@ func newLoadFromGit(c *model.CommandConfig, sp *url.URL) (err error) {
 	utils.Logger.Info("Exec:", "args", getCmd.Args)
 	getOutput, err := getCmd.CombinedOutput()
 	if err != nil {
-		utils.Logger.Fatal("Abort: could not clone the  Skeleton  source code: ","output", getOutput, "path", c.New.SkeletonPath)
+		utils.Logger.Fatal("Abort: could not clone the  Skeleton  source code: ","output", string(getOutput), "path", c.New.SkeletonPath)
 	}
 	outputPath := targetPath
 	if len(pathpart) > 1 {

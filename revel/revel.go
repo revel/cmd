@@ -20,6 +20,7 @@ import (
 	"github.com/revel/cmd/logger"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
+	"bytes"
 )
 
 const (
@@ -70,11 +71,14 @@ func main() {
 	wd, _ := os.Getwd()
 
 	utils.InitLogger(wd, logger.LvlError)
-
 	parser := flags.NewParser(c, flags.HelpFlag|flags.PassDoubleDash)
-	if err := ParseArgs(c, parser, os.Args[1:]); err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+	if len(os.Args)<2 {
 		parser.WriteHelp(os.Stdout)
+		os.Exit(1)
+	}
+
+	if err := ParseArgs(c, parser, os.Args[1:]); err != nil {
+		fmt.Fprint(os.Stderr, err.Error() +"\n")
 		os.Exit(1)
 	}
 
@@ -87,8 +91,10 @@ func main() {
 		utils.InitLogger(wd, logger.LvlWarn)
 	}
 
-	if !c.UpdateImportPath() {
-		utils.Logger.Fatal("Unable to determine application path")
+	if err := c.UpdateImportPath();err!=nil {
+		utils.Logger.Error(err.Error())
+		parser.WriteHelp(os.Stdout)
+		os.Exit(1)
 	}
 
 	command := Commands[c.Index]
@@ -136,12 +142,12 @@ func ParseArgs(c *model.CommandConfig, parser *flags.Parser, args []string) (err
 		}
 	}
 
-	if c.Index == 0 {
-		err = fmt.Errorf("Unknown command %v", extraArgs)
-	} else if len(extraArgs) > 0 {
+	if len(extraArgs) > 0 {
 		utils.Logger.Info("Found additional arguements, setting them")
 		if !Commands[c.Index].UpdateConfig(c, extraArgs) {
-			err = fmt.Errorf("Invalid command line arguements %v", extraArgs)
+			buffer := &bytes.Buffer{}
+			parser.WriteHelp(buffer)
+			err = fmt.Errorf("Invalid command line arguements %v\n%s", extraArgs, buffer.String())
 		}
 	}
 

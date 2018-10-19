@@ -92,7 +92,7 @@ type (
 )
 
 // Updates the import path depending on the command
-func (c *CommandConfig) UpdateImportPath() bool {
+func (c *CommandConfig) UpdateImportPath() error {
 	var importPath string
 	required := true
 	switch c.Index {
@@ -114,6 +114,7 @@ func (c *CommandConfig) UpdateImportPath() bool {
 	}
 
 	if len(importPath) == 0 || filepath.IsAbs(importPath) || importPath[0] == '.' {
+		utils.Logger.Info("Import path is absolute or not specified", "path", importPath)
 		// Try to determine the import path from the GO paths and the command line
 		currentPath, err := os.Getwd()
 		if len(importPath) > 0 {
@@ -135,7 +136,7 @@ func (c *CommandConfig) UpdateImportPath() bool {
 					if len(importPath) > 4 && strings.ToLower(importPath[0:4]) == "src/" {
 						importPath = importPath[4:]
 					} else if importPath == "src" {
-						importPath = ""
+						return fmt.Errorf("Invlaid import path, working dir is in GOPATH root")
 					}
 					utils.Logger.Info("Updated import path", "path", importPath)
 				}
@@ -155,7 +156,13 @@ func (c *CommandConfig) UpdateImportPath() bool {
 		}
 		utils.Logger.Info("Revel versions", "revel-tool", c.CommandVersion.String(), "Revel Framework", c.FrameworkVersion.String())
 	}
-	return (len(importPath) > 0 || !required)
+	if !required {
+		return nil
+	}
+	if len(importPath) == 0  {
+		return fmt.Errorf("Unable to determine import path from : %s", importPath)
+	}
+	return nil
 }
 
 // Used to initialize the package resolver

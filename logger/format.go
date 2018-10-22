@@ -3,11 +3,12 @@ package logger
 import (
 	"bytes"
 	"fmt"
-	"github.com/revel/log15"
 	"reflect"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/revel/log15"
 )
 
 const (
@@ -96,9 +97,13 @@ func TerminalFormatHandler(noColor bool, smallDate bool) LogFormat {
 }
 func findInContext(key string, ctx []interface{}) string {
 	for i := 0; i < len(ctx); i += 2 {
-		k := ctx[i].(string)
-		if key == k {
-			return formatLogfmtValue(ctx[i+1])
+		switch k := ctx[i].(type) {
+		case string:
+			if key == k {
+				return formatLogfmtValue(ctx[i+1])
+			}
+		default:
+			return ""
 		}
 	}
 	return ""

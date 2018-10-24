@@ -60,7 +60,7 @@ func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelConta
 
 // Start the app server, and wait until it is ready to serve requests.
 func (cmd AppCmd) Start(c *model.CommandConfig) error {
-	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c}
+	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c, &bytes.Buffer{}}
 	cmd.Stdout = listeningWriter
 	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
 	utils.CmdInit(cmd.Cmd, c.AppPath)
@@ -70,8 +70,11 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 
 	select {
 	case exitState := <-cmd.waitChan():
-		println("Revel proxy is listening, point your browser to :", c.Run.Port)
-		return errors.New("revel/harness: app died reason: " + exitState)
+		fmt.Println("Startup failure view previous messages, \n Proxy is listening :", c.Run.Port)
+		err := utils.NewError("","Revel Run Error", "starting your application there was an exception. See terminal output, " + exitState,"")
+		// TODO pretiffy command line output
+		// err.MetaError = listeningWriter.getLastOutput()
+		return err
 
 	case <-time.After(60 * time.Second):
 		println("Revel proxy is listening, point your browser to :", c.Run.Port)
@@ -160,8 +163,10 @@ type startupListeningWriter struct {
 	dest        io.Writer
 	notifyReady chan bool
 	c           *model.CommandConfig
+	buffer      *bytes.Buffer
 }
 
+// Writes to this output stream
 func (w *startupListeningWriter) Write(p []byte) (int, error) {
 	if w.notifyReady != nil && bytes.Contains(p, []byte("Revel engine is listening on")) {
 		w.notifyReady <- true
@@ -173,5 +178,15 @@ func (w *startupListeningWriter) Write(p []byte) (int, error) {
 			w.notifyReady = nil
 		}
 	}
+	if w.notifyReady!=nil {
+		w.buffer.Write(p)
+	}
 	return w.dest.Write(p)
 }
+
+// Returns the cleaned output from the response
+// TODO clean the response more
+func (w *startupListeningWriter) getLastOutput() string {
+	return w.buffer.String()
+}
+

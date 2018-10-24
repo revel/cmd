@@ -231,6 +231,9 @@ func (h *Harness) Refresh() (err *utils.Error) {
 		h.app.Port = h.port
 		if err2 := h.app.Cmd(h.runMode).Start(h.config); err2 != nil {
 			utils.Logger.Error("Could not start application", "error", err2)
+			if err,k :=err2.(*utils.Error);k {
+				return err
+			}
 			return &utils.Error{
 				Title:       "App failed to start up",
 				Description: err2.Error(),

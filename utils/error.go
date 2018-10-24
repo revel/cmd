@@ -23,6 +23,15 @@ type (
 		IsError bool
 	}
 )
+// Return a new error object
+func NewError(source, title,path,description string) *Error {
+	return &Error {
+		SourceType:source,
+		Title:title,
+		Path:path,
+		Description:description,
+	}
+}
 
 // Creates a link based on the configuration setting "errors.link"
 func (e *Error) SetLink(errorLink string) {

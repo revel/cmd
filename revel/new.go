@@ -16,6 +16,9 @@ import (
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
 	"net/url"
+	"github.com/kr/pty"
+	"io"
+	"bytes"
 )
 
 var cmdNew = &Command{
@@ -114,10 +117,16 @@ func newApp(c *model.CommandConfig) (err error) {
 
 		getCmd := exec.Command("dep", "ensure", "-v")
 		utils.CmdInit(getCmd, c.AppPath)
-		utils.Logger.Info("Exec:", "args", getCmd.Args)
-		getOutput, err := getCmd.CombinedOutput()
+		f, err := pty.Start(getCmd);
+		stdout := new(bytes.Buffer)
+		io.Copy(io.MultiWriter(stdout, os.Stdout), f)
+		if err = getCmd.Wait(); err != nil {
+
+		}
+		utils.Logger.Info("Exec:", "args", getCmd.Args, "env", getCmd.Env, "workingdir",getCmd.Dir)
+		// getOutput, err := getCmd.CombinedOutput()
 		if err != nil {
-			return utils.NewBuildIfError(err, string(getOutput))
+			return utils.NewBuildIfError(err, stdout.String())
 		}
 	}
 

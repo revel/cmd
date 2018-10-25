@@ -5,13 +5,24 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"bytes"
+	"path/filepath"
 )
 
 // Initialize the command based on the GO environment
 func CmdInit(c *exec.Cmd, basePath string) {
 	c.Dir = basePath
+	// Dep does not like paths that are not real, convert all paths in go to real paths
+	realPath := &bytes.Buffer{}
+	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+		rp,_ := filepath.EvalSymlinks(p)
+		if realPath.Len() > 0 {
+			realPath.WriteString(string(filepath.ListSeparator))
+		}
+		realPath.WriteString(rp)
+	}
 	// Go 1.8 fails if we do not include the GOROOT
-	c.Env = []string{"GOPATH=" + build.Default.GOPATH, "GOROOT="+ os.Getenv("GOROOT")}
+	c.Env = []string{"GOPATH=" + realPath.String(), "GOROOT="+ os.Getenv("GOROOT")}
 	// Fetch the rest of the env variables
 	for _, e := range os.Environ() {
 		pair := strings.Split(e, "=")

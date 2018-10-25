@@ -261,10 +261,10 @@ func (c *CommandConfig) InitGoPaths() {
 		}
 	}
 
+	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath, "bestpath",bestpath)
 	if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
 		c.SrcRoot = bestpath
 	}
-	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath)
 
 	// If source root is empty and this isn't a version then skip it
 	if len(c.SrcRoot) == 0 {

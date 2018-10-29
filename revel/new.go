@@ -16,9 +16,6 @@ import (
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
 	"net/url"
-	"github.com/kr/pty"
-	"io"
-	"bytes"
 )
 
 var cmdNew = &Command{
@@ -117,16 +114,11 @@ func newApp(c *model.CommandConfig) (err error) {
 
 		getCmd := exec.Command("dep", "ensure", "-v")
 		utils.CmdInit(getCmd, c.AppPath)
-		f, err := pty.Start(getCmd);
-		stdout := new(bytes.Buffer)
-		io.Copy(io.MultiWriter(stdout, os.Stdout), f)
-		if err = getCmd.Wait(); err != nil {
 
-		}
 		utils.Logger.Info("Exec:", "args", getCmd.Args, "env", getCmd.Env, "workingdir",getCmd.Dir)
-		// getOutput, err := getCmd.CombinedOutput()
+		getOutput, err := getCmd.CombinedOutput()
 		if err != nil {
-			return utils.NewBuildIfError(err, stdout.String())
+			return utils.NewBuildIfError(err, string(getOutput))
 		}
 	}
 
@@ -207,7 +199,7 @@ func setApplicationPath(c *model.CommandConfig) (err error) {
 // Set the skeleton path
 func setSkeletonPath(c *model.CommandConfig) (err error) {
 	if len(c.New.SkeletonPath) == 0 {
-		c.New.SkeletonPath = "git://" + RevelSkeletonsImportPath + ":basic/bootstrap4"
+		c.New.SkeletonPath = "https://" + RevelSkeletonsImportPath + ":basic/bootstrap4"
 	}
 
 	// First check to see the protocol of the string
@@ -216,7 +208,7 @@ func setSkeletonPath(c *model.CommandConfig) (err error) {
 		utils.Logger.Info("Detected skeleton path", "path", sp)
 
 		switch strings.ToLower(sp.Scheme) {
-		// TODO Add support for https, http, ftp
+		// TODO Add support for ftp, sftp, scp ??
 		case "" :
 			sp.Scheme="file"
 			fallthrough
@@ -234,14 +226,13 @@ func setSkeletonPath(c *model.CommandConfig) (err error) {
 				return fmt.Errorf("Failed to find skeleton in filepath %s %s", fullpath, sp.String())
 			}
 		case "git":
+			fallthrough
+		case "http":
+			fallthrough
+		case "https":
 			if err := newLoadFromGit(c, sp); err != nil {
 				return err
 			}
-		//case "":
-
-			//if err := newLoadFromGo(c, sp); err != nil {
-			//	return err
-			//}
 		default:
 			utils.Logger.Fatal("Unsupported skeleton schema ", "path", c.New.SkeletonPath)
 

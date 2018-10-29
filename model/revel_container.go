@@ -92,6 +92,7 @@ func (w *WrappedRevelCallback) PackageResolver(pkgName string) error {
 
 // RevelImportPath Revel framework import path
 var RevelImportPath = "github.com/revel/revel"
+var RevelModulesImportPath = "github.com/revel/modules"
 
 // This function returns a container object describing the revel application
 // eventually this type of function will replace the global variables.
@@ -226,7 +227,7 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 
 		modulePath, err := rp.ResolveImportPath(moduleImportPath)
 		if err != nil {
-			utils.Logger.Info("Missing module ", "module", moduleImportPath, "error",err)
+			utils.Logger.Info("Missing module ", "module_import_path", moduleImportPath, "error",err)
 			callback.PackageResolver(moduleImportPath)
 			modulePath, err = rp.ResolveImportPath(moduleImportPath)
 			if err != nil {

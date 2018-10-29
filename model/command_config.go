@@ -44,6 +44,7 @@ type (
 		SrcRoot          string                     // The source root
 		AppPath          string                     // The application path (absolute)
 		AppName          string                     // The application name
+		Vendored          bool                     // True if the application is vendored
 		PackageResolver  func(pkgName string) error //  a packge resolver for the config
 		BuildFlags       []string                   `short:"X" long:"build-flags" description:"These flags will be used when building the application. May be specified multiple times, only applicable for Build, Run, Package, Test commands"`
 		// The new command
@@ -87,6 +88,7 @@ type (
 		// The version command
 		Version struct {
 			ImportPath string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
+			Update bool `short:"u" long:"Update the framework and modules" required:"false"`
 		} `command:"version"`
 	}
 )
@@ -124,7 +126,6 @@ func (c *CommandConfig) UpdateImportPath() error {
 			}
 			// For an absolute path
 			currentPath, _ = filepath.Abs(importPath)
-
 		}
 
 		if err == nil {
@@ -136,7 +137,10 @@ func (c *CommandConfig) UpdateImportPath() error {
 					if len(importPath) > 4 && strings.ToLower(importPath[0:4]) == "src/" {
 						importPath = importPath[4:]
 					} else if importPath == "src" {
-						return fmt.Errorf("Invlaid import path, working dir is in GOPATH root")
+						if c.Index != VERSION {
+							return fmt.Errorf("Invlaid import path, working dir is in GOPATH root")
+						}
+						importPath = ""
 					}
 					utils.Logger.Info("Updated import path", "path", importPath)
 				}
@@ -167,18 +171,19 @@ func (c *CommandConfig) UpdateImportPath() error {
 
 // Used to initialize the package resolver
 func (c *CommandConfig) InitPackageResolver() {
-	useVendor := utils.DirExists(filepath.Join(c.AppPath, "vendor"))
+	c.Vendored = utils.DirExists(filepath.Join(c.AppPath, "vendor"))
 	if c.Index == NEW && c.New.Vendored {
-		useVendor = true
+		c.Vendored = true
 	}
-	utils.Logger.Info("InitPackageResolver", "useVendor", useVendor, "path", c.AppPath)
+
+	utils.Logger.Info("InitPackageResolver", "useVendor", c.Vendored, "path", c.AppPath)
 
 	var (
 		depPath string
 		err     error
 	)
 
-	if useVendor {
+	if c.Vendored {
 		utils.Logger.Info("Vendor folder detected, scanning for deps in path")
 		depPath, err = exec.LookPath("dep")
 		if err != nil {
@@ -194,8 +199,8 @@ func (c *CommandConfig) InitPackageResolver() {
 		//useVendor := utils.DirExists(filepath.Join(c.AppPath, "vendor"))
 
 		var getCmd *exec.Cmd
-		utils.Logger.Info("Request for package ", "package", pkgName, "use vendor", useVendor)
-		if useVendor {
+		utils.Logger.Info("Request for package ", "package", pkgName, "use vendor", c.Vendored)
+		if c.Vendored {
 			utils.Logger.Info("Using dependency manager to import package", "package", pkgName)
 
 			if depPath == "" {
@@ -206,7 +211,15 @@ func (c *CommandConfig) InitPackageResolver() {
 				utils.Logger.Error("Missing package", "package", pkgName)
 				return fmt.Errorf("Missing package %s", pkgName)
 			}
-			getCmd = exec.Command(depPath, "ensure", "-add", pkgName)
+			// Check to see if the package exists locally
+			_, err := build.Import(pkgName, c.AppPath, build.FindOnly)
+			if err != nil {
+				getCmd = exec.Command(depPath, "ensure", "-add", pkgName)
+			} else {
+				getCmd = exec.Command(depPath, "ensure", "-update", pkgName)
+			}
+
+
 		} else {
 			utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
 			getCmd = exec.Command(c.GoCmd, "get", "-u", pkgName)
@@ -225,6 +238,7 @@ func (c *CommandConfig) InitPackageResolver() {
 
 // lookup and set Go related variables
 func (c *CommandConfig) InitGoPaths() {
+	utils.Logger.Info("InitGoPaths")
 	// lookup go path
 	c.GoPath = build.Default.GOPATH
 	if c.GoPath == "" {

@@ -46,6 +46,9 @@ func ProcessSource(paths *model.RevelContainer) (_ *model.SourceInfo, compileErr
 
 		// Start walking the directory tree.
 		compileError = utils.Walk(root, pc.processPath)
+		if compileError != nil {
+			return
+		}
 	}
 
 	return pc.srcInfo, compileError

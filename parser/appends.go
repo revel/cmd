@@ -134,7 +134,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 			var importPath string
 			typeExpr := model.NewTypeExprFromAst(pkgName, field.Type)
 			if !typeExpr.Valid {
-				utils.Logger.Warn("Warn: Didn't understand argument '%s' of action %s. Ignoring.", name, getFuncName(funcDecl))
+				utils.Logger.Warnf("Warn: Didn't understand argument '%s' of action %s. Ignoring.", name, getFuncName(funcDecl))
 				return // We didn't understand one of the args.  Ignore this action.
 			}
 			// Local object

@@ -61,20 +61,21 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 // Returns a valid import string from the path
 // using the build.Defaul.GOPATH to determine the root
 func importPathFromPath(root string) string {
-	if vendorIdx := strings.Index(root, "/vendor/"); vendorIdx != -1 {
-		return filepath.ToSlash(root[vendorIdx+8:])
+	normalizedPath := filepath.ToSlash(root)
+	if vendorIdx := strings.Index(normalizedPath, "/vendor/"); vendorIdx != -1 {
+		return normalizedPath[vendorIdx+8:]
 	}
 	for _, gopath := range filepath.SplitList(build.Default.GOPATH) {
-		srcPath := filepath.Join(gopath, "src")
-		if strings.HasPrefix(root, srcPath) {
-			return filepath.ToSlash(root[len(srcPath)+1:])
+		srcPath := filepath.ToSlash(filepath.Join(gopath, "src"))
+		if strings.HasPrefix(normalizedPath, srcPath) {
+			return normalizedPath[len(srcPath)+1:]
 		}
 	}
 
-	srcPath := filepath.Join(build.Default.GOROOT, "src", "pkg")
-	if strings.HasPrefix(root, srcPath) {
+	srcPath := filepath.ToSlash(filepath.Join(build.Default.GOROOT, "src", "pkg"))
+	if strings.HasPrefix(normalizedPath, srcPath) {
 		utils.Logger.Warn("Code path should be in GOPATH, but is in GOROOT:", "path", root)
-		return filepath.ToSlash(root[len(srcPath)+1:])
+		return normalizedPath[len(srcPath)+1:]
 	}
 
 	utils.Logger.Error("Unexpected! Code path is not in GOPATH:", "path", root)

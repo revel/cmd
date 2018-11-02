@@ -30,6 +30,9 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 			}
 		}
 		quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
+		if quotedPath == `"C"` {
+			continue
+		}
 		fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
 
 		// If the package was not aliased (common case), we have to import it

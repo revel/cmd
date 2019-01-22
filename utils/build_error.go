@@ -2,7 +2,8 @@ package utils
 
 import (
 	"fmt"
-	"github.com/revel/cmd/logger"
+
+	"github.com/revel/revel/logger"
 )
 
 type (

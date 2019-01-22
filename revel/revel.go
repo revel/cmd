@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -14,13 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jessevdk/go-flags"
-
 	"github.com/agtorre/gocolorize"
-	"github.com/revel/cmd/logger"
+	"github.com/jessevdk/go-flags"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"bytes"
+	"github.com/revel/revel/logger"
 )
 
 const (
@@ -72,26 +71,26 @@ func main() {
 
 	utils.InitLogger(wd, logger.LvlError)
 	parser := flags.NewParser(c, flags.HelpFlag|flags.PassDoubleDash)
-	if len(os.Args)<2 {
+	if len(os.Args) < 2 {
 		parser.WriteHelp(os.Stdout)
 		os.Exit(1)
 	}
 
 	if err := ParseArgs(c, parser, os.Args[1:]); err != nil {
-		fmt.Fprint(os.Stderr, err.Error() +"\n")
+		fmt.Fprint(os.Stderr, err.Error()+"\n")
 		os.Exit(1)
 	}
 
 	// Switch based on the verbose flag
-	if len(c.Verbose)>1 {
+	if len(c.Verbose) > 1 {
 		utils.InitLogger(wd, logger.LvlDebug)
-	} else if len(c.Verbose)>0 {
+	} else if len(c.Verbose) > 0 {
 		utils.InitLogger(wd, logger.LvlInfo)
 	} else {
 		utils.InitLogger(wd, logger.LvlWarn)
 	}
 
-	if err := c.UpdateImportPath();err!=nil {
+	if err := c.UpdateImportPath(); err != nil {
 		utils.Logger.Error(err.Error())
 		parser.WriteHelp(os.Stdout)
 		os.Exit(1)
@@ -107,7 +106,7 @@ func main() {
 	c.InitPackageResolver()
 
 	if err := command.RunWith(c); err != nil {
-		utils.Logger.Error("Unable to execute","error",err)
+		utils.Logger.Error("Unable to execute", "error", err)
 		os.Exit(1)
 	}
 }

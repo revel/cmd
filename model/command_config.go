@@ -2,9 +2,6 @@ package model
 
 import (
 	"fmt"
-	"github.com/revel/cmd"
-	"github.com/revel/cmd/logger"
-	"github.com/revel/cmd/utils"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -14,6 +11,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/revel/cmd"
+	"github.com/revel/cmd/utils"
+	"github.com/revel/revel/logger"
 )
 
 // The constants
@@ -44,7 +45,7 @@ type (
 		SrcRoot          string                     // The source root
 		AppPath          string                     // The application path (absolute)
 		AppName          string                     // The application name
-		Vendored          bool                     // True if the application is vendored
+		Vendored         bool                       // True if the application is vendored
 		PackageResolver  func(pkgName string) error //  a packge resolver for the config
 		BuildFlags       []string                   `short:"X" long:"build-flags" description:"These flags will be used when building the application. May be specified multiple times, only applicable for Build, Run, Package, Test commands"`
 		// The new command
@@ -88,7 +89,7 @@ type (
 		// The version command
 		Version struct {
 			ImportPath string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
-			Update bool `short:"u" long:"update" description:"Update the framework and modules" required:"false"`
+			Update     bool   `short:"u" long:"update" description:"Update the framework and modules" required:"false"`
 		} `command:"version"`
 	}
 )
@@ -154,7 +155,7 @@ func (c *CommandConfig) UpdateImportPath() error {
 		if err := c.SetVersions(); err != nil {
 			utils.Logger.Panic("Failed to fetch revel versions", "error", err)
 		}
-		if err:=c.FrameworkVersion.CompatibleFramework(c);err!=nil {
+		if err := c.FrameworkVersion.CompatibleFramework(c); err != nil {
 			utils.Logger.Fatal("Compatibility Error", "message", err,
 				"Revel framework version", c.FrameworkVersion.String(), "Revel tool version", c.CommandVersion.String())
 		}
@@ -163,7 +164,7 @@ func (c *CommandConfig) UpdateImportPath() error {
 	if !required {
 		return nil
 	}
-	if len(importPath) == 0  {
+	if len(importPath) == 0 {
 		return fmt.Errorf("Unable to determine import path from : %s", importPath)
 	}
 	return nil
@@ -218,7 +219,6 @@ func (c *CommandConfig) InitPackageResolver() {
 			} else {
 				getCmd = exec.Command(depPath, "ensure", "-update", pkgName)
 			}
-
 
 		} else {
 			utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
@@ -275,7 +275,7 @@ func (c *CommandConfig) InitGoPaths() {
 		}
 	}
 
-	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath, "bestpath",bestpath)
+	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath, "bestpath", bestpath)
 	if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
 		c.SrcRoot = bestpath
 	}

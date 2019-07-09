@@ -136,7 +136,7 @@ func (c *CommandConfig) UpdateImportPath() error {
 					importPath = currentPath[len(path)+1:]
 					// Remove the source from the path if it is there
 					isSRC := strings.ToLower(importPath[0:4])
-					if len(importPath) > 4 && (isSRC == "src/" || isSRC == "src\\")) {
+					if len(importPath) > 4 && (isSRC == "src/" || isSRC == "src\\") {
 						importPath = importPath[4:]
 					} else if importPath == "src" {
 						if c.Index != VERSION {

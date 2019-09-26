@@ -86,7 +86,9 @@ func packageApp(c *model.CommandConfig) (err error) {
 	}
 	c.Build.TargetPath = tmpDir
 	c.Build.CopySource = c.Package.CopySource
-	buildApp(c)
+	if err = buildApp(c); err != nil {
+		return
+	}
 
 	// Create the zip file.
 

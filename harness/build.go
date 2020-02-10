@@ -136,10 +136,14 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 	}
 
 	for {
+
 		appVersion := getAppVersion(paths)
+		if appVersion == "" {
+			appVersion = "noVersionProvided"
+		}
 
 		buildTime := time.Now().UTC().Format(time.RFC3339)
-		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
+		versionLinkerFlags := fmt.Sprintf("-X '%s/app.AppVersion=%s' -X '%s/app.BuildTime=%s'",
 			paths.ImportPath, appVersion, paths.ImportPath, buildTime)
 
 		// Append any build flags specified, they will override existing flags
@@ -155,9 +159,13 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			if !contains(c.BuildFlags, "build") {
 				flags = []string{"build"}
 			}
-			flags = append(flags, c.BuildFlags...)
 			if !contains(flags, "-ldflags") {
-				flags = append(flags, "-ldflags", versionLinkerFlags)
+				ldflags := "-ldflags= " + versionLinkerFlags
+				// Add in build flags
+				for i := range c.BuildFlags {
+					ldflags += "-X '" + c.BuildFlags[i] + "'"
+				}
+				flags = append(flags, ldflags)
 			}
 			if !contains(flags, "-tags") {
 				flags = append(flags, "-tags", buildTags)
@@ -166,9 +174,6 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 				flags = append(flags, "-o", binName)
 			}
 		}
-
-		// Add in build flags
-		flags = append(flags, c.BuildFlags...)
 
 		// This is Go main path
 		gopath := c.GoPath
@@ -400,7 +405,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 		// Extract the paths from the gopaths, and search for file there first
 		gopaths := filepath.SplitList(build.Default.GOPATH)
 		for _, gp := range gopaths {
-			newPath := filepath.Join(gp,"src", paths.ImportPath, relFilename)
+			newPath := filepath.Join(gp, "src", paths.ImportPath, relFilename)
 			println(newPath)
 			if utils.Exists(newPath) {
 				return newPath
@@ -410,7 +415,6 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 		utils.Logger.Warn("Could not find in GO path", "file", relFilename)
 		return newPath
 	}
-
 
 	// Read the source for the offending file.
 	var (

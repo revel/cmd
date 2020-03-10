@@ -6,13 +6,13 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"go/build"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"golang.org/x/tools/go/packages"
 )
 
 // DirExists returns true if the given path exists and is a directory.
@@ -320,49 +320,63 @@ func Empty(dirname string) bool {
 }
 
 // Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
-func FindSrcPaths(appImportPath, revelImportPath string, packageResolver func(pkgName string) error) (appSourcePath, revelSourcePath string, err error) {
-	var (
-		gopaths = filepath.SplitList(build.Default.GOPATH)
-		goroot  = build.Default.GOROOT
-	)
-
-	if len(gopaths) == 0 {
-		err = errors.New("GOPATH environment variable is not set. " +
-			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
-		return
-	}
-
-	if ContainsString(gopaths, goroot) {
-		err = fmt.Errorf("GOPATH (%s) must not include your GOROOT (%s). "+
-			"Please refer to http://golang.org/doc/code.html to configure your Go environment. ",
-			build.Default.GOPATH, goroot)
-		return
-
-	}
-
-	appPkgDir := ""
-	appPkgSrcDir := ""
-	if len(appImportPath)>0 {
-		Logger.Info("Seeking app package","app",appImportPath)
-		appPkg, err := build.Import(appImportPath, "", build.FindOnly)
-		if err != nil {
-			err = fmt.Errorf("Failed to import " + appImportPath + " with error %s", err.Error())
-			return "","",err
+func FindSrcPaths(appPath string, packageList []string, packageResolver func(pkgName string) error) (sourcePathsmap map[string]string, err error) {
+	sourcePathsmap, missingList,err := findSrcPaths(appPath,packageList)
+	if err != nil && packageResolver != nil {
+		for _, item := range missingList {
+			if err = packageResolver(item); err != nil {
+				return
+			}
 		}
-		appPkgDir,appPkgSrcDir =appPkg.Dir, appPkg.SrcRoot
+		sourcePathsmap,missingList,err = findSrcPaths(appPath,packageList)
 	}
-	Logger.Info("Seeking remote package","using",appImportPath, "remote",revelImportPath)
-	revelPkg, err := build.Default.Import(revelImportPath, appPkgDir, build.FindOnly)
-	if err != nil {
-		Logger.Info("Resolved called Seeking remote package","using",appImportPath, "remote",revelImportPath)
-		packageResolver(revelImportPath)
-		revelPkg, err = build.Import(revelImportPath, appPkgDir, build.FindOnly)
-		if err != nil {
-			err = fmt.Errorf("Failed to find Revel with error: %s", err.Error())
-			return
+	if err!=nil && len(missingList)>0 {
+		for _, missing := range missingList {
+			Logger.Error("Unable to import this package", "package", missing)
 		}
 	}
 
-	revelSourcePath, appSourcePath = revelPkg.Dir[:len(revelPkg.Dir)-len(revelImportPath)], appPkgSrcDir
+	return
+}
+var NO_APP_FOUND = errors.New("No app found")
+var NO_REVEL_FOUND = errors.New("No revel found")
+
+// Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
+func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[string]string, missingList[] string, err error) {
+	// Use packages to fetch
+	// by not specifying env, we will use the default env
+	config := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles,
+		Dir:appPath,
+	}
+	sourcePathsmap = map[string]string{}
+
+	pkgs, err := packages.Load(config,  packagesList...)
+	Logger.Info("Loaded packegs ", "len results", len(pkgs), "error",err)
+	for _, packageName := range packagesList {
+		found := false
+		log:= Logger.New("seeking",packageName)
+		for _, pck := range pkgs {
+			log.Info("Found package","package",pck.ID)
+			if pck.ID == packageName {
+				if pck.Errors!=nil && len(pck.Errors)>0 {
+					Logger.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID,"errors",pck.Errors)
+
+				}
+				//a,_ := pck.MarshalJSON()
+				Logger.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID)
+				sourcePathsmap[packageName] = filepath.Dir(pck.GoFiles[0])
+				found = true
+			}
+		}
+		if !found {
+			if packageName == "github.com/revel/revel" {
+				err = NO_REVEL_FOUND
+			} else {
+				err = NO_APP_FOUND
+			}
+			missingList = append(missingList,packageName)
+		}
+	}
 	return
 }

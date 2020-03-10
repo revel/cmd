@@ -126,7 +126,7 @@ func runApp(c *model.CommandConfig) (err error) {
 		c.Run.Mode = "dev"
 	}
 
-	revel_path, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revel_path, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return utils.NewBuildIfError(err, "Revel paths")
 	}

@@ -77,7 +77,7 @@ func (v *VersionCommand) RunWith(c *model.CommandConfig) (err error) {
 		versionInfo, needsUpdates = v.doRepoCheck(x==0)
 	}
 
-	fmt.Println(versionInfo)
+	fmt.Printf("%s\n\nGo Location:%s\n\n",versionInfo,c.GoCmd)
 	cmd := exec.Command(c.GoCmd, "version")
 	cmd.Stdout = os.Stdout
 	if e := cmd.Start(); e != nil {
@@ -234,28 +234,20 @@ func (v *VersionCommand) updateLocalVersions()  {
 	v.cmdVersion.BuildDate = cmd.BuildDate
 	v.cmdVersion.MinGoVersion = cmd.MinimumGoVersion
 
-	var modulePath, revelPath string
-	_, revelPath, err := utils.FindSrcPaths(v.Command.ImportPath, model.RevelImportPath, v.Command.PackageResolver)
+	pathMap, err := utils.FindSrcPaths(v.Command.AppPath,[]string{model.RevelImportPath,model.RevelModulesImportPath}, v.Command.PackageResolver)
 	if err != nil {
-		utils.Logger.Warn("Unable to extract version information from Revel library", "error,err")
+		utils.Logger.Warn("Unable to extract version information from Revel library", "path",pathMap[model.RevelImportPath], "error",err)
 		return
 	}
-	revelPath = revelPath + model.RevelImportPath
-	utils.Logger.Info("Fullpath to revel", "dir", revelPath)
-	v.revelVersion, err = v.versionFromFilepath(revelPath)
+	utils.Logger.Info("Fullpath to revel", "dir", pathMap[model.RevelModulesImportPath])
+	v.revelVersion, err = v.versionFromFilepath(pathMap[model.RevelModulesImportPath])
 	if err != nil {
 		utils.Logger.Warn("Unable to extract version information from Revel", "error,err")
 	}
 
-	_, modulePath, err = utils.FindSrcPaths(v.Command.ImportPath, model.RevelModulesImportPath, v.Command.PackageResolver)
+	v.modulesVersion, err = v.versionFromFilepath(pathMap[model.RevelModulesImportPath])
 	if err != nil {
-		utils.Logger.Warn("Unable to extract version information from Revel library", "error,err")
-		return
-	}
-	modulePath = modulePath + model.RevelModulesImportPath
-	v.modulesVersion, err = v.versionFromFilepath(modulePath)
-	if err != nil {
-		utils.Logger.Warn("Unable to extract version information from Revel Modules", "error", err)
+		utils.Logger.Warn("Unable to extract version information from Revel Modules", "path", pathMap[model.RevelModulesImportPath], "error", err)
 	}
 
 	return

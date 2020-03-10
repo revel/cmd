@@ -55,12 +55,12 @@ func TestNewVendor(t *testing.T) {
 	a := assert.New(t)
 	gopath := setup("revel-test-new-vendor",  a)
 	precall := func(c *model.CommandConfig) {
-		c.New.Vendored = true
+		c.New.DepVendored = true
 	}
 	t.Run("New", func(t *testing.T) {
 		a := assert.New(t)
 		c := newApp("onlyone/v/a", model.NEW, precall, a)
-		c.New.Vendored = true
+		c.New.DepVendored = true
 		a.Nil(main.Commands[model.NEW].RunWith(c), "New failed")
 	})
 	t.Run("Test", func(t *testing.T) {

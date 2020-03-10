@@ -19,8 +19,10 @@ import (
 	"time"
 
 	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/parser"
+	_ "github.com/revel/cmd/parser"
 	"github.com/revel/cmd/utils"
+	"github.com/revel/cmd/parser2"
+	"github.com/revel/cmd/parser"
 )
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
@@ -40,7 +42,13 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 	// First, clear the generated files (to avoid them messing with ProcessSource).
 	cleanSource(paths, "tmp", "routes")
 
-	sourceInfo, err := parser.ProcessSource(paths)
+	var sourceInfo *model.SourceInfo
+
+	if c.HistoricBuildMode {
+		sourceInfo, err = parser.ProcessSource(paths)
+	} else {
+		sourceInfo, err = parser2.ProcessSource(paths)
+	}
 	if err != nil {
 		return
 	}
@@ -151,7 +159,6 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		if len(c.BuildFlags) == 0 {
 			flags = []string{
 				"build",
-				"-i",
 				"-ldflags", versionLinkerFlags,
 				"-tags", buildTags,
 				"-o", binName}
@@ -178,7 +185,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		// This is Go main path
 		gopath := c.GoPath
 		for _, o := range paths.ModulePathMap {
-			gopath += string(filepath.ListSeparator) + o
+			gopath += string(filepath.ListSeparator) + o.Path
 		}
 
 		// Note: It's not applicable for filepath.* usage

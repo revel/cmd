@@ -76,56 +76,15 @@ func newApp(c *model.CommandConfig) (err error) {
 		return utils.NewBuildError("Abort: Unable to create app path.", "path", c.AppPath)
 	}
 
-	if c.New.Vendored {
-		utils.Logger.Info("Creating a new vendor app")
-
-		vendorPath := filepath.Join(c.AppPath, "vendor")
-		if !utils.DirExists(vendorPath) {
-
-			if err := os.MkdirAll(vendorPath, os.ModePerm); err != nil {
-				return utils.NewBuildError("Failed to create "+vendorPath, "error", err)
-			}
-		}
-
-		// In order for dep to run there needs to be a source file in the folder
-		tempPath := filepath.Join(c.AppPath, "tmp")
-		utils.Logger.Info("Checking for temp folder for source code", "path", tempPath)
-		if !utils.DirExists(tempPath) {
-			if err := os.MkdirAll(tempPath, os.ModePerm); err != nil {
-				return utils.NewBuildIfError(err, "Failed to create "+vendorPath)
-			}
-
-			if err = utils.GenerateTemplate(filepath.Join(tempPath, "main.go"), NEW_MAIN_FILE, nil); err != nil {
-				return utils.NewBuildIfError(err, "Failed to create main file "+vendorPath)
-			}
-		}
-
-		// Create a package template file if it does not exist
-		packageFile := filepath.Join(c.AppPath, "Gopkg.toml")
-		utils.Logger.Info("Checking for Gopkg.toml", "path", packageFile)
-		if !utils.Exists(packageFile) {
-			utils.Logger.Info("Generating Gopkg.toml", "path", packageFile)
-			if err := utils.GenerateTemplate(packageFile, VENDOR_GOPKG, nil); err != nil {
-				return utils.NewBuildIfError(err, "Failed to generate template")
-			}
-		} else {
-			utils.Logger.Info("Package file exists in skeleto, skipping adding")
-		}
-
-		getCmd := exec.Command("dep", "ensure", "-v")
-		utils.CmdInit(getCmd, c.AppPath)
-
-		utils.Logger.Info("Exec:", "args", getCmd.Args, "env", getCmd.Env, "workingdir",getCmd.Dir)
-		getOutput, err := getCmd.CombinedOutput()
-		if err != nil {
-			return utils.NewBuildIfError(err, string(getOutput))
-		}
+	if len(c.New.Package)>0 {
+		c.New.Vendored = true
 	}
 
 	// checking and setting application
 	if err = setApplicationPath(c); err != nil {
 		return err
 	}
+
 	// At this point the versions can be set
 	c.SetVersions()
 
@@ -136,12 +95,8 @@ func newApp(c *model.CommandConfig) (err error) {
 
 	// Rerun the dep tool if vendored
 	if c.New.Vendored {
-		getCmd := exec.Command("dep", "ensure", "-v")
-		utils.CmdInit(getCmd, c.AppPath)
-		utils.Logger.Info("Exec:", "args", getCmd.Args)
-		getOutput, err := getCmd.CombinedOutput()
-		if err != nil {
-			utils.Logger.Fatal(string(getOutput))
+		if err=createModVendor(c); err!=nil {
+			return
 		}
 	}
 
@@ -152,6 +107,70 @@ func newApp(c *model.CommandConfig) (err error) {
 		runApp(c)
 	} else {
 		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a ", c.ImportPath)
+	}
+	return
+}
+
+func createModVendor(c *model.CommandConfig) (err error) {
+
+	utils.Logger.Info("Creating a new mod app")
+	goModCmd := exec.Command("go", "mod", "init", filepath.Join(c.New.Package,c.AppName))
+
+
+	utils.CmdInit(goModCmd, c.AppPath)
+
+	utils.Logger.Info("Exec:", "args", goModCmd.Args, "env", goModCmd.Env, "workingdir",goModCmd.Dir)
+	getOutput, err := goModCmd.CombinedOutput()
+	if err != nil {
+		return utils.NewBuildIfError(err, string(getOutput))
+	}
+	return
+}
+
+func createDepVendor(c *model.CommandConfig) (err error) {
+
+	utils.Logger.Info("Creating a new vendor app")
+
+	vendorPath := filepath.Join(c.AppPath, "vendor")
+	if !utils.DirExists(vendorPath) {
+
+		if err := os.MkdirAll(vendorPath, os.ModePerm); err != nil {
+			return utils.NewBuildError("Failed to create "+vendorPath, "error", err)
+		}
+	}
+
+	// In order for dep to run there needs to be a source file in the folder
+	tempPath := filepath.Join(c.AppPath, "tmp")
+	utils.Logger.Info("Checking for temp folder for source code", "path", tempPath)
+	if !utils.DirExists(tempPath) {
+		if err := os.MkdirAll(tempPath, os.ModePerm); err != nil {
+			return utils.NewBuildIfError(err, "Failed to create "+vendorPath)
+		}
+
+		if err = utils.GenerateTemplate(filepath.Join(tempPath, "main.go"), NEW_MAIN_FILE, nil); err != nil {
+			return utils.NewBuildIfError(err, "Failed to create main file "+vendorPath)
+		}
+	}
+
+	// Create a package template file if it does not exist
+	packageFile := filepath.Join(c.AppPath, "Gopkg.toml")
+	utils.Logger.Info("Checking for Gopkg.toml", "path", packageFile)
+	if !utils.Exists(packageFile) {
+		utils.Logger.Info("Generating Gopkg.toml", "path", packageFile)
+		if err := utils.GenerateTemplate(packageFile, VENDOR_GOPKG, nil); err != nil {
+			return utils.NewBuildIfError(err, "Failed to generate template")
+		}
+	} else {
+		utils.Logger.Info("Package file exists in skeleto, skipping adding")
+	}
+
+	getCmd := exec.Command("dep", "ensure", "-v")
+	utils.CmdInit(getCmd, c.AppPath)
+
+	utils.Logger.Info("Exec:", "args", getCmd.Args, "env", getCmd.Env, "workingdir",getCmd.Dir)
+	getOutput, err := getCmd.CombinedOutput()
+	if err != nil {
+		return utils.NewBuildIfError(err, string(getOutput))
 	}
 	return
 }

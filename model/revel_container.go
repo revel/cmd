@@ -4,13 +4,12 @@ package model
 import (
 	"github.com/revel/cmd/utils"
 	"github.com/revel/config"
-	"go/build"
-
 	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
+	"golang.org/x/tools/go/packages"
 )
 
 type (
@@ -65,7 +64,11 @@ type (
 		CookieSecure  bool              // True if cookie is secure
 		SecretStr     string            // The secret string
 		MimeConfig    *config.Context   // The mime configuration
-		ModulePathMap map[string]string // The module path map
+		ModulePathMap map[string]*ModuleInfo // The module path map
+	}
+	ModuleInfo struct {
+		ImportPath string
+		Path string
 	}
 
 	WrappedRevelCallback struct {
@@ -96,30 +99,22 @@ var RevelModulesImportPath = "github.com/revel/modules"
 
 // This function returns a container object describing the revel application
 // eventually this type of function will replace the global variables.
-func NewRevelPaths(mode, importPath, srcPath string, callback RevelCallback) (rp *RevelContainer, err error) {
-	rp = &RevelContainer{ModulePathMap: map[string]string{}}
+func NewRevelPaths(mode, importPath, appSrcPath string, callback RevelCallback) (rp *RevelContainer, err error) {
+	rp = &RevelContainer{ModulePathMap: map[string]*ModuleInfo{}}
 	// Ignore trailing slashes.
 	rp.ImportPath = strings.TrimRight(importPath, "/")
-	rp.SourcePath = srcPath
+	rp.SourcePath = appSrcPath
 	rp.RunMode = mode
 
-	// If the SourcePath is not specified, find it using build.Import.
-	var revelSourcePath string // may be different from the app source path
-	if rp.SourcePath == "" {
-		rp.SourcePath, revelSourcePath, err = utils.FindSrcPaths(importPath, RevelImportPath, callback.PackageResolver)
-		if err != nil {
-			return
-		}
-	} else {
-		// If the SourcePath was specified, assume both Revel and the app are within it.
-		rp.SourcePath = filepath.Clean(rp.SourcePath)
-		revelSourcePath = rp.SourcePath
+	// We always need to determine the paths for files
+	pathMap, err := utils.FindSrcPaths(appSrcPath, []string{importPath+"/app", RevelImportPath}, callback.PackageResolver)
+	if err != nil {
+		return
 	}
-
+	rp.AppPath, rp.RevelPath = pathMap[importPath], pathMap[RevelImportPath]
 	// Setup paths for application
-	rp.RevelPath = filepath.Join(revelSourcePath, filepath.FromSlash(RevelImportPath))
-	rp.BasePath = filepath.Join(rp.SourcePath, filepath.FromSlash(importPath))
-	rp.PackageInfo.Vendor = utils.Exists(filepath.Join(rp.BasePath, "vendor"))
+	rp.BasePath = rp.SourcePath
+	rp.PackageInfo.Vendor = utils.Exists(filepath.Join(rp.BasePath, "go.mod"))
 	rp.AppPath = filepath.Join(rp.BasePath, "app")
 
 	// Sanity check , ensure app and conf paths exist
@@ -188,6 +183,7 @@ func NewRevelPaths(mode, importPath, srcPath string, callback RevelCallback) (rp
 	rp.SecretStr = rp.Config.StringDefault("app.secret", "")
 
 	callback.FireEvent(REVEL_BEFORE_MODULES_LOADED, nil)
+	utils.Logger.Info("Loading modules")
 	if err := rp.loadModules(callback); err != nil {
 		return rp, err
 	}
@@ -248,9 +244,10 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 
 // Adds a module paths to the container object
 func (rp *RevelContainer) addModulePaths(name, importPath, modulePath string) {
+	utils.Logger.Info("Adding module path","name", name,"import path", importPath,"system path", modulePath)
 	if codePath := filepath.Join(modulePath, "app"); utils.DirExists(codePath) {
 		rp.CodePaths = append(rp.CodePaths, codePath)
-		rp.ModulePathMap[name] = modulePath
+		rp.ModulePathMap[name] = &ModuleInfo{importPath, modulePath}
 		if viewsPath := filepath.Join(modulePath, "app", "views"); utils.DirExists(viewsPath) {
 			rp.TemplatePaths = append(rp.TemplatePaths, viewsPath)
 		}
@@ -273,13 +270,21 @@ func (rp *RevelContainer) ResolveImportPath(importPath string) (string, error) {
 	if rp.Packaged {
 		return filepath.Join(rp.SourcePath, importPath), nil
 	}
+	config := &packages.Config{
+		Mode: packages.LoadSyntax,
+		Dir:rp.AppPath,
+	}
 
-	modPkg, err := build.Import(importPath, rp.AppPath, build.FindOnly)
+	pkgs, err := packages.Load(config,  importPath)
+	if len(pkgs)==0 {
+		return "", errors.New("No packages found for import " + importPath +" using app path "+ rp.AppPath)
+	}
+//	modPkg, err := build.Import(importPath, rp.AppPath, build.FindOnly)
 	if err != nil {
 		return "", err
 	}
-	if rp.PackageInfo.Vendor && !strings.HasPrefix(modPkg.Dir,rp.BasePath) {
-		return "", fmt.Errorf("Module %s was found outside of path %s.",importPath, modPkg.Dir)
+	if len(pkgs[0].GoFiles)>0 {
+		return filepath.Dir(pkgs[0].GoFiles[0]), nil
 	}
-	return modPkg.Dir, nil
+	return pkgs[0].PkgPath, errors.New("No files found in import path " + importPath)
 }

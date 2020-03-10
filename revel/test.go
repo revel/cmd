@@ -258,7 +258,7 @@ func getTestsList(baseURL string) (*[]tests.TestSuiteDesc, error) {
 func runTestSuites(paths *model.RevelContainer, baseURL, resultPath string, testSuites *[]tests.TestSuiteDesc) (*[]tests.TestSuiteResult, bool) {
 
 	// We can determine the testsuite location by finding the test module and extracting the data from it
-	resultFilePath := filepath.Join(paths.ModulePathMap["testrunner"], "app", "views", "TestRunner/SuiteResult.html")
+	resultFilePath := filepath.Join(paths.ModulePathMap["testrunner"].Path, "app", "views", "TestRunner/SuiteResult.html")
 
 	var (
 		overallSuccess = true

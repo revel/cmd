@@ -13,7 +13,6 @@ import (
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"go/build"
 )
 
 var cmdBuild = &Command{
@@ -153,10 +152,10 @@ func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer,
 	destPath := filepath.Join(c.Build.TargetPath, "src")
 	// Find all the modules used and copy them over.
 	config := revel_paths.Config.Raw()
-	modulePaths := make(map[string]string) // import path => filesystem path
 
 	// We should only copy over the section of options what the build is targeted for
 	// We will default to prod
+	moduleImportList := []string{}
 	for _, section := range config.Sections() {
 		// If the runmode is defined we will only import modules defined for that run mode
 		if c.Build.Mode != "" && c.Build.Mode != section {
@@ -171,13 +170,14 @@ func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer,
 			if moduleImportPath == "" {
 				continue
 			}
+			moduleImportList =append(moduleImportList,moduleImportPath)
 
-			modPkg, err := build.Import(moduleImportPath, revel_paths.RevelPath, build.FindOnly)
-			if err != nil {
-				utils.Logger.Fatalf("Failed to load module %s (%s): %s", key[len("module."):], c.ImportPath, err)
-			}
-			modulePaths[moduleImportPath] = modPkg.Dir
 		}
+	}
+	modulePaths, err := utils.FindSrcPaths(c.AppPath, moduleImportList, c.PackageResolver)
+
+	if err != nil {
+		utils.Logger.Fatalf("Failed to load modules ", "error", err)
 	}
 
 	// Copy the the paths for each of the modules

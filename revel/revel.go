@@ -101,7 +101,7 @@ func main() {
 	println("Revel executing:", command.Short)
 
 	// Setting go paths
-	c.InitGoPaths()
+	// c.InitGoPaths()
 
 	// Setup package resolver
 	c.InitPackageResolver()

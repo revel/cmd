@@ -37,7 +37,7 @@ type methodMap map[string][]*model.MethodSpec
 func ProcessSource(paths *model.RevelContainer) (_ *model.SourceInfo, compileError error) {
 	pc := &processContainer{paths: paths}
 	for _, root := range paths.CodePaths {
-		rootImportPath := importPathFromPath(root)
+		rootImportPath := importPathFromPath(root, paths.BasePath)
 		if rootImportPath == "" {
 			utils.Logger.Info("Skipping empty code path", "path", root)
 			continue

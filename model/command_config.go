@@ -88,7 +88,7 @@ type (
 		// The version command
 		Version struct {
 			ImportPath string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
-			Update bool `short:"u" long:"Update the framework and modules" required:"false"`
+			Update bool `short:"u" long:"update" description:"Update the framework and modules" required:"false"`
 		} `command:"version"`
 	}
 )

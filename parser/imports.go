@@ -29,7 +29,10 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 				continue
 			}
 		}
-		quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
+		quotedPath := importSpec.Path.Value // e.g. "\"sample/app/models\""
+		if quotedPath == `"C"` {
+			continue
+		}
 		fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
 
 		// If the package was not aliased (common case), we have to import it
@@ -60,9 +63,10 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 
 // Returns a valid import string from the path
 // using the build.Defaul.GOPATH to determine the root
-func importPathFromPath(root string) string {
-	if vendorIdx := strings.Index(root, "/vendor/"); vendorIdx != -1 {
-		return filepath.ToSlash(root[vendorIdx+8:])
+func importPathFromPath(root, basePath string) string {
+	vendorTest := filepath.Join(basePath, "vendor")
+	if len(root) > len(vendorTest) && root[:len(vendorTest)] == vendorTest {
+		return filepath.ToSlash(root[len(vendorTest)+1:])
 	}
 	for _, gopath := range filepath.SplitList(build.Default.GOPATH) {
 		srcPath := filepath.Join(gopath, "src")

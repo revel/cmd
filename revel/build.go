@@ -69,7 +69,9 @@ func buildApp(c *model.CommandConfig) (err error) {
 		return
 	}
 
-	buildSafetyCheck(destPath)
+	if err = buildSafetyCheck(destPath); err != nil {
+		return
+	}
 
 	// Ensure the application can be built, this generates the main file
 	app, err := harness.Build(c, revel_paths)

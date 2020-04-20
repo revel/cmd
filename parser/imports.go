@@ -1,12 +1,13 @@
 package parser
 
 import (
-	"github.com/revel/cmd/utils"
 	"go/ast"
 	"go/build"
 	"go/token"
 	"path/filepath"
 	"strings"
+
+	"github.com/revel/cmd/utils"
 )
 
 // Add imports to the map from the source dir
@@ -59,12 +60,13 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 }
 
 // Returns a valid import string from the path
-// using the build.Defaul.GOPATH to determine the root
+// using the build.Default.GOPATH to determine the root
 func importPathFromPath(root, basePath string) string {
 	vendorTest := filepath.Join(basePath, "vendor")
 	if len(root) > len(vendorTest) && root[:len(vendorTest)] == vendorTest {
 		return filepath.ToSlash(root[len(vendorTest)+1:])
 	}
+
 	for _, gopath := range filepath.SplitList(build.Default.GOPATH) {
 		srcPath := filepath.Join(gopath, "src")
 		if strings.HasPrefix(root, srcPath) {
@@ -76,6 +78,22 @@ func importPathFromPath(root, basePath string) string {
 	if strings.HasPrefix(root, srcPath) {
 		utils.Logger.Warn("Code path should be in GOPATH, but is in GOROOT:", "path", root)
 		return filepath.ToSlash(root[len(srcPath)+1:])
+	}
+
+	for _, gopath := range filepath.SplitList(build.Default.GOPATH) {
+		srcPath := filepath.Join(gopath, "pkg", "mod")
+		if strings.HasPrefix(root, srcPath) {
+			ret := filepath.ToSlash(root[len(srcPath)+1:])
+
+			parts := strings.Split(ret, string(filepath.Separator)) // os.PathSeparator
+			for idx, item := range parts {
+				if pos := strings.Index(item, "@"); pos != -1 {
+					parts[idx] = item[:pos]
+				}
+			}
+			ret = strings.Join(parts, "/")
+			return ret
+		}
 	}
 
 	utils.Logger.Error("Unexpected! Code path is not in GOPATH:", "path", root)

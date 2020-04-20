@@ -2,9 +2,10 @@
 package model
 
 import (
+	"go/build"
+
 	"github.com/revel/cmd/utils"
 	"github.com/revel/config"
-	"go/build"
 
 	"errors"
 	"fmt"
@@ -117,13 +118,14 @@ func NewRevelPaths(mode, importPath, srcPath string, callback RevelCallback) (rp
 	}
 
 	// Setup paths for application
-	rp.RevelPath = filepath.Join(revelSourcePath, filepath.FromSlash(RevelImportPath))
+	// rp.RevelPath = filepath.Join(revelSourcePath, filepath.FromSlash(RevelImportPath))
+	rp.RevelPath = revelSourcePath
 	rp.BasePath = filepath.Join(rp.SourcePath, filepath.FromSlash(importPath))
 	rp.PackageInfo.Vendor = utils.Exists(filepath.Join(rp.BasePath, "vendor"))
 	rp.AppPath = filepath.Join(rp.BasePath, "app")
 
 	// Sanity check , ensure app and conf paths exist
-	if !utils.DirExists(rp.AppPath)  {
+	if !utils.DirExists(rp.AppPath) {
 		return rp, fmt.Errorf("No application found at path %s", rp.AppPath)
 	}
 	if !utils.DirExists(filepath.Join(rp.BasePath, "conf")) {
@@ -227,7 +229,7 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 
 		modulePath, err := rp.ResolveImportPath(moduleImportPath)
 		if err != nil {
-			utils.Logger.Info("Missing module ", "module_import_path", moduleImportPath, "error",err)
+			utils.Logger.Info("Missing module ", "module_import_path", moduleImportPath, "error", err)
 			callback.PackageResolver(moduleImportPath)
 			modulePath, err = rp.ResolveImportPath(moduleImportPath)
 			if err != nil {
@@ -278,8 +280,8 @@ func (rp *RevelContainer) ResolveImportPath(importPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if rp.PackageInfo.Vendor && !strings.HasPrefix(modPkg.Dir,rp.BasePath) {
-		return "", fmt.Errorf("Module %s was found outside of path %s.",importPath, modPkg.Dir)
+	if rp.PackageInfo.Vendor && !strings.HasPrefix(modPkg.Dir, rp.BasePath) {
+		return "", fmt.Errorf("Module %s was found outside of path %s.", importPath, modPkg.Dir)
 	}
 	return modPkg.Dir, nil
 }

@@ -388,7 +388,7 @@ func containsValue(m map[string]string, val string) bool {
 
 // Parse the output of the "go build" command.
 // Return a detailed Error.
-func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
+func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceError {
 	errorMatch := regexp.MustCompile(`(?m)^([^:#]+):(\d+):(\d+:)? (.*)$`).
 		FindSubmatch(output)
 	if errorMatch == nil {
@@ -396,7 +396,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 
 		if errorMatch == nil {
 			utils.Logger.Error("Failed to parse build errors", "error", string(output))
-			return &utils.Error{
+			return &utils.SourceError{
 				SourceType:  "Go code",
 				Title:       "Go Compilation Error",
 				Description: "See console for build error.",
@@ -429,7 +429,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.Error {
 		absFilename  = findInPaths(relFilename)
 		line, _      = strconv.Atoi(string(errorMatch[2]))
 		description  = string(errorMatch[4])
-		compileError = &utils.Error{
+		compileError = &utils.SourceError{
 			SourceType:  "Go code",
 			Title:       "Go Compilation Error",
 			Path:        relFilename,

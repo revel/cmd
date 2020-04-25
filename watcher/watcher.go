@@ -20,7 +20,7 @@ import (
 type Listener interface {
 	// Refresh is invoked by the watcher on relevant filesystem events.
 	// If the listener returns an error, it is served to the user on the current request.
-	Refresh() *utils.Error
+	Refresh() *utils.SourceError
 }
 
 // DiscerningListener allows the receiver to selectively watch files.
@@ -44,7 +44,7 @@ type Watcher struct {
 	paths               *model.RevelContainer
 	refreshTimer        *time.Timer // The timer to countdown the next refresh
 	timerMutex          *sync.Mutex // A mutex to prevent concurrent updates
-	refreshChannel      chan *utils.Error
+	refreshChannel      chan *utils.SourceError
 	refreshChannelCount int
 	refreshTimerMS      time.Duration // The number of milliseconds between refreshing builds
 }
@@ -61,7 +61,7 @@ func NewWatcher(paths *model.RevelContainer, eagerRefresh bool) *Watcher {
 				paths.Config.BoolDefault("watch", true) &&
 				paths.Config.StringDefault("watch.mode", "normal") == "eager",
 		timerMutex:          &sync.Mutex{},
-		refreshChannel:      make(chan *utils.Error, 10),
+		refreshChannel:      make(chan *utils.SourceError, 10),
 		refreshChannelCount: 0,
 	}
 }
@@ -178,7 +178,7 @@ func (w *Watcher) NotifyWhenUpdated(listener Listener, watcher *fsnotify.Watcher
 
 // Notify causes the watcher to forward any change events to listeners.
 // It returns the first (if any) error returned.
-func (w *Watcher) Notify() *utils.Error {
+func (w *Watcher) Notify() *utils.SourceError {
 	if w.serial {
 		// Serialize Notify() calls.
 		w.notifyMutex.Lock()
@@ -207,7 +207,7 @@ func (w *Watcher) Notify() *utils.Error {
 
 		utils.Logger.Info("Watcher:Notify refresh state", "Current Index", i, " last error index", w.lastError)
 		if w.forceRefresh || refresh || w.lastError == i {
-			var err *utils.Error
+			var err *utils.SourceError
 			if w.serial {
 				err = listener.Refresh()
 			} else {
@@ -229,7 +229,7 @@ func (w *Watcher) Notify() *utils.Error {
 
 // Build a queue for refresh notifications
 // this will not return until one of the queue completes
-func (w *Watcher) notifyInProcess(listener Listener) (err *utils.Error) {
+func (w *Watcher) notifyInProcess(listener Listener) (err *utils.SourceError) {
 	shouldReturn := false
 	// This code block ensures that either a timer is created
 	// or that a process would be added the the h.refreshChannel

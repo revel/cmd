@@ -85,7 +85,7 @@ func (pc *processContainer) processPath(path string, info os.FileInfo, err error
 	if err != nil {
 		if errList, ok := err.(scanner.ErrorList); ok {
 			var pos = errList[0].Pos
-			newError := &utils.Error{
+			newError := &utils.SourceError{
 				SourceType:  ".go source",
 				Title:       "Go Compilation Error",
 				Path:        pos.Filename,

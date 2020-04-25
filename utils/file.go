@@ -150,7 +150,7 @@ func MustChmod(filename string, mode os.FileMode) {
 
 // Called if panic
 func PanicOnError(err error, msg string) {
-	if revErr, ok := err.(*Error); (ok && revErr != nil) || (!ok && err != nil) {
+	if revErr, ok := err.(*SourceError); (ok && revErr != nil) || (!ok && err != nil) {
 		Logger.Panicf("Abort: %s: %s %s", msg, revErr, err)
 	}
 }

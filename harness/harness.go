@@ -89,12 +89,12 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 		fmt.Fprintf(iw, "An error ocurred %s", err.Error())
 		return
 	}
-	var revelError *utils.Error
+	var revelError *utils.SourceError
 	switch e := err.(type) {
-	case *utils.Error:
+	case *utils.SourceError:
 		revelError = e
 	case error:
-		revelError = &utils.Error{
+		revelError = &utils.SourceError{
 			Title:       "Server Error",
 			Description: e.Error(),
 		}
@@ -199,7 +199,7 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 
 // Refresh method rebuilds the Revel application and run it on the given port.
 // called by the watcher
-func (h *Harness) Refresh() (err *utils.Error) {
+func (h *Harness) Refresh() (err *utils.SourceError) {
 	// Allow only one thread to rebuild the process
 	// If multiple requests to rebuild are queued only the last one is executed on
 	// So before a build is started we wait for a second to determine if
@@ -217,10 +217,10 @@ func (h *Harness) Refresh() (err *utils.Error) {
 	h.app, newErr = Build(h.config, h.paths)
 	if newErr != nil {
 		utils.Logger.Error("Build detected an error", "error", newErr)
-		if castErr, ok := newErr.(*utils.Error); ok {
+		if castErr, ok := newErr.(*utils.SourceError); ok {
 			return castErr
 		}
-		err = &utils.Error{
+		err = &utils.SourceError{
 			Title:       "App failed to start up",
 			Description: err.Error(),
 		}
@@ -231,10 +231,10 @@ func (h *Harness) Refresh() (err *utils.Error) {
 		h.app.Port = h.port
 		if err2 := h.app.Cmd(h.runMode).Start(h.config); err2 != nil {
 			utils.Logger.Error("Could not start application", "error", err2)
-			if err,k :=err2.(*utils.Error);k {
+			if err,k :=err2.(*utils.SourceError);k {
 				return err
 			}
-			return &utils.Error{
+			return &utils.SourceError{
 				Title:       "App failed to start up",
 				Description: err2.Error(),
 			}

@@ -1,14 +1,14 @@
 package parser2
 
 import (
-	"go/ast"
-	"go/token"
+	//"go/ast"
+	//"go/token"
 
 	"github.com/revel/cmd/model"
 	"golang.org/x/tools/go/packages"
 	"github.com/revel/cmd/utils"
-	"github.com/pkg/errors"
-	"golang.org/x/tools/go/ssa/interp/testdata/src/strings"
+	"errors"
+
 )
 func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.SourceInfo, compileError error) {
 	utils.Logger.Info("ProcessSource")
@@ -43,13 +43,13 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 		//	utils.Logger.Info("File","name",t.Name)
 		//}
 		println("package typoe fouhnd ",p.Types.Name())
-		imports := map[string]string{}
+		//imports := map[string]string{}
 
 		for _,s := range p.Syntax {
 			println("File ",s.Name.Name )
-			for _, decl := range file.Decls {
-				if decl.Tok == token.IMPORT {
-				}
+			//for _, decl := range s.Decls {
+			//	if decl.Tok == token.IMPORT {
+			//	}
 			}
 		}
 		//p.Fset.Iterate(func(file *token.File) bool{
@@ -62,9 +62,9 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 		//	counter ++
 		//	return true
 		//})
-	}
+	//}
 
-	err = errors.New("Incompleted")
+compileError = errors.New("Incompleted")
 	println("*******************", counter)
 	utils.Logger.Panic("Not implemented")
 	return
@@ -73,51 +73,51 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 
 
 // Add imports to the map from the source dir
-func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
-	genDecl, ok := decl.(*ast.GenDecl)
-	if !ok {
-		return
-	}
-
-	if genDecl.Tok != token.IMPORT {
-		return
-	}
-
-	for _, spec := range genDecl.Specs {
-		importSpec := spec.(*ast.ImportSpec)
-		var pkgAlias string
-		if importSpec.Name != nil {
-			pkgAlias = importSpec.Name.Name
-			if pkgAlias == "_" {
-				continue
-			}
-		}
-		quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
-		fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
-
-		// If the package was not aliased (common case), we have to import it
-		// to see what the package name is.
-		// TODO: Can improve performance here a lot:
-		// 1. Do not import everything over and over again.  Keep a cache.
-		// 2. Exempt the standard library; their directories always match the package name.
-		// 3. Can use build.FindOnly and then use parser.ParseDir with mode PackageClauseOnly
-		if pkgAlias == "" {
-
-			utils.Logger.Debug("Reading from build", "path", fullPath, "srcPath", srcDir, "gopath", build.Default.GOPATH)
-			pkg, err := build.Import(fullPath, srcDir, 0)
-			if err != nil {
-				// We expect this to happen for apps using reverse routing (since we
-				// have not yet generated the routes).  Don't log that.
-				if !strings.HasSuffix(fullPath, "/app/routes") {
-					utils.Logger.Warn("Could not find import:", "path", fullPath, "srcPath", srcDir, "error", err)
-				}
-				continue
-			} else {
-				utils.Logger.Debug("Found package in dir", "dir", pkg.Dir, "name", pkg.ImportPath)
-			}
-			pkgAlias = pkg.Name
-		}
-
-		imports[pkgAlias] = fullPath
-	}
-}
+//func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
+//	genDecl, ok := decl.(*ast.GenDecl)
+//	if !ok {
+//		return
+//	}
+//
+//	if genDecl.Tok != token.IMPORT {
+//		return
+//	}
+//
+//	for _, spec := range genDecl.Specs {
+//		importSpec := spec.(*ast.ImportSpec)
+//		var pkgAlias string
+//		if importSpec.Name != nil {
+//			pkgAlias = importSpec.Name.Name
+//			if pkgAlias == "_" {
+//				continue
+//			}
+//		}
+//		quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
+//		fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
+//
+//		// If the package was not aliased (common case), we have to import it
+//		// to see what the package name is.
+//		// TODO: Can improve performance here a lot:
+//		// 1. Do not import everything over and over again.  Keep a cache.
+//		// 2. Exempt the standard library; their directories always match the package name.
+//		// 3. Can use build.FindOnly and then use parser.ParseDir with mode PackageClauseOnly
+//		if pkgAlias == "" {
+//
+//			utils.Logger.Debug("Reading from build", "path", fullPath, "srcPath", srcDir, "gopath", build.Default.GOPATH)
+//			pkg, err := build.Import(fullPath, srcDir, 0)
+//			if err != nil {
+//				// We expect this to happen for apps using reverse routing (since we
+//				// have not yet generated the routes).  Don't log that.
+//				if !strings.HasSuffix(fullPath, "/app/routes") {
+//					utils.Logger.Warn("Could not find import:", "path", fullPath, "srcPath", srcDir, "error", err)
+//				}
+//				continue
+//			} else {
+//				utils.Logger.Debug("Found package in dir", "dir", pkg.Dir, "name", pkg.ImportPath)
+//			}
+//			pkgAlias = pkg.Name
+//		}
+//
+//		imports[pkgAlias] = fullPath
+//	}
+//}

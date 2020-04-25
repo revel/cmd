@@ -106,7 +106,9 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 		}
 	case 0:
 		// Attempt to set the import path to the current working director.
-		c.Run.ImportPath,_ = os.Getwd()
+		if c.Run.ImportPath=="" {
+			c.Run.ImportPath, _ = os.Getwd()
+		}
 	}
 	c.Index = model.RUN
 	return true

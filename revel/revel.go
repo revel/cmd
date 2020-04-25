@@ -142,13 +142,10 @@ func ParseArgs(c *model.CommandConfig, parser *flags.Parser, args []string) (err
 		}
 	}
 
-	if len(extraArgs) > 0 {
-		utils.Logger.Info("Found additional arguements, setting them")
-		if !Commands[c.Index].UpdateConfig(c, extraArgs) {
-			buffer := &bytes.Buffer{}
-			parser.WriteHelp(buffer)
-			err = fmt.Errorf("Invalid command line arguements %v\n%s", extraArgs, buffer.String())
-		}
+	if !Commands[c.Index].UpdateConfig(c, extraArgs) {
+		buffer := &bytes.Buffer{}
+		parser.WriteHelp(buffer)
+		err = fmt.Errorf("Invalid command line arguements %v\n%s", extraArgs, buffer.String())
 	}
 
 	return

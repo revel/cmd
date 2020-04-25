@@ -46,14 +46,23 @@ func init() {
 // Called when unable to parse the command line automatically and assumes an old launch
 func updateNewConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.NEW
+	if len(c.New.Package)>0 {
+		c.New.NotVendored = false
+	}
+	c.Vendored = !c.New.NotVendored
+
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, cmdNew.Long)
-		return false
+		if len(c.New.ImportPath)==0 {
+			fmt.Fprintf(os.Stderr, cmdNew.Long)
+			return false
+		}
+		return true
 	}
 	c.New.ImportPath = args[0]
 	if len(args) > 1 {
 		c.New.SkeletonPath = args[1]
 	}
+
 	return true
 
 }
@@ -76,10 +85,6 @@ func newApp(c *model.CommandConfig) (err error) {
 		return utils.NewBuildError("Abort: Unable to create app path.", "path", c.AppPath)
 	}
 
-	if len(c.New.Package)>0 {
-		c.New.Vendored = true
-	}
-
 	// checking and setting application
 	if err = setApplicationPath(c); err != nil {
 		return err
@@ -93,8 +98,9 @@ func newApp(c *model.CommandConfig) (err error) {
 		return
 	}
 
-	// Rerun the dep tool if vendored
-	if c.New.Vendored {
+	// Run the vendor tool if needed
+	println("********** here",c.Vendored)
+	if c.Vendored {
 		if err=createModVendor(c); err!=nil {
 			return
 		}
@@ -199,7 +205,7 @@ func setApplicationPath(c *model.CommandConfig) (err error) {
 	}
 
 	// If we are running a vendored version of Revel we do not need to check for it.
-	if !c.New.Vendored {
+	if !c.Vendored {
 		_, err = build.Import(model.RevelImportPath, "", build.FindOnly)
 		if err != nil {
 			//// Go get the revel project

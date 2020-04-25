@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"runtime"
 )
 
 // The constants
@@ -54,7 +53,7 @@ type (
 			 ImportPath   string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
 			 SkeletonPath string `short:"s" long:"skeleton" description:"Path to skeleton folder (Must exist on GO PATH)" required:"false"`
 			 Package      string `short:"p" long:"package" description:"The package name, this becomes the repfix to the app name, if defined vendored is set to true" required:"false"`
-			 Vendored  bool   `short:"V" long:"vendor" description:"True if project should contain a vendor folder to be initialized. Creates the vendor folder and the 'Gopkg.toml' file in the root"`
+			 NotVendored  bool   `short:"V" long:"vendor" description:"True if project should not be configured with a go.mod"`
 			 Run          bool   `short:"r" long:"run" description:"True if you want to run the application right away"`
 		} `command:"new"`
 		// The build command
@@ -105,19 +104,19 @@ func (c *CommandConfig) UpdateImportPath() error {
 		importPath = c.New.ImportPath
 	case RUN:
 		importPath = c.Run.ImportPath
-		c.Vendored = utils.Exists(filepath.Join(importPath,"src","go.mod"))
+		c.Vendored = utils.Exists(filepath.Join(importPath,"go.mod"))
 	case BUILD:
 		importPath = c.Build.ImportPath
-		c.Vendored = utils.Exists(filepath.Join(importPath,"src","go.mod"))
+		c.Vendored = utils.Exists(filepath.Join(importPath,"go.mod"))
 	case PACKAGE:
 		importPath = c.Package.ImportPath
-		c.Vendored = utils.Exists(filepath.Join(importPath,"src","go.mod"))
+		c.Vendored = utils.Exists(filepath.Join(importPath,"go.mod"))
 	case CLEAN:
 		importPath = c.Clean.ImportPath
-		c.Vendored = utils.Exists(filepath.Join(importPath,"src","go.mod"))
+		c.Vendored = utils.Exists(filepath.Join(importPath,"go.mod"))
 	case TEST:
 		importPath = c.Test.ImportPath
-		c.Vendored = utils.Exists(filepath.Join(importPath,"src","go.mod"))
+		c.Vendored = utils.Exists(filepath.Join(importPath,"go.mod"))
 	case VERSION:
 		importPath = c.Version.ImportPath
 		required = false
@@ -180,7 +179,8 @@ func (c *CommandConfig) UpdateImportPath() error {
 }
 
 func (c *CommandConfig) initAppFolder() (err error) {
-	utils.Logger.Info("initAppFolder")
+	utils.Logger.Info("initAppFolder","vendored", c.Vendored)
+
 	// check for go executable
 	c.GoCmd, err = exec.LookPath("go")
 	if err != nil {
@@ -227,7 +227,7 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		}
 	}
 
-	utils.Logger.Fatal("Trying to set path based on gopath")
+	utils.Logger.Debug("Trying to set path based on gopath")
 	// lookup go path
 	c.GoPath = build.Default.GOPATH
 	if c.GoPath == "" {
@@ -275,30 +275,21 @@ func (c *CommandConfig) initAppFolder() (err error) {
 	}
 
 	// set go src path
-	c.SrcRoot = filepath.Join(c.SrcRoot, "src")
+	if c.Vendored {
+		c.AppPath = c.SrcRoot
 
-	c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
+	} else {
+		c.SrcRoot = filepath.Join(c.SrcRoot, "src")
+
+		c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
+	}
 	utils.Logger.Info("Set application path", "path", c.AppPath)
 	return nil
 }
 
 // Used to initialize the package resolver
 func (c *CommandConfig) InitPackageResolver() {
-	c.Vendored = utils.DirExists(filepath.Join(c.AppPath, "go.mod"))
-	if c.Index == NEW && c.New.Vendored {
-		c.Vendored = true
-	}
-
 	utils.Logger.Info("InitPackageResolver", "useVendor", c.Vendored, "path", c.AppPath)
-
-
-	if c.Vendored {
-		utils.Logger.Info("Vendor folder detected, for go version")
-		if runtime.Version()!="" {
-			// Do not halt build unless a new package needs to be imported
-			utils.Logger.Fatal(`Go version 1.11 or newer is required to build`)
-		}
-	}
 
 	// This should get called when needed
 	c.PackageResolver = func(pkgName string) error {

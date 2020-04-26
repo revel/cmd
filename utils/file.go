@@ -352,7 +352,7 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 	sourcePathsmap = map[string]string{}
 
 	pkgs, err := packages.Load(config,  packagesList...)
-	Logger.Info("Loaded packegs ", "len results", len(pkgs), "error",err,"basedir",appPath)
+	Logger.Info("Loaded packages ", "len results", len(pkgs), "error",err,"basedir",appPath)
 	for _, packageName := range packagesList {
 		found := false
 		log:= Logger.New("seeking",packageName)

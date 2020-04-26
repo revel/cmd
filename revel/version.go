@@ -239,8 +239,8 @@ func (v *VersionCommand) updateLocalVersions()  {
 		utils.Logger.Warn("Unable to extract version information from Revel library", "path",pathMap[model.RevelImportPath], "error",err)
 		return
 	}
-	utils.Logger.Info("Fullpath to revel", "dir", pathMap[model.RevelModulesImportPath])
-	v.revelVersion, err = v.versionFromFilepath(pathMap[model.RevelModulesImportPath])
+	utils.Logger.Info("Fullpath to revel modules", "dir", pathMap[model.RevelImportPath])
+	v.revelVersion, err = v.versionFromFilepath(pathMap[model.RevelImportPath])
 	if err != nil {
 		utils.Logger.Warn("Unable to extract version information from Revel", "error,err")
 	}

@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/token"
 	"strings"
+	"path/filepath"
 )
 
 type (
@@ -32,6 +33,8 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 	)
 	for _,tree := range p.Syntax {
 		for _, decl := range tree.Decls {
+			s.sourceProcessor.packageMap[p.PkgPath] = filepath.Dir(p.Fset.Position(decl.Pos()).Filename)
+			//println("*** checking", p.Fset.Position(decl.Pos()).Filename)
 			spec, found := s.getStructTypeDecl(decl, p.Fset)
 			if found {
 				if isController || isTest {

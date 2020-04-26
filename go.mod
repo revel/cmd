@@ -13,6 +13,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/revel/config v0.21.0
 	github.com/revel/log15 v2.11.20+incompatible
+	github.com/revel/modules v0.21.0 // indirect
 	github.com/revel/pathtree v0.0.0-20140121041023-41257a1839e9 // indirect
 	github.com/revel/revel v0.21.0
 	github.com/stretchr/testify v1.4.0
@@ -21,6 +22,7 @@ require (
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
 	golang.org/x/tools v0.0.0-20200219054238-753a1d49df85
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/stack.v0 v0.0.0-20141108040640-9b43fcefddd0
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect

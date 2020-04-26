@@ -116,13 +116,8 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		}
 	}
 
-	pkg, err := build.Default.Import(paths.ImportPath, "", build.FindOnly)
-	if err != nil {
-		return
-	}
-
-	// Binary path is a combination of $GOBIN/revel.d directory, app's import path and its name.
-	binName := filepath.Join(pkg.BinDir, "revel.d", paths.ImportPath, filepath.Base(paths.BasePath))
+	// Binary path is a combination of BasePath/target directory, app's import path and its name.
+	binName := filepath.Join(paths.BasePath, "target", paths.ImportPath, filepath.Base(paths.BasePath))
 
 	// Change binary path for Windows build
 	goos := runtime.GOOS
@@ -196,13 +191,13 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			"GOPATH="+gopath,
 		)
 		utils.CmdInit(buildCmd, c.AppPath)
-		utils.Logger.Info("Exec:", "args", buildCmd.Args)
+		utils.Logger.Info("Exec:", "args", buildCmd.Args,"working dir", buildCmd.Dir)
 		output, err := buildCmd.CombinedOutput()
 
 		// If the build succeeded, we're done.
 		if err == nil {
 			utils.Logger.Info("Build successful continuing")
-			return NewApp(binName, paths), nil
+			return NewApp(binName, paths,sourceInfo.PackageMap), nil
 		}
 
 		// Since there was an error, capture the output in case we need to report it

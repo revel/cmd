@@ -55,6 +55,10 @@ func init() {
 // Called to update the config command with from the older stype
 func updateTestConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.TEST
+	if len(args)==0 && c.Test.ImportPath!="" {
+		return true
+	}
+
 	// The full test runs
 	// revel test <import path> (run mode) (suite(.function))
 	if len(args) < 1 {
@@ -78,7 +82,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Find and parse app.conf
-	revel_path, err := model.NewRevelPaths(mode, c.ImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revel_path, err := model.NewRevelPaths(mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}
@@ -104,11 +108,16 @@ func testApp(c *model.CommandConfig) (err error) {
 	if reverr != nil {
 		return utils.NewBuildIfError(reverr, "Error building: ")
 	}
-	runMode := fmt.Sprintf(`{"mode":"%s","testModeFlag":true, "specialUseFlag":%v}`, app.Paths.RunMode, c.Verbose)
+	var paths []byte
+	if len(app.PackagePathMap)>0 {
+		paths, _ = json.Marshal(app.PackagePathMap)
+	}
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))
 	if c.HistoricMode {
 		runMode = app.Paths.RunMode
 	}
 	cmd := app.Cmd(runMode)
+	cmd.Dir=c.AppPath
 
 	cmd.Stderr = io.MultiWriter(cmd.Stderr, file)
 	cmd.Stdout = io.MultiWriter(cmd.Stderr, file)

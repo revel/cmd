@@ -24,12 +24,13 @@ type App struct {
 	BinaryPath string // Path to the app executable
 	Port       int    // Port to pass as a command line argument.
 	cmd        AppCmd // The last cmd returned.
+	PackagePathMap map[string]string // Package to directory path map
 	Paths      *model.RevelContainer
 }
 
 // NewApp returns app instance with binary path in it
-func NewApp(binPath string, paths *model.RevelContainer) *App {
-	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort}
+func NewApp(binPath string, paths *model.RevelContainer, packagePathMap map[string]string) *App {
+	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort, PackagePathMap:packagePathMap}
 }
 
 // Cmd returns a command to run the app server using the current configuration.

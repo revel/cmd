@@ -29,6 +29,8 @@ type SourceInfo struct {
 	controllerSpecs []*TypeInfo
 	// testSuites list the types that constitute the set of application tests.
 	testSuites []*TypeInfo
+	// packageMap a map of import to system directory (if available)
+	PackageMap map[string]string
 }
 
 // TypesThatEmbed returns all types that (directly or indirectly) embed the

@@ -3,13 +3,11 @@ package parser2
 import (
 	"go/ast"
 	"go/token"
-
 	"github.com/revel/cmd/model"
 	"golang.org/x/tools/go/packages"
 	"github.com/revel/cmd/utils"
 	"errors"
 
-	"fmt"
 	"strings"
 	"github.com/revel/cmd/logger"
 )
@@ -20,6 +18,7 @@ type (
 		log                 logger.MultiLogger
 		packageList         []*packages.Package
 		importMap           map[string]string
+		packageMap           map[string]string
 		sourceInfoProcessor *SourceInfoProcessor
 		sourceInfo          *model.SourceInfo
 	}
@@ -30,97 +29,10 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 	processor := NewSourceProcessor(revelContainer)
 	compileError = processor.parse()
 	sourceInfo = processor.sourceInfo
-	fmt.Printf("From parsers \n%v\n%v\n", sourceInfo, compileError)
-	//// Combine packages for modules and app and revel
-	//allPackages := []string{revelContainer.ImportPath+"/app/controllers/...",model.RevelImportPath}
-	//for _,module := range revelContainer.ModulePathMap {
-	//	allPackages = append(allPackages,module.ImportPath+"/app/controllers/...")
-	//}
-	//allPackages = []string{revelContainer.ImportPath+"/app/controllers/..."}
-	//
-	//config := &packages.Config{
-	//	// ode: packages.NeedSyntax | packages.NeedCompiledGoFiles,
-	//	Mode: packages.NeedTypes | packages.NeedSyntax  ,
-	//	//Mode:	packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
-	//	//	packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile |
-	//	//	packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo |
-	//	//	packages.NeedTypesSizes,
-	//
-	//	//Mode: packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile | packages.NeedFiles |
-	//	//	packages.NeedCompiledGoFiles | packages.NeedTypesSizes |
-	//	//	packages.NeedSyntax | packages.NeedCompiledGoFiles ,
-	//	//Mode:  packages.NeedSyntax | packages.NeedCompiledGoFiles |  packages.NeedName | packages.NeedFiles |
-	//	//	packages.LoadTypes | packages.NeedTypes | packages.NeedDeps,  //, // |
-	//		// packages.NeedTypes, // packages.LoadTypes | packages.NeedSyntax | packages.NeedTypesInfo,
-	//		//packages.LoadSyntax | packages.NeedDeps,
-	//	Dir:revelContainer.AppPath,
-	//}
-	//utils.Logger.Info("Before ","apppath", config.Dir,"paths",allPackages)
-	//pkgs, err := packages.Load(config,  allPackages...)
-	//utils.Logger.Info("***Loaded packegs ", "len results", len(pkgs), "error",err)
-	//// Lets see if we can output all the path names
-	////packages.Visit(pkgs,func(p *packages.Package) bool{
-	////	println("Got pre",p.ID)
-	////	return true
-	////}, func(p *packages.Package)  {
-	////})
-	//counter := 0
-	//for _, p := range pkgs {
-	//	utils.Logger.Info("Errores","error",p.Errors, "id",p.ID)
-	//	//for _,g := range p.GoFiles {
-	//	//	println("File", g)
-	//	//}
-	//	//for _, t:= range p.Syntax {
-	//	//	utils.Logger.Info("File","name",t.Name)
-	//	//}
-	//	//println("package typoe fouhnd ",p.Types.Name())
-	//	//imports := map[string]string{}
-	//
-	//	for _,s := range p.Syntax {
-	//		println("File ",s.Name.Name )
-	//		for _, decl := range s.Decls {
-	//			genDecl, ok := decl.(*ast.GenDecl)
-	//			if !ok {
-	//				continue
-	//			}
-	//
-	//			if genDecl.Tok == token.IMPORT {
-	//				for _, spec := range genDecl.Specs {
-	//					importSpec := spec.(*ast.ImportSpec)
-	//					fmt.Printf("*** import specification %#v\n", importSpec)
-	//					var pkgAlias string
-	//					if importSpec.Name != nil {
-	//						pkgAlias = importSpec.Name.Name
-	//						if pkgAlias == "_" {
-	//							continue
-	//						}
-	//					}
-	//					quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
-	//					fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
-	//					if pkgAlias == "" {
-	//						pkgAlias = fullPath
-	//						if index:=strings.LastIndex(pkgAlias,"/");index>0 {
-	//							pkgAlias = pkgAlias[index+1:]
-	//						}
-	//					}
-	//					//imports[pkgAlias] = fullPath
-	//					println("Package ", pkgAlias, "fullpath", fullPath)
-	//				}
-	//			}
-	//		 }
-	//		}
-	//	}
-	//	//p.Fset.Iterate(func(file *token.File) bool{
-	//	//
-	//	//	// utils.Logger.Info("Output","Found file", p.ID," AND NAME ", f.Name())
-	//	//	// For each declaration in the source file...
-	//	//	//for _, decl := range file.Decls {
-	//	//	//	addImports(imports, decl, pkgPath)
-	//	//	//}
-	//	//	counter ++
-	//	//	return true
-	//	//})
-	////}
+	if compileError==nil {
+		processor.log.Infof("From parsers : Structures:%d InitImports:%d ValidationKeys:%d %v", len(sourceInfo.StructSpecs), len(sourceInfo.InitImportPaths), len(sourceInfo.ValidationKeys),sourceInfo.PackageMap)
+	}
+
 	if false {
 		compileError = errors.New("Incompleted")
 		utils.Logger.Panic("Not implemented")
@@ -143,15 +55,30 @@ func (s *SourceProcessor) parse() (compileError error) {
 	if compileError = s.addSourceInfo(); compileError != nil {
 		return
 	}
+	s.sourceInfo.PackageMap = map[string]string{}
+	getImportFromMap := func(packagePath string) string {
+		for path := range s.packageMap {
+			if strings.Index(path,packagePath)==0 {
+				fullPath := s.packageMap[path]
+				return fullPath[:(len(fullPath) - len(path) + len(packagePath))]
+			}
+		}
+		return ""
+	}
+	s.sourceInfo.PackageMap[model.RevelImportPath] = getImportFromMap(model.RevelImportPath)
+	s.sourceInfo.PackageMap[s.revelContainer.ImportPath] = getImportFromMap(s.revelContainer.ImportPath)
+	for _, module := range s.revelContainer.ModulePathMap {
+		s.sourceInfo.PackageMap[module.ImportPath] = getImportFromMap(module.ImportPath)
+	}
 
 	return
 }
 func (s *SourceProcessor) addPackages() (err error) {
-	allPackages := []string{s.revelContainer.ImportPath + "/..."} //,model.RevelImportPath}
+	allPackages := []string{s.revelContainer.ImportPath + "/...",model.RevelImportPath}
 	for _, module := range s.revelContainer.ModulePathMap {
 		allPackages = append(allPackages, module.ImportPath + "/...") // +"/app/controllers/...")
 	}
-	allPackages = []string{s.revelContainer.ImportPath + "/..."} //+"/app/controllers/..."}
+	//allPackages = []string{s.revelContainer.ImportPath + "/..."} //+"/app/controllers/..."}
 
 	config := &packages.Config{
 		// ode: packages.NeedSyntax | packages.NeedCompiledGoFiles,
@@ -180,7 +107,9 @@ func (s *SourceProcessor) addPackages() (err error) {
 }
 func (s *SourceProcessor) addImportMap() (err error) {
 	s.importMap = map[string]string{}
+	s.packageMap = map[string]string{}
 	for _, p := range s.packageList {
+
 		if len(p.Errors) > 0 {
 			// Generate a compile error
 			for _, e := range p.Errors {

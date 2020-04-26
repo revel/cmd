@@ -37,6 +37,12 @@ func init() {
 // The update config updates the configuration command so that it can run
 func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.BUILD
+	if c.Build.TargetPath=="" {
+		c.Build.TargetPath="target"
+	}
+	if len(args)==0 && c.Build.ImportPath!="" {
+		return true
+	}
 	// If arguments were passed in then there must be two
 	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "%s\n%s", cmdBuild.UsageLine, cmdBuild.Long)
@@ -63,7 +69,7 @@ func buildApp(c *model.CommandConfig) (err error) {
 	c.Build.Mode = mode
 	c.Build.ImportPath = appImportPath
 
-	revel_paths, err := model.NewRevelPaths(mode, appImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revel_paths, err := model.NewRevelPaths(mode, appImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}
@@ -88,7 +94,7 @@ func buildApp(c *model.CommandConfig) (err error) {
 	if err != nil {
 		return
 	}
-	err = buildCopyModules(c, revel_paths, packageFolders)
+	err = buildCopyModules(c, revel_paths, packageFolders, app)
 	if err != nil {
 		return
 	}
@@ -148,7 +154,7 @@ func buildCopyFiles(c *model.CommandConfig, app *harness.App, revel_paths *model
 }
 
 // Based on the section copy over the build modules
-func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer, packageFolders []string) (err error) {
+func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer, packageFolders []string, app *harness.App) (err error) {
 	destPath := filepath.Join(c.Build.TargetPath, "src")
 	// Find all the modules used and copy them over.
 	config := revel_paths.Config.Raw()
@@ -174,14 +180,10 @@ func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer,
 
 		}
 	}
-	modulePaths, err := utils.FindSrcPaths(c.AppPath, moduleImportList, c.PackageResolver)
-
-	if err != nil {
-		utils.Logger.Fatalf("Failed to load modules ", "error", err)
-	}
 
 	// Copy the the paths for each of the modules
-	for importPath, fsPath := range modulePaths {
+	for _,importPath := range moduleImportList {
+		fsPath := app.PackagePathMap[importPath]
 		utils.Logger.Info("Copy files ", "to", filepath.Join(destPath, importPath), "from", fsPath)
 		if c.Build.CopySource {
 			err = utils.CopyDir(filepath.Join(destPath, importPath), fsPath, nil)

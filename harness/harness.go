@@ -34,6 +34,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"sync"
+	"encoding/json"
 )
 
 var (
@@ -161,6 +162,7 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 	addr := paths.HTTPAddr
 	port := paths.Config.IntDefault("harness.port", 0)
 	scheme := "http"
+
 	if paths.HTTPSsl {
 		scheme = "https"
 	}
@@ -229,7 +231,17 @@ func (h *Harness) Refresh() (err *utils.SourceError) {
 
 	if h.useProxy {
 		h.app.Port = h.port
-		if err2 := h.app.Cmd(h.runMode).Start(h.config); err2 != nil {
+		runMode := h.runMode
+		if !h.config.HistoricMode {
+			// Recalulate run mode based on the config
+			var paths []byte
+			if len(h.app.PackagePathMap)>0 {
+				paths, _ = json.Marshal(h.app.PackagePathMap)
+			}
+			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose, string(paths))
+
+		}
+		if err2 := h.app.Cmd(runMode).Start(h.config); err2 != nil {
 			utils.Logger.Error("Could not start application", "error", err2)
 			if err,k :=err2.(*utils.SourceError);k {
 				return err

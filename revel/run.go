@@ -6,7 +6,7 @@ package main
 
 import (
 	"strconv"
-
+	"encoding/json"
 	"fmt"
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
@@ -159,7 +159,11 @@ func runApp(c *model.CommandConfig) (err error) {
 		utils.Logger.Errorf("Failed to build app: %s", err)
 	}
 	app.Port = revel_path.HTTPPort
-	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, app.Paths.RunMode, c.Verbose)
+	var paths []byte
+	if len(app.PackagePathMap)>0 {
+		paths, _ = json.Marshal(app.PackagePathMap)
+	}
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))
 	if c.HistoricMode {
 		runMode = revel_path.RunMode
 	}

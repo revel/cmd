@@ -4,8 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
+	"errors"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -352,7 +352,7 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 	sourcePathsmap = map[string]string{}
 
 	pkgs, err := packages.Load(config,  packagesList...)
-	Logger.Info("Loaded packegs ", "len results", len(pkgs), "error",err)
+	Logger.Info("Loaded packegs ", "len results", len(pkgs), "error",err,"basedir",appPath)
 	for _, packageName := range packagesList {
 		found := false
 		log:= Logger.New("seeking",packageName)
@@ -360,11 +360,11 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 			log.Info("Found package","package",pck.ID)
 			if pck.ID == packageName {
 				if pck.Errors!=nil && len(pck.Errors)>0 {
-					Logger.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID,"errors",pck.Errors)
+					log.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID,"errors",pck.Errors)
 
 				}
 				//a,_ := pck.MarshalJSON()
-				Logger.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID)
+				log.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID,"apppath",appPath)
 				sourcePathsmap[packageName] = filepath.Dir(pck.GoFiles[0])
 				found = true
 			}

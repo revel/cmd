@@ -123,3 +123,15 @@ func (s *SourceInfo) TestSuites() []*TypeInfo {
 	}
 	return s.testSuites
 }
+
+func (s *SourceInfo) Merge(srcInfo2 *SourceInfo) {
+	s.StructSpecs = append(s.StructSpecs, srcInfo2.StructSpecs...)
+	s.InitImportPaths = append(s.InitImportPaths, srcInfo2.InitImportPaths...)
+	for k, v := range srcInfo2.ValidationKeys {
+		if _, ok := s.ValidationKeys[k]; ok {
+			utils.Logger.Warn("Warn: Key conflict when scanning validation calls:", "key", k)
+			continue
+		}
+		s.ValidationKeys[k] = v
+	}
+}

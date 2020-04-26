@@ -12,21 +12,25 @@ import (
 	"fmt"
 	"strings"
 	"github.com/revel/cmd/logger"
-
 )
+
 type (
 	SourceProcessor struct {
-		revelContainer *model.RevelContainer
-		log logger.MultiLogger
-		packageList []*packages.Package
-		importMap map[string]string
+		revelContainer      *model.RevelContainer
+		log                 logger.MultiLogger
+		packageList         []*packages.Package
+		importMap           map[string]string
+		sourceInfoProcessor *SourceInfoProcessor
+		sourceInfo          *model.SourceInfo
 	}
 )
+
 func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.SourceInfo, compileError error) {
 	utils.Logger.Info("ProcessSource")
 	processor := NewSourceProcessor(revelContainer)
-	sourceInfo, compileError = processor.parse()
-	fmt.Printf("From parsers \n%v\n%v\n",sourceInfo,compileError)
+	compileError = processor.parse()
+	sourceInfo = processor.sourceInfo
+	fmt.Printf("From parsers \n%v\n%v\n", sourceInfo, compileError)
 	//// Combine packages for modules and app and revel
 	//allPackages := []string{revelContainer.ImportPath+"/app/controllers/...",model.RevelImportPath}
 	//for _,module := range revelContainer.ModulePathMap {
@@ -117,36 +121,45 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 	//	//	return true
 	//	//})
 	////}
-if false {
-	compileError = errors.New("Incompleted")
-	utils.Logger.Panic("Not implemented")
-}
+	if false {
+		compileError = errors.New("Incompleted")
+		utils.Logger.Panic("Not implemented")
+	}
 	return
 }
 
 func NewSourceProcessor(revelContainer *model.RevelContainer) *SourceProcessor {
-	return  &SourceProcessor{revelContainer:revelContainer, log:utils.Logger.New("parser","SourceProcessor")}
+	s := &SourceProcessor{revelContainer:revelContainer, log:utils.Logger.New("parser", "SourceProcessor")}
+	s.sourceInfoProcessor = NewSourceInfoProcessor(s)
+	return s
 }
-func (s *SourceProcessor) parse() (sourceInfo *model.SourceInfo, compileError error)  {
-	if compileError=s.addPackages();compileError!=nil {
+func (s *SourceProcessor) parse() (compileError error) {
+	if compileError = s.addPackages(); compileError != nil {
 		return
 	}
-	if compileError = s.addImportMap();compileError!=nil {
+	if compileError = s.addImportMap(); compileError != nil {
+		return
+	}
+	if compileError = s.addSourceInfo(); compileError != nil {
 		return
 	}
 
 	return
 }
 func (s *SourceProcessor) addPackages() (err error) {
-	allPackages := []string{s.revelContainer.ImportPath+"/app/controllers/...",model.RevelImportPath}
-	for _,module := range s.revelContainer.ModulePathMap {
-		allPackages = append(allPackages,module.ImportPath+"/app/controllers/...")
+	allPackages := []string{s.revelContainer.ImportPath + "/..."} //,model.RevelImportPath}
+	for _, module := range s.revelContainer.ModulePathMap {
+		allPackages = append(allPackages, module.ImportPath + "/...") // +"/app/controllers/...")
 	}
-	allPackages = []string{s.revelContainer.ImportPath+"/app/controllers/..."}
+	allPackages = []string{s.revelContainer.ImportPath + "/..."} //+"/app/controllers/..."}
 
 	config := &packages.Config{
 		// ode: packages.NeedSyntax | packages.NeedCompiledGoFiles,
-		Mode: packages.NeedTypes | packages.NeedSyntax  ,
+		Mode:
+		packages.NeedTypes | // For compile error
+			packages.NeedDeps | // To load dependent files
+			packages.NeedName | // Loads the full package name
+			packages.NeedSyntax, // To load ast tree (for end points)
 		//Mode:	packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
 		//	packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile |
 		//	packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo |
@@ -161,24 +174,22 @@ func (s *SourceProcessor) addPackages() (err error) {
 		//packages.LoadSyntax | packages.NeedDeps,
 		Dir:s.revelContainer.AppPath,
 	}
-	s.packageList, err = packages.Load(config,  allPackages...)
-	s.log.Info("***Loaded packegs ", "len results", len(s.packageList), "error",err)
+	s.packageList, err = packages.Load(config, allPackages...)
+	s.log.Info("Loaded packages ", "len results", len(s.packageList), "error", err)
 	return
 }
 func (s *SourceProcessor) addImportMap() (err error) {
 	s.importMap = map[string]string{}
 	for _, p := range s.packageList {
-		if len(p.Errors)>0 {
+		if len(p.Errors) > 0 {
 			// Generate a compile error
-			for _,e:=range p.Errors {
-				err = utils.NewCompileError("","",e)
+			for _, e := range p.Errors {
+				if !strings.Contains(e.Msg, "fsnotify") {
+					err = utils.NewCompileError("", "", e)
+				}
 			}
-
 		}
-		utils.Logger.Info("Errores","error",p.Errors, "id",p.ID)
-
-		for _,tree := range p.Syntax {
-			println("File ",tree.Name.Name )
+		for _, tree := range p.Syntax {
 			for _, decl := range tree.Decls {
 				genDecl, ok := decl.(*ast.GenDecl)
 				if !ok {
@@ -188,7 +199,7 @@ func (s *SourceProcessor) addImportMap() (err error) {
 				if genDecl.Tok == token.IMPORT {
 					for _, spec := range genDecl.Specs {
 						importSpec := spec.(*ast.ImportSpec)
-						fmt.Printf("*** import specification %#v\n", importSpec)
+						//fmt.Printf("*** import specification %#v\n", importSpec)
 						var pkgAlias string
 						if importSpec.Name != nil {
 							pkgAlias = importSpec.Name.Name
@@ -197,17 +208,29 @@ func (s *SourceProcessor) addImportMap() (err error) {
 							}
 						}
 						quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
-						fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
+						fullPath := quotedPath[1 : len(quotedPath) - 1] // Remove the quotes
 						if pkgAlias == "" {
 							pkgAlias = fullPath
-							if index:=strings.LastIndex(pkgAlias,"/");index>0 {
-								pkgAlias = pkgAlias[index+1:]
+							if index := strings.LastIndex(pkgAlias, "/"); index > 0 {
+								pkgAlias = pkgAlias[index + 1:]
 							}
 						}
 						s.importMap[pkgAlias] = fullPath
-						println("Package ", pkgAlias, "fullpath", fullPath)
 					}
 				}
+			}
+		}
+	}
+	return
+}
+
+func (s *SourceProcessor) addSourceInfo() (err error) {
+	for _, p := range s.packageList {
+		if sourceInfo := s.sourceInfoProcessor.processPackage(p); sourceInfo != nil {
+			if s.sourceInfo != nil {
+				s.sourceInfo.Merge(sourceInfo)
+			} else {
+				s.sourceInfo = sourceInfo
 			}
 		}
 	}

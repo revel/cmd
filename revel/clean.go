@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"go/build"
+
 	"os"
 	"path/filepath"
 )
@@ -50,14 +50,10 @@ func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 
 // Clean the source directory of generated files
 func cleanApp(c *model.CommandConfig) (err error) {
-	appPkg, err := build.Import(c.ImportPath, "", build.FindOnly)
-	if err != nil {
-		utils.Logger.Fatal("Abort: Failed to find import path:", "error", err)
-	}
 
 	purgeDirs := []string{
-		filepath.Join(appPkg.Dir, "app", "tmp"),
-		filepath.Join(appPkg.Dir, "app", "routes"),
+		filepath.Join(c.AppPath, "app", "tmp"),
+		filepath.Join(c.AppPath, "app", "routes"),
 	}
 
 	for _, dir := range purgeDirs {

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"github.com/revel/cmd/model/command"
 )
 
 // The constants
@@ -48,50 +49,20 @@ type (
 		Vendored          bool                     // True if the application is vendored
 		PackageResolver  func(pkgName string) error //  a packge resolver for the config
 		BuildFlags       []string                   `short:"X" long:"build-flags" description:"These flags will be used when building the application. May be specified multiple times, only applicable for Build, Run, Package, Test commands"`
-		// The new command
-		New struct {
-			 ImportPath   string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
-			 SkeletonPath string `short:"s" long:"skeleton" description:"Path to skeleton folder (Must exist on GO PATH)" required:"false"`
-			 Package      string `short:"p" long:"package" description:"The package name, this becomes the repfix to the app name, if defined vendored is set to true" required:"false"`
-			 NotVendored  bool   `short:"V" long:"vendor" description:"True if project should not be configured with a go.mod"`
-			 Run          bool   `short:"r" long:"run" description:"True if you want to run the application right away"`
-		} `command:"new"`
+
+		New command.New `command:"new"` // The new command
 		// The build command
-		Build struct {
-			TargetPath string `short:"t" long:"target-path" description:"Path to target folder. Folder will be completely deleted if it exists" required:"false"`
-			ImportPath string `short:"a" long:"application-path" description:"Path to application folder"  required:"false"`
-			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			CopySource bool   `short:"s" long:"include-source" description:"Copy the source code as well"`
-		} `command:"build"`
+		Build command.Build `command:"build"`
 		// The run command
-		Run struct {
-			ImportPath string `short:"a" long:"application-path" description:"Path to application folder"  required:"false"`
-			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			Port       int    `short:"p" long:"port" default:"-1" description:"The port to listen" `
-			NoProxy    bool   `short:"n" long:"no-proxy" description:"True if proxy server should not be started. This will only update the main and routes files on change"`
-		} `command:"run"`
+		Run command.Run `command:"run"`
 		// The package command
-		Package struct {
-			TargetPath string `short:"t" long:"target-path" description:"Full path and filename of target package to deploy" required:"false"`
-			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			ImportPath string `short:"a" long:"application-path" description:"Path to application folder"  required:"false"`
-			CopySource bool   `short:"s" long:"include-source" description:"Copy the source code as well"`
-		} `command:"package"`
+		Package command.Package `command:"package"`
 		// The clean command
-		Clean struct {
-			ImportPath string `short:"a" long:"application-path" description:"Path to application folder"  required:"false"`
-		} `command:"clean"`
+		Clean command.Clean `command:"clean"`
 		// The test command
-		Test struct {
-			Mode       string `short:"m" long:"run-mode" description:"The mode to run the application in"`
-			ImportPath string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
-			Function   string `short:"f" long:"suite-function" description:"The suite.function"`
-		} `command:"test"`
+		Test command.Test `command:"test"`
 		// The version command
-		Version struct {
-			ImportPath string `short:"a" long:"application-path" description:"Path to application folder" required:"false"`
-			Update bool `short:"u" long:"Update the framework and modules" required:"false"`
-		} `command:"version"`
+		Version command.Version `command:"version"`
 	}
 )
 

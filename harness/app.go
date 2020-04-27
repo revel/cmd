@@ -21,11 +21,11 @@ import (
 // App contains the configuration for running a Revel app.  (Not for the app itself)
 // Its only purpose is constructing the command to execute.
 type App struct {
-	BinaryPath string // Path to the app executable
-	Port       int    // Port to pass as a command line argument.
-	cmd        AppCmd // The last cmd returned.
+	BinaryPath     string            // Path to the app executable
+	Port           int               // Port to pass as a command line argument.
+	cmd            AppCmd            // The last cmd returned.
 	PackagePathMap map[string]string // Package to directory path map
-	Paths      *model.RevelContainer
+	Paths          *model.RevelContainer
 }
 
 // NewApp returns app instance with binary path in it
@@ -65,7 +65,7 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c, &bytes.Buffer{}}
 	cmd.Stdout = listeningWriter
 	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
-	utils.CmdInit(cmd.Cmd, c.AppPath)
+	utils.CmdInit(cmd.Cmd, !c.Vendored, c.AppPath)
 	if err := cmd.Cmd.Start(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)
 	}
@@ -73,9 +73,9 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	select {
 	case exitState := <-cmd.waitChan():
 		fmt.Println("Startup failure view previous messages, \n Proxy is listening :", c.Run.Port)
-		err := utils.NewError("","Revel Run Error", "starting your application there was an exception. See terminal output, " + exitState,"")
-		// TODO pretiffy command line output
-		// err.MetaError = listeningWriter.getLastOutput()
+		err := utils.NewError("", "Revel Run Error", "starting your application there was an exception. See terminal output, " + exitState, "")
+	// TODO pretiffy command line output
+	// err.MetaError = listeningWriter.getLastOutput()
 		return err
 
 	case <-time.After(60 * time.Second):
@@ -150,7 +150,7 @@ func (cmd AppCmd) Kill() {
 		case <-ch:
 			return
 		case <-time.After(60 * time.Second):
-			// Kill the process
+		// Kill the process
 			utils.Logger.Error(
 				"Revel app failed to exit in 60 seconds - killing.",
 				"processid", cmd.Process.Pid,
@@ -199,7 +199,7 @@ func (w *startupListeningWriter) Write(p []byte) (int, error) {
 			w.notifyReady = nil
 		}
 	}
-	if w.notifyReady!=nil {
+	if w.notifyReady != nil {
 		w.buffer.Write(p)
 	}
 	return w.dest.Write(p)

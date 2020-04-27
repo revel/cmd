@@ -37,7 +37,7 @@ func init() {
 // Update the clean command configuration, using old method
 func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.CLEAN
-	if len(args)==0 && c.Clean.ImportPath!="" {
+	if len(args) == 0 && c.Clean.ImportPath != "" {
 		return true
 	}
 	if len(args) == 0 {

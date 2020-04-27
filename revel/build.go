@@ -37,10 +37,10 @@ func init() {
 // The update config updates the configuration command so that it can run
 func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.BUILD
-	if c.Build.TargetPath=="" {
-		c.Build.TargetPath="target"
+	if c.Build.TargetPath == "" {
+		c.Build.TargetPath = "target"
 	}
-	if len(args)==0 && c.Build.ImportPath!="" {
+	if len(args) == 0 && c.Build.ImportPath != "" {
 		return true
 	}
 	// If arguments were passed in then there must be two
@@ -176,13 +176,13 @@ func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer,
 			if moduleImportPath == "" {
 				continue
 			}
-			moduleImportList =append(moduleImportList,moduleImportPath)
+			moduleImportList = append(moduleImportList, moduleImportPath)
 
 		}
 	}
 
 	// Copy the the paths for each of the modules
-	for _,importPath := range moduleImportList {
+	for _, importPath := range moduleImportList {
 		fsPath := app.PackagePathMap[importPath]
 		utils.Logger.Info("Copy files ", "to", filepath.Join(destPath, importPath), "from", fsPath)
 		if c.Build.CopySource {

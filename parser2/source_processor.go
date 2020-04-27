@@ -18,7 +18,7 @@ type (
 		log                 logger.MultiLogger
 		packageList         []*packages.Package
 		importMap           map[string]string
-		packageMap           map[string]string
+		packageMap          map[string]string
 		sourceInfoProcessor *SourceInfoProcessor
 		sourceInfo          *model.SourceInfo
 	}
@@ -29,8 +29,8 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 	processor := NewSourceProcessor(revelContainer)
 	compileError = processor.parse()
 	sourceInfo = processor.sourceInfo
-	if compileError==nil {
-		processor.log.Infof("From parsers : Structures:%d InitImports:%d ValidationKeys:%d %v", len(sourceInfo.StructSpecs), len(sourceInfo.InitImportPaths), len(sourceInfo.ValidationKeys),sourceInfo.PackageMap)
+	if compileError == nil {
+		processor.log.Infof("From parsers : Structures:%d InitImports:%d ValidationKeys:%d %v", len(sourceInfo.StructSpecs), len(sourceInfo.InitImportPaths), len(sourceInfo.ValidationKeys), sourceInfo.PackageMap)
 	}
 
 	if false {
@@ -58,7 +58,7 @@ func (s *SourceProcessor) parse() (compileError error) {
 	s.sourceInfo.PackageMap = map[string]string{}
 	getImportFromMap := func(packagePath string) string {
 		for path := range s.packageMap {
-			if strings.Index(path,packagePath)==0 {
+			if strings.Index(path, packagePath) == 0 {
 				fullPath := s.packageMap[path]
 				return fullPath[:(len(fullPath) - len(path) + len(packagePath))]
 			}
@@ -74,7 +74,7 @@ func (s *SourceProcessor) parse() (compileError error) {
 	return
 }
 func (s *SourceProcessor) addPackages() (err error) {
-	allPackages := []string{s.revelContainer.ImportPath + "/...",model.RevelImportPath}
+	allPackages := []string{s.revelContainer.ImportPath + "/...", model.RevelImportPath}
 	for _, module := range s.revelContainer.ModulePathMap {
 		allPackages = append(allPackages, module.ImportPath + "/...") // +"/app/controllers/...")
 	}

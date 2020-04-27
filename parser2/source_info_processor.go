@@ -15,23 +15,23 @@ type (
 		sourceProcessor *SourceProcessor
 	}
 )
+
 func NewSourceInfoProcessor(sourceProcessor *SourceProcessor) *SourceInfoProcessor {
 	return &SourceInfoProcessor{sourceProcessor:sourceProcessor}
 }
-
 
 func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *model.SourceInfo) {
 	sourceInfo = &model.SourceInfo{
 		ValidationKeys: map[string]map[int]string{},
 	}
 	var (
-	isController = strings.HasSuffix(p.PkgPath, "/controllers") ||
-		strings.Contains(p.PkgPath, "/controllers/")
-	isTest = strings.HasSuffix(p.PkgPath, "/tests") ||
-		strings.Contains(p.PkgPath, "/tests/")
+		isController = strings.HasSuffix(p.PkgPath, "/controllers") ||
+			strings.Contains(p.PkgPath, "/controllers/")
+		isTest = strings.HasSuffix(p.PkgPath, "/tests") ||
+			strings.Contains(p.PkgPath, "/tests/")
 		methodMap = map[string][]*model.MethodSpec{}
 	)
-	for _,tree := range p.Syntax {
+	for _, tree := range p.Syntax {
 		for _, decl := range tree.Decls {
 			s.sourceProcessor.packageMap[p.PkgPath] = filepath.Dir(p.Fset.Position(decl.Pos()).Filename)
 			//println("*** checking", p.Fset.Position(decl.Pos()).Filename)
@@ -50,20 +50,21 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 				}
 				// This could be a controller action endpoint, check and add if needed
 				if isController &&
-					funcDecl.Recv!=nil && // Must have a receiver
+					funcDecl.Recv != nil && // Must have a receiver
 					funcDecl.Name.IsExported() && // be public
-					funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) == 1 { // return one result
-					if m, receiver:=s.getControllerFunc(funcDecl,p);m!=nil {
-						methodMap[receiver]=append(methodMap[receiver],m)
-						s.sourceProcessor.log.Info("Added method map to ","receiver",receiver,"method",m.Name)
+					funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) == 1 {
+					// return one result
+					if m, receiver := s.getControllerFunc(funcDecl, p); m != nil {
+						methodMap[receiver] = append(methodMap[receiver], m)
+						s.sourceProcessor.log.Info("Added method map to ", "receiver", receiver, "method", m.Name)
 					}
 				}
 				// Check for validation
-				if lineKeyMap := s.getValidation(funcDecl,p);len(lineKeyMap)>1 {
-					sourceInfo.ValidationKeys[p.PkgPath+"."+s.getFuncName(funcDecl)] = lineKeyMap
+				if lineKeyMap := s.getValidation(funcDecl, p); len(lineKeyMap) > 1 {
+					sourceInfo.ValidationKeys[p.PkgPath + "." + s.getFuncName(funcDecl)] = lineKeyMap
 				}
 				if funcDecl.Name.Name == "init" {
-					sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths,p.PkgPath)
+					sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, p.PkgPath)
 				}
 			}
 		}
@@ -90,7 +91,7 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 //
 // The end result is that we can set the default validation key for each call to
 // be the same as the local variable.
-func (s *SourceInfoProcessor) getValidation(funcDecl *ast.FuncDecl,p *packages.Package) (map[int]string) {
+func (s *SourceInfoProcessor) getValidation(funcDecl *ast.FuncDecl, p *packages.Package) (map[int]string) {
 	var (
 		lineKeys = make(map[int]string)
 
@@ -182,7 +183,7 @@ func (s *SourceInfoProcessor)  getValidationParameter(funcDecl *ast.FuncDecl) *a
 	}
 	return nil
 }
-func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl,p *packages.Package) (method *model.MethodSpec, recvTypeName string) {
+func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packages.Package) (method *model.MethodSpec, recvTypeName string) {
 	selExpr, ok := funcDecl.Type.Results.List[0].Type.(*ast.SelectorExpr)
 	if !ok {
 		return
@@ -270,7 +271,7 @@ func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl,p *packag
 	}
 	return
 }
-func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec,p *packages.Package) (controllerSpec *model.TypeInfo) {
+func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec, p *packages.Package) (controllerSpec *model.TypeInfo) {
 	structType := spec.Type.(*ast.StructType)
 
 	// At this point we know it's a type declaration for a struct.
@@ -329,7 +330,7 @@ func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec,p *packages.P
 		} else {
 			var ok bool
 			if importPath, ok = s.sourceProcessor.importMap[pkgName]; !ok {
-				s.sourceProcessor.log.Error("Error: Failed to find import path for ", "package", pkgName, "type", typeName, "map",s.sourceProcessor.importMap)
+				s.sourceProcessor.log.Error("Error: Failed to find import path for ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap)
 				continue
 			}
 		}
@@ -339,7 +340,7 @@ func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec,p *packages.P
 			StructName: typeName,
 		})
 	}
-	s.sourceProcessor.log.Info("Added controller spec", "name",controllerSpec.StructName,"package",controllerSpec.ImportPath)
+	s.sourceProcessor.log.Info("Added controller spec", "name", controllerSpec.StructName, "package", controllerSpec.ImportPath)
 	return
 }
 func (s *SourceInfoProcessor) getStructTypeDecl(decl ast.Decl, fset *token.FileSet) (spec *ast.TypeSpec, found bool) {

@@ -109,7 +109,7 @@ func GenerateTemplate(filename, templateSource string, args map[string]interface
 func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 	tmpl, err := template.ParseFiles(srcPath)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to parse template "+srcPath)
+		return NewBuildIfError(err, "Failed to parse template " + srcPath)
 	}
 
 	f, err := os.Create(destPath)
@@ -119,12 +119,12 @@ func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 
 	err = tmpl.Execute(f, data)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to Render template "+srcPath)
+		return NewBuildIfError(err, "Failed to Render template " + srcPath)
 	}
 
 	err = f.Close()
 	if err != nil {
-		return NewBuildIfError(err, "Failed to close file stream "+destPath)
+		return NewBuildIfError(err, "Failed to close file stream " + destPath)
 	}
 	return
 }
@@ -133,12 +133,12 @@ func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 func RenderTemplateToStream(output io.Writer, srcPath []string, data interface{}) (err error) {
 	tmpl, err := template.ParseFiles(srcPath...)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to parse template "+srcPath[0])
+		return NewBuildIfError(err, "Failed to parse template " + srcPath[0])
 	}
 
 	err = tmpl.Execute(output, data)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to render template "+srcPath[0])
+		return NewBuildIfError(err, "Failed to render template " + srcPath[0])
 	}
 	return
 }
@@ -181,7 +181,7 @@ func CopyDir(destDir, srcDir string, data map[string]interface{}) error {
 		if info.IsDir() {
 			err := os.MkdirAll(filepath.Join(destDir, relSrcPath), 0777)
 			if !os.IsExist(err) {
-				return NewBuildIfError(err, "Failed to create directory", "path", destDir+"/"+relSrcPath)
+				return NewBuildIfError(err, "Failed to create directory", "path", destDir + "/" + relSrcPath)
 			}
 			return nil
 		}
@@ -189,7 +189,7 @@ func CopyDir(destDir, srcDir string, data map[string]interface{}) error {
 		// If this file ends in ".template", render it as a template.
 		if strings.HasSuffix(relSrcPath, ".template") {
 
-			return RenderTemplate(destPath[:len(destPath)-len(".template")], srcPath, data)
+			return RenderTemplate(destPath[:len(destPath) - len(".template")], srcPath, data)
 		}
 
 		// Else, just copy it over.
@@ -218,7 +218,7 @@ func fsWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 
 		path = filepath.Join(linkName, name)
 
-		if err == nil && info.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if err == nil && info.Mode() & os.ModeSymlink == os.ModeSymlink {
 			var symlinkPath string
 			symlinkPath, err = filepath.EvalSymlinks(path)
 			if err != nil {
@@ -321,16 +321,16 @@ func Empty(dirname string) bool {
 
 // Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
 func FindSrcPaths(appPath string, packageList []string, packageResolver func(pkgName string) error) (sourcePathsmap map[string]string, err error) {
-	sourcePathsmap, missingList,err := findSrcPaths(appPath,packageList)
+	sourcePathsmap, missingList, err := findSrcPaths(appPath, packageList)
 	if err != nil && packageResolver != nil {
 		for _, item := range missingList {
 			if err = packageResolver(item); err != nil {
 				return
 			}
 		}
-		sourcePathsmap,missingList,err = findSrcPaths(appPath,packageList)
+		sourcePathsmap, missingList, err = findSrcPaths(appPath, packageList)
 	}
-	if err!=nil && len(missingList)>0 {
+	if err != nil && len(missingList) > 0 {
 		for _, missing := range missingList {
 			Logger.Error("Unable to import this package", "package", missing)
 		}
@@ -338,6 +338,7 @@ func FindSrcPaths(appPath string, packageList []string, packageResolver func(pkg
 
 	return
 }
+
 var NO_APP_FOUND = errors.New("No app found")
 var NO_REVEL_FOUND = errors.New("No revel found")
 
@@ -351,20 +352,19 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 	}
 	sourcePathsmap = map[string]string{}
 
-	pkgs, err := packages.Load(config,  packagesList...)
-	Logger.Info("Loaded packages ", "len results", len(pkgs), "error",err,"basedir",appPath)
+	pkgs, err := packages.Load(config, packagesList...)
+	Logger.Info("Loaded packages ", "len results", len(pkgs), "error", err, "basedir", appPath)
 	for _, packageName := range packagesList {
 		found := false
-		log:= Logger.New("seeking",packageName)
+		log := Logger.New("seeking", packageName)
 		for _, pck := range pkgs {
-			log.Info("Found package","package",pck.ID)
+			log.Info("Found package", "package", pck.ID)
 			if pck.ID == packageName {
-				if pck.Errors!=nil && len(pck.Errors)>0 {
-					log.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID,"errors",pck.Errors)
-
+				if pck.Errors != nil && len(pck.Errors) > 0 {
+					log.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID, "errors", pck.Errors)
 				}
 				//a,_ := pck.MarshalJSON()
-				log.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID,"apppath",appPath)
+				log.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID, "apppath", appPath)
 				sourcePathsmap[packageName] = filepath.Dir(pck.GoFiles[0])
 				found = true
 			}
@@ -375,7 +375,7 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 			} else {
 				err = NO_APP_FOUND
 			}
-			missingList = append(missingList,packageName)
+			missingList = append(missingList, packageName)
 		}
 	}
 	return

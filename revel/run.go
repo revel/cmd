@@ -106,7 +106,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 		}
 	case 0:
 		// Attempt to set the import path to the current working director.
-		if c.Run.ImportPath=="" {
+		if c.Run.ImportPath == "" {
 			c.Run.ImportPath, _ = os.Getwd()
 		}
 	}
@@ -116,7 +116,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 
 // Returns true if this is an absolute path or a relative gopath
 func runIsImportPath(pathToCheck string) bool {
-	if _, err := build.Import(pathToCheck, "", build.FindOnly);err==nil {
+	if _, err := build.Import(pathToCheck, "", build.FindOnly); err == nil {
 		return true
 	}
 	return filepath.IsAbs(pathToCheck)
@@ -160,7 +160,7 @@ func runApp(c *model.CommandConfig) (err error) {
 	}
 	app.Port = revel_path.HTTPPort
 	var paths []byte
-	if len(app.PackagePathMap)>0 {
+	if len(app.PackagePathMap) > 0 {
 		paths, _ = json.Marshal(app.PackagePathMap)
 	}
 	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))

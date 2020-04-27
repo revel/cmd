@@ -24,7 +24,7 @@ type (
 	}
 )
 // Return a new error object
-func NewError(source, title,path,description string) *SourceError {
+func NewError(source, title, path, description string) *SourceError {
 	return &SourceError{
 		SourceType:source,
 		Title:title,
@@ -82,7 +82,7 @@ func (e *SourceError) ContextSource() []SourceLine {
 		end = len(e.SourceLines)
 	}
 
-	lines := make([]SourceLine, end-start)
+	lines := make([]SourceLine, end - start)
 	for i, src := range e.SourceLines[start:end] {
 		fileLine := start + i + 1
 		lines[i] = SourceLine{src, fileLine, fileLine == e.Line}

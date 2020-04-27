@@ -46,13 +46,13 @@ func init() {
 // Called when unable to parse the command line automatically and assumes an old launch
 func updateNewConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.NEW
-	if len(c.New.Package)>0 {
+	if len(c.New.Package) > 0 {
 		c.New.NotVendored = false
 	}
 	c.Vendored = !c.New.NotVendored
 
 	if len(args) == 0 {
-		if len(c.New.ImportPath)==0 {
+		if len(c.New.ImportPath) == 0 {
 			fmt.Fprintf(os.Stderr, cmdNew.Long)
 			return false
 		}
@@ -76,7 +76,7 @@ func newApp(c *model.CommandConfig) (err error) {
 	}
 
 	// checking and setting skeleton
-	if err=setSkeletonPath(c);err!=nil {
+	if err = setSkeletonPath(c); err != nil {
 		return
 	}
 
@@ -90,18 +90,20 @@ func newApp(c *model.CommandConfig) (err error) {
 		return err
 	}
 
-	// At this point the versions can be set
-	c.SetVersions()
+	// This kicked off the download of the revel app, not needed for vendor
+	if !c.Vendored {
+		// At this point the versions can be set
+		c.SetVersions()
+	}
 
 	// copy files to new app directory
-	if err = copyNewAppFiles(c);err != nil {
+	if err = copyNewAppFiles(c); err != nil {
 		return
 	}
 
 	// Run the vendor tool if needed
-	println("********** here",c.Vendored)
 	if c.Vendored {
-		if err=createModVendor(c); err!=nil {
+		if err = createModVendor(c); err != nil {
 			return
 		}
 	}
@@ -120,13 +122,15 @@ func newApp(c *model.CommandConfig) (err error) {
 func createModVendor(c *model.CommandConfig) (err error) {
 
 	utils.Logger.Info("Creating a new mod app")
-	goModCmd := exec.Command("go", "mod", "init", filepath.Join(c.New.Package,c.AppName))
+	goModCmd := exec.Command("go", "mod", "init", filepath.Join(c.New.Package, c.AppName))
 
+	utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
 
-	utils.CmdInit(goModCmd, c.AppPath)
-
-	utils.Logger.Info("Exec:", "args", goModCmd.Args, "env", goModCmd.Env, "workingdir",goModCmd.Dir)
+	utils.Logger.Info("Exec:", "args", goModCmd.Args, "env", goModCmd.Env, "workingdir", goModCmd.Dir)
 	getOutput, err := goModCmd.CombinedOutput()
+	if c.New.Callback != nil {
+		err = c.New.Callback()
+	}
 	if err != nil {
 		return utils.NewBuildIfError(err, string(getOutput))
 	}
@@ -141,7 +145,7 @@ func createDepVendor(c *model.CommandConfig) (err error) {
 	if !utils.DirExists(vendorPath) {
 
 		if err := os.MkdirAll(vendorPath, os.ModePerm); err != nil {
-			return utils.NewBuildError("Failed to create "+vendorPath, "error", err)
+			return utils.NewBuildError("Failed to create " + vendorPath, "error", err)
 		}
 	}
 
@@ -150,11 +154,11 @@ func createDepVendor(c *model.CommandConfig) (err error) {
 	utils.Logger.Info("Checking for temp folder for source code", "path", tempPath)
 	if !utils.DirExists(tempPath) {
 		if err := os.MkdirAll(tempPath, os.ModePerm); err != nil {
-			return utils.NewBuildIfError(err, "Failed to create "+vendorPath)
+			return utils.NewBuildIfError(err, "Failed to create " + vendorPath)
 		}
 
 		if err = utils.GenerateTemplate(filepath.Join(tempPath, "main.go"), NEW_MAIN_FILE, nil); err != nil {
-			return utils.NewBuildIfError(err, "Failed to create main file "+vendorPath)
+			return utils.NewBuildIfError(err, "Failed to create main file " + vendorPath)
 		}
 	}
 
@@ -171,9 +175,9 @@ func createDepVendor(c *model.CommandConfig) (err error) {
 	}
 
 	getCmd := exec.Command("dep", "ensure", "-v")
-	utils.CmdInit(getCmd, c.AppPath)
+	utils.CmdInit(getCmd, !c.Vendored, c.AppPath)
 
-	utils.Logger.Info("Exec:", "args", getCmd.Args, "env", getCmd.Env, "workingdir",getCmd.Dir)
+	utils.Logger.Info("Exec:", "args", getCmd.Args, "env", getCmd.Env, "workingdir", getCmd.Dir)
 	getOutput, err := getCmd.CombinedOutput()
 	if err != nil {
 		return utils.NewBuildIfError(err, string(getOutput))
@@ -211,7 +215,7 @@ func setApplicationPath(c *model.CommandConfig) (err error) {
 			//// Go get the revel project
 			err = c.PackageResolver(model.RevelImportPath)
 			if err != nil {
-				return utils.NewBuildIfError(err, "Failed to fetch revel "+model.RevelImportPath)
+				return utils.NewBuildIfError(err, "Failed to fetch revel " + model.RevelImportPath)
 			}
 		}
 	}
@@ -235,13 +239,13 @@ func setSkeletonPath(c *model.CommandConfig) (err error) {
 		switch strings.ToLower(sp.Scheme) {
 		// TODO Add support for ftp, sftp, scp ??
 		case "" :
-			sp.Scheme="file"
+			sp.Scheme = "file"
 			fallthrough
 		case "file" :
 			fullpath := sp.String()[7:]
 			if !filepath.IsAbs(fullpath) {
 				fullpath, err = filepath.Abs(fullpath)
-				if err!=nil {
+				if err != nil {
 					return
 				}
 			}
@@ -276,11 +280,11 @@ func newLoadFromGit(c *model.CommandConfig, sp *url.URL) (err error) {
 	targetPath := filepath.Join(os.TempDir(), "revel", "skeleton")
 	os.RemoveAll(targetPath)
 	pathpart := strings.Split(sp.Path, ":")
-	getCmd := exec.Command("git", "clone", sp.Scheme+"://"+sp.Host+pathpart[0], targetPath)
+	getCmd := exec.Command("git", "clone", sp.Scheme + "://" + sp.Host + pathpart[0], targetPath)
 	utils.Logger.Info("Exec:", "args", getCmd.Args)
 	getOutput, err := getCmd.CombinedOutput()
 	if err != nil {
-		utils.Logger.Fatal("Abort: could not clone the  Skeleton  source code: ","output", string(getOutput), "path", c.New.SkeletonPath)
+		utils.Logger.Fatal("Abort: could not clone the  Skeleton  source code: ", "output", string(getOutput), "path", c.New.SkeletonPath)
 	}
 	outputPath := targetPath
 	if len(pathpart) > 1 {

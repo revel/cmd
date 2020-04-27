@@ -73,10 +73,10 @@ func NewCompileError(importPath, errorLink string, error error) *SourceError {
 
 	// Read the source for the offending file.
 	var (
-		relFilename  = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
-		absFilename  = relFilename
-		line, _      = strconv.Atoi(string(errorMatch[2]))
-		description  = string(errorMatch[4])
+		relFilename = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
+		absFilename = relFilename
+		line, _ = strconv.Atoi(string(errorMatch[2]))
+		description = string(errorMatch[4])
 		compileError = &SourceError{
 			SourceType:  "Go code",
 			Title:       "Go Compilation Error",
@@ -95,7 +95,7 @@ func NewCompileError(importPath, errorLink string, error error) *SourceError {
 	fileStr, err := ReadLines(absFilename)
 	if err != nil {
 		compileError.MetaError = absFilename + ": " + err.Error()
-		Logger.Info("Unable to readlines "+compileError.MetaError, "error", err)
+		Logger.Info("Unable to readlines " + compileError.MetaError, "error", err)
 		return compileError
 	}
 

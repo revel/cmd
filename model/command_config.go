@@ -177,7 +177,7 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		appFolder = filepath.Join(wd,appFolder)
 	}
 
-	utils.Logger.Info("Determined app folder to be", "folder",appFolder, "working",wd)
+	utils.Logger.Info("Determined app folder to be", "appfolder",appFolder, "working",wd,"importPath",c.ImportPath)
 
 	// Use app folder to read the go.mod if it exists and extract the package information
 	goModFile := filepath.Join(appFolder,"go.mod")
@@ -214,24 +214,29 @@ func (c *CommandConfig) initAppFolder() (err error) {
 	workingDir, _ := os.Getwd()
 	goPathList := filepath.SplitList(c.GoPath)
 	bestpath := ""
-	for _, path := range goPathList {
-		if c.Index == NEW {
-			// If the GOPATH is part of the working dir this is the most likely target
-			if strings.HasPrefix(workingDir, path) {
-				bestpath = path
-			}
-		} else {
-			if utils.Exists(filepath.Join(path, "src", c.ImportPath)) {
-				c.SrcRoot = path
-				break
+	if !c.Vendored {
+		for _, path := range goPathList {
+			if c.Index == NEW {
+				// If the GOPATH is part of the working dir this is the most likely target
+				if strings.HasPrefix(workingDir, path) {
+					bestpath = path
+				}
+			} else {
+				if utils.Exists(filepath.Join(path, "src", c.ImportPath)) {
+					c.SrcRoot = path
+					break
+				}
 			}
 		}
+		if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
+			c.SrcRoot = bestpath
+		}
+
+	} else {
+		c.SrcRoot = appFolder
 	}
 
 	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath, "bestpath",bestpath)
-	if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
-		c.SrcRoot = bestpath
-	}
 
 	// If source root is empty and this isn't a version then skip it
 	if len(c.SrcRoot) == 0 {
@@ -270,32 +275,11 @@ func (c *CommandConfig) InitPackageResolver() {
 		utils.Logger.Info("Request for package ", "package", pkgName, "use vendor", c.Vendored)
 		if c.Vendored {
 			goModCmd := exec.Command("go", "mod", "tidy")
-			utils.CmdInit(goModCmd, c.AppPath)
+			utils.CmdInit(goModCmd,!c.Vendored, c.AppPath)
+			goModCmd.Run()
 			return nil
 		}
-			//utils.Logger.Info("Using dependency manager to import package", "package", pkgName)
-			//
-			//// Check to see if the package exists locally
-			//_, err := build.Import(pkgName, c.AppPath, build.FindOnly)
-			//if err != nil {
-			//	getCmd = exec.Command(depPath, "ensure", "-add", pkgName)
-			//} else {
-			//	getCmd = exec.Command(depPath, "ensure", "-update", pkgName)
-			//}
-			//
-			//
-		//} else {
-		//	utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
-		//	getCmd = exec.Command(c.GoCmd, "get", "-u", pkgName)
-		//}
-		//
-		//utils.CmdInit(getCmd, c.AppPath)
-		//utils.Logger.Info("Go get command ", "exec", getCmd.Path, "dir", getCmd.Dir, "args", getCmd.Args, "env", getCmd.Env, "package", pkgName)
-		//output, err := getCmd.CombinedOutput()
-		//if err != nil {
-		//	fmt.Printf("Error stack %v\n", logger.NewCallStack())
-		//	utils.Logger.Error("Failed to import package", "error", err, "gopath", build.Default.GOPATH, "GO-ROOT", build.Default.GOROOT, "output", string(output))
-		//}
+
 		return nil
 	}
 }

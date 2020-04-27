@@ -29,9 +29,15 @@ var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
 
 type ByString []*model.TypeInfo
 
-func (c ByString) Len() int           { return len(c) }
-func (c ByString) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
-func (c ByString) Less(i, j int) bool { return c[i].String() < c[j].String() }
+func (c ByString) Len() int {
+	return len(c)
+}
+func (c ByString) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+func (c ByString) Less(i, j int) bool {
+	return c[i].String() < c[j].String()
+}
 
 // Build the app:
 // 1. Generate the the main.go file.
@@ -116,8 +122,8 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		}
 	}
 
-	// Binary path is a combination of BasePath/target directory, app's import path and its name.
-	binName := filepath.Join(paths.BasePath, "target", paths.ImportPath, filepath.Base(paths.BasePath))
+	// Binary path is a combination of BasePath/target/app directory, app's import path and its name.
+	binName := filepath.Join(paths.BasePath, "target", "app", paths.ImportPath, filepath.Base(paths.BasePath))
 
 	// Change binary path for Windows build
 	goos := runtime.GOOS
@@ -139,14 +145,10 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 	}
 
 	for {
-
 		appVersion := getAppVersion(paths)
-		if appVersion == "" {
-			appVersion = "noVersionProvided"
-		}
 
 		buildTime := time.Now().UTC().Format(time.RFC3339)
-		versionLinkerFlags := fmt.Sprintf("-X '%s/app.AppVersion=%s' -X '%s/app.BuildTime=%s'",
+		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
 			paths.ImportPath, appVersion, paths.ImportPath, buildTime)
 
 		// Append any build flags specified, they will override existing flags
@@ -161,13 +163,9 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			if !contains(c.BuildFlags, "build") {
 				flags = []string{"build"}
 			}
+			flags = append(flags, c.BuildFlags...)
 			if !contains(flags, "-ldflags") {
-				ldflags := "-ldflags= " + versionLinkerFlags
-				// Add in build flags
-				for i := range c.BuildFlags {
-					ldflags += "-X '" + c.BuildFlags[i] + "'"
-				}
-				flags = append(flags, ldflags)
+				flags = append(flags, "-ldflags", versionLinkerFlags)
 			}
 			if !contains(flags, "-tags") {
 				flags = append(flags, "-tags", buildTags)
@@ -177,31 +175,38 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			}
 		}
 
-		// This is Go main path
-		gopath := c.GoPath
-		for _, o := range paths.ModulePathMap {
-			gopath += string(filepath.ListSeparator) + o.Path
-		}
+		// Add in build flags
+		flags = append(flags, c.BuildFlags...)
 
 		// Note: It's not applicable for filepath.* usage
 		flags = append(flags, path.Join(paths.ImportPath, "app", "tmp"))
 
 		buildCmd := exec.Command(goPath, flags...)
-		buildCmd.Env = append(os.Environ(),
-			"GOPATH="+gopath,
-		)
-		utils.CmdInit(buildCmd, c.AppPath)
-		utils.Logger.Info("Exec:", "args", buildCmd.Args,"working dir", buildCmd.Dir)
+		if !c.Vendored {
+			// This is Go main path
+			gopath := c.GoPath
+			for _, o := range paths.ModulePathMap {
+				gopath += string(filepath.ListSeparator) + o.Path
+			}
+
+			buildCmd.Env = append(os.Environ(),
+				"GOPATH=" + gopath,
+			)
+		}
+		utils.CmdInit(buildCmd, !c.Vendored, c.AppPath)
+
+		utils.Logger.Info("Exec:", "args", buildCmd.Args, "working dir", buildCmd.Dir)
 		output, err := buildCmd.CombinedOutput()
 
 		// If the build succeeded, we're done.
 		if err == nil {
 			utils.Logger.Info("Build successful continuing")
-			return NewApp(binName, paths,sourceInfo.PackageMap), nil
+			return NewApp(binName, paths, sourceInfo.PackageMap), nil
 		}
 
 		// Since there was an error, capture the output in case we need to report it
 		stOutput := string(output)
+		utils.Logger.Infof("Got error on build of app %s", stOutput)
 
 		// See if it was an import error that we can go get.
 		matches := importErrorPattern.FindAllStringSubmatch(stOutput, -1)
@@ -253,7 +258,7 @@ func getAppVersion(paths *model.RevelContainer) string {
 		if (err != nil && os.IsNotExist(err)) || !info.IsDir() {
 			return ""
 		}
-		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "--work-tree="+paths.BasePath, "describe", "--always", "--dirty")
+		gitCmd := exec.Command(gitPath, "--git-dir=" + gitDir, "--work-tree=" + paths.BasePath, "describe", "--always", "--dirty")
 		utils.Logger.Info("Exec:", "args", gitCmd.Args)
 		output, err := gitCmd.Output()
 
@@ -418,12 +423,13 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceEr
 		return newPath
 	}
 
+
 	// Read the source for the offending file.
 	var (
-		relFilename  = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
-		absFilename  = findInPaths(relFilename)
-		line, _      = strconv.Atoi(string(errorMatch[2]))
-		description  = string(errorMatch[4])
+		relFilename = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
+		absFilename = findInPaths(relFilename)
+		line, _ = strconv.Atoi(string(errorMatch[2]))
+		description = string(errorMatch[4])
 		compileError = &utils.SourceError{
 			SourceType:  "Go code",
 			Title:       "Go Compilation Error",
@@ -442,7 +448,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceEr
 	fileStr, err := utils.ReadLines(absFilename)
 	if err != nil {
 		compileError.MetaError = absFilename + ": " + err.Error()
-		utils.Logger.Info("Unable to readlines "+compileError.MetaError, "error", err)
+		utils.Logger.Info("Unable to readlines " + compileError.MetaError, "error", err)
 		return compileError
 	}
 

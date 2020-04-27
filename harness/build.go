@@ -146,6 +146,9 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 
 	for {
 		appVersion := getAppVersion(paths)
+		if appVersion == "" {
+			appVersion = "noVersionProvided"
+		}
 
 		buildTime := time.Now().UTC().Format(time.RFC3339)
 		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
@@ -165,7 +168,12 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			}
 			flags = append(flags, c.BuildFlags...)
 			if !contains(flags, "-ldflags") {
-				flags = append(flags, "-ldflags", versionLinkerFlags)
+				ldflags := "-ldflags= " + versionLinkerFlags
+				// Add in build flags
+				for i := range c.BuildFlags {
+					ldflags += "-X '" + c.BuildFlags[i] + "'"
+				}
+				flags = append(flags, ldflags)
 			}
 			if !contains(flags, "-tags") {
 				flags = append(flags, "-tags", buildTags)

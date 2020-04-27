@@ -4,7 +4,7 @@
     "ARITY":[5,6,7,8],
     "BLOCK_NESTING":[9, 10, 12, 13],
     "CYCLO":[30, 35, 45, 60],
-    "TOO_MANY_IVARS": [20, 25, 40, 45],
+    "TOO_MANY_IVARS": [28, 30, 40, 45],
     "TOO_MANY_FUNCTIONS": [20, 30, 40, 50],
     "TOTAL_COMPLEXITY": [150, 250, 400, 500],
     "LOC": [100, 175, 250, 320],

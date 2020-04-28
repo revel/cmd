@@ -12,7 +12,7 @@ import (
 
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"gopkg.in/fsnotify/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
 	"time"
 )
 

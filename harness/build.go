@@ -149,7 +149,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			goModCmd := exec.Command(goPath, append([]string{"mod"}, strings.Split(gomod, " ")...)...)
 			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
 			output, err := goModCmd.CombinedOutput()
-			utils.Logger.Infof("Gomod applied ", "output", string(output))
+			utils.Logger.Info("Gomod applied ", "output", string(output))
 
 			// If the build succeeded, we're done.
 			if err != nil {

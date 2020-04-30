@@ -165,7 +165,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		}
 
 		buildTime := time.Now().UTC().Format(time.RFC3339)
-		versionLinkerFlags := fmt.Sprintf("-X %s/app.AppVersion=%s -X %s/app.BuildTime=%s",
+		versionLinkerFlags := fmt.Sprintf("-X '%s/app.AppVersion=%s' -X '%s/app.BuildTime=%s'",
 			paths.ImportPath, appVersion, paths.ImportPath, buildTime)
 
 		// Append any build flags specified, they will override existing flags

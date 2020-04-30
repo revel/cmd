@@ -35,8 +35,6 @@ install:
   - echo $PATH
   - pwd
 script:
-  - go test -v github.com/revel/cmd/revel/...
-
   # Ensure the new-app flow works (plus the other commands).
   #- revel version
   #- revel new     my/testapp
@@ -63,6 +61,8 @@ script:
   - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3 -t build/testapp3 -m prod
   - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3
   - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3 -m prod
+
+  - go test -v github.com/revel/cmd/revel/...
 
 matrix:
   allow_failures:

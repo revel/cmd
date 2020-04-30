@@ -2,14 +2,14 @@ language: go
 
 go:
   - "1.12.x"
-  - "1.13.x"
-  - "1.14.x"
-  - "tip"
+#  - "1.13.x"
+#  - "1.14.x"
+#  - "tip"
 
 os:
-  - osx
+#  - osx
   - linux
-  - windows
+#  - windows
 
 sudo: false
 
@@ -18,6 +18,8 @@ branches:
     - master
     - develop
 
+env:
+  - GO111MODULE=on
 
 install:
   # Setting environments variables
@@ -27,7 +29,7 @@ install:
   - 'echo "Travis branch: $TRAVIS_BRANCH, Revel dependency branch: $REVEL_BRANCH"'
   #- git clone -b $REVEL_BRANCH git://github.com/revel/revel ../revel/
   #- git clone -b $REVEL_BRANCH git://github.com/revel/modules ../modules/
-  # Since travis already checks out go
+  # Since travis already checks out go build the commandline tool (revel)
   - go get -t -v github.com/revel/cmd/revel
   - echo $GOPATH
   - echo $PATH

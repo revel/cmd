@@ -25,8 +25,9 @@ install:
   - export REVEL_BRANCH="develop"
   - 'if [[ "$TRAVIS_BRANCH" == "master" ]]; then export REVEL_BRANCH="master"; fi'
   - 'echo "Travis branch: $TRAVIS_BRANCH, Revel dependency branch: $REVEL_BRANCH"'
-  - git clone -b $REVEL_BRANCH git://github.com/revel/revel ../revel/
-  - git clone -b $REVEL_BRANCH git://github.com/revel/modules ../modules/
+  #- git clone -b $REVEL_BRANCH git://github.com/revel/revel ../revel/
+  #- git clone -b $REVEL_BRANCH git://github.com/revel/modules ../modules/
+  # Since travis already checks out go
   - go get -t -v github.com/revel/cmd/revel
   - echo $GOPATH
   - echo $PATH
@@ -45,13 +46,13 @@ script:
   #- revel package my/testapp prod
 
   # Ensure the new-app flow works (plus the other commands).
-  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
-  - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
-  - revel clean   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
-  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -t build/testapp2
-  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -t build/testapp2 -m prod
-  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
-  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -m prod
+  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
+  - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
+  - revel clean   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
+  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v -t build/testapp2
+  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v -t build/testapp2 -m prod
+  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
+  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v -m prod
 
   - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -v -a my/testapp3 -V
   - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -v -a my/testapp3

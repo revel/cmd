@@ -144,6 +144,20 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		return false
 	}
 
+	if len(c.GoModFlags) > 0 {
+		for _, gomod := range c.GoModFlags {
+			goModCmd := exec.Command(goPath, append([]string{"mod"}, strings.Split(gomod, " ")...)...)
+			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
+			output, err := goModCmd.CombinedOutput()
+			utils.Logger.Infof("Gomod applied ", "output", string(output))
+
+			// If the build succeeded, we're done.
+			if err != nil {
+				utils.Logger.Error("Gomod Failed continuing ", "error", err, "output", string(output))
+			}
+		}
+	}
+
 	for {
 		appVersion := getAppVersion(paths)
 		if appVersion == "" {

@@ -35,31 +35,31 @@ script:
   - go test -v github.com/revel/cmd/revel/...
 
   # Ensure the new-app flow works (plus the other commands).
-  - revel version
-  - revel new     my/testapp
-  - revel test    my/testapp
-  - revel clean   my/testapp
-  - revel build   my/testapp build/testapp
-  - revel build   my/testapp build/testapp prod
-  - revel package my/testapp
-  - revel package my/testapp prod
+  #- revel version
+  #- revel new     my/testapp
+  #- revel test    my/testapp
+  #- revel clean   my/testapp
+  #- revel build   my/testapp build/testapp
+  #- revel build   my/testapp build/testapp prod
+  #- revel package my/testapp
+  #- revel package my/testapp prod
 
   # Ensure the new-app flow works (plus the other commands).
-  - revel new     -a my/testapp2
-  - revel test    -a my/testapp2
-  - revel clean   -a my/testapp2
-  - revel build   -a my/testapp2 -t build/testapp2
-  - revel build   -a my/testapp2 -t build/testapp2 -m prod
-  - revel package -a my/testapp2
-  - revel package -a my/testapp2 -m prod
+  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
+  - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
+  - revel clean   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
+  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -t build/testapp2
+  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -t build/testapp2 -m prod
+  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2
+  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -m prod
 
-  - revel new     -v -a my/testapp3 -V
-  - revel test    -v -a my/testapp3
-  - revel clean   -v -a my/testapp3
-  - revel build   -a my/testapp3 -t build/testapp3
-  - revel build   -a my/testapp3 -t build/testapp3 -m prod
-  - revel package -a my/testapp3
-  - revel package -a my/testapp3 -m prod
+  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -v -a my/testapp3 -V
+  - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -v -a my/testapp3
+  - revel clean   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -v -a my/testapp3
+  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3 -t build/testapp3
+  - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3 -t build/testapp3 -m prod
+  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3
+  - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp3 -m prod
 
 matrix:
   allow_failures:

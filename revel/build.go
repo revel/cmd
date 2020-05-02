@@ -59,6 +59,7 @@ func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 
 // The main entry point to build application from command line
 func buildApp(c *model.CommandConfig) (err error) {
+
 	appImportPath, destPath, mode := c.ImportPath, c.Build.TargetPath, DefaultRunMode
 	if len(c.Build.Mode) > 0 {
 		mode = c.Build.Mode
@@ -113,7 +114,7 @@ func buildCopyFiles(c *model.CommandConfig, app *harness.App, revel_paths *model
 	srcPath := filepath.Join(destPath, "src")
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
 	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(model.RevelImportPath))
-	if err = utils.CopyFile(destBinaryPath, app.BinaryPath); err != nil {
+	if err = utils.CopyFile(destBinaryPath, filepath.Join(revel_paths.BasePath, app.BinaryPath)); err != nil {
 		return
 	}
 	utils.MustChmod(destBinaryPath, 0755)

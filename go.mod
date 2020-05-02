@@ -1,6 +1,6 @@
 module github.com/revel/cmd
 
-go 1.13
+go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
@@ -8,7 +8,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/inconshreveable/log15 v0.0.0-20200109203555-b30bc20e4fd1 // indirect
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/mattn/go-colorable v0.1.4
+	github.com/mattn/go-colorable v0.1.6
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/revel/config v0.21.0
@@ -19,7 +19,8 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/twinj/uuid v1.0.0 // indirect
 	github.com/xeonx/timeago v1.0.0-rc4 // indirect
-	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
+	golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5 // indirect
+	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
 	golang.org/x/tools v0.0.0-20200219054238-753a1d49df85
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22

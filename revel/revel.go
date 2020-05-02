@@ -91,6 +91,9 @@ func main() {
 		utils.InitLogger(wd, logger.LvlWarn)
 	}
 
+	// Setup package resolver
+	c.InitPackageResolver()
+
 	if err := c.UpdateImportPath(); err != nil {
 		utils.Logger.Error(err.Error())
 		parser.WriteHelp(os.Stdout)
@@ -99,12 +102,6 @@ func main() {
 
 	command := Commands[c.Index]
 	println("Revel executing:", command.Short)
-
-	// Setting go paths
-	// c.InitGoPaths()
-
-	// Setup package resolver
-	c.InitPackageResolver()
 
 	if err := command.RunWith(c); err != nil {
 		utils.Logger.Error("Unable to execute", "error", err)

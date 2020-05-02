@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	"sync"
 
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
@@ -64,8 +65,8 @@ func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelConta
 func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c, &bytes.Buffer{}}
 	cmd.Stdout = listeningWriter
-	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
 	utils.CmdInit(cmd.Cmd, !c.Vendored, c.AppPath)
+	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
 	if err := cmd.Cmd.Start(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)
 	}
@@ -107,9 +108,29 @@ func (cmd AppCmd) Kill() {
 		// server before this can, this check will ensure the process is still running
 		if _, err := os.FindProcess(int(cmd.Process.Pid));err!=nil {
 			// Server has already exited
-			utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
+			utils.Logger.Info("Server not running revel server pid", "pid", cmd.Process.Pid)
 			return
 		}
+
+		// Wait for the shutdown channel
+		waitMutex := &sync.WaitGroup{}
+		waitMutex.Add(1)
+		ch := make(chan bool, 1)
+		go func() {
+			waitMutex.Done()
+			s, err := cmd.Process.Wait()
+			defer func() {
+				ch <- true
+			}()
+			if err != nil {
+				utils.Logger.Info("Wait failed for process ", "error", err)
+			}
+			if s != nil {
+				utils.Logger.Info("Revel App exited", "state", s.String())
+			}
+		}()
+		// Wait for the channel to begin waiting
+		waitMutex.Wait()
 
 		// Send an interrupt signal to allow for a graceful shutdown
 		utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
@@ -129,20 +150,6 @@ func (cmd AppCmd) Kill() {
 			return
 		}
 
-		// Wait for the shutdown
-		ch := make(chan bool, 1)
-		go func() {
-			s, err := cmd.Process.Wait()
-			defer func() {
-				ch <- true
-			}()
-			if err != nil {
-				utils.Logger.Info("Wait failed for process ", "error", err)
-			}
-			if s != nil {
-				utils.Logger.Info("Revel App exited", "state", s.String())
-			}
-		}()
 
 		// Use a timer to ensure that the process exits
 		utils.Logger.Info("Waiting to exit")

@@ -41,7 +41,7 @@ type (
 		ImportPath        string                                                                                                                      // The import path (relative to a GOPATH)
 		GoPath            string                                                                                                                      // The GoPath
 		GoCmd             string                                                                                                                      // The full path to the go executable
-		SrcRoot           string                                                                                                                      // The source root
+	                                                                                                                                                //SrcRoot           string                                                                                                                      // The source root
 		AppPath           string                                                                                                                      // The application path (absolute)
 		AppName           string                                                                                                                      // The application name
 		HistoricBuildMode bool     `long:"historic-build-mode" description:"If set the code is scanned using the original parsers, not the go.1.11+"` // True if debug is active
@@ -143,7 +143,7 @@ func (c *CommandConfig) UpdateImportPath() error {
 }
 
 func (c *CommandConfig) initAppFolder() (err error) {
-	utils.Logger.Info("initAppFolder", "vendored", c.Vendored)
+	utils.Logger.Info("initAppFolder", "vendored", c.Vendored, "build-gopath", build.Default.GOPATH, "gopath-env", os.Getenv("GOPATH"))
 
 	// check for go executable
 	c.GoCmd, err = exec.LookPath("go")
@@ -184,30 +184,17 @@ func (c *CommandConfig) initAppFolder() (err error) {
 			if strings.Index(line, "module ") == 0 {
 				c.ImportPath = strings.TrimSpace(strings.Split(line, "module")[1])
 				c.AppPath = appFolder
-				c.SrcRoot = appFolder
-				utils.Logger.Info("Set application path and package based on go mod", "path", c.AppPath, "sourceroot", c.SrcRoot)
+				//c.SrcRoot = appFolder
+				utils.Logger.Info("Set application path and package based on go mod", "path", c.AppPath)
 				return nil
 			}
 		}
-	}
-
-	utils.Logger.Debug("Trying to set path based on gopath")
-	// lookup go path
-	c.GoPath = build.Default.GOPATH
-	if c.GoPath == "" {
-		utils.Logger.Fatal("Abort: GOPATH environment variable is not set. " +
-			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
-	}
-
-	// revel/revel#1004 choose go path relative to current working directory
-
-	// What we want to do is to add the import to the end of the
-	// gopath, and discover which import exists - If none exist this is an error except in the case
-	// where we are dealing with new which is a special case where we will attempt to target the working directory first
-	workingDir, _ := os.Getwd()
-	goPathList := filepath.SplitList(c.GoPath)
-	bestpath := ""
-	if !c.Vendored {
+		// c.SrcRoot = appFolder
+		c.AppPath = appFolder
+	} else if c.Index != NEW || (c.Index == NEW && c.New.NotVendored) {
+		workingDir, _ := os.Getwd()
+		goPathList := filepath.SplitList(c.GoPath)
+		bestpath := ""
 		for _, path := range goPathList {
 			if c.Index == NEW {
 				// If the GOPATH is part of the working dir this is the most likely target
@@ -216,61 +203,48 @@ func (c *CommandConfig) initAppFolder() (err error) {
 				}
 			} else {
 				if utils.Exists(filepath.Join(path, "src", c.ImportPath)) {
-					c.SrcRoot = path
+					bestpath = path
 					break
 				}
 			}
 		}
-		if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
-			c.SrcRoot = bestpath
+
+		utils.Logger.Info("Source root", "cwd", workingDir, "gopath", c.GoPath, "c.ImportPath", c.ImportPath, "bestpath", bestpath)
+		if len(bestpath) > 0 {
+			c.AppPath = filepath.Join(bestpath, "src", c.ImportPath)
 		}
+		// Recalculate the appFolder because we are using a GOPATH
 
 	} else {
-		c.SrcRoot = appFolder
+		// This is new and not vendored, so the app path is the appFolder
+		c.AppPath = appFolder
 	}
 
-	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath, "bestpath", bestpath)
-
-	// If source root is empty and this isn't a version then skip it
-	if len(c.SrcRoot) == 0 {
-		if c.Index == NEW {
-			c.SrcRoot = c.New.ImportPath
-		} else {
-			if c.Index != VERSION {
-				utils.Logger.Fatal("Abort: could not create a Revel application outside of GOPATH.")
-			}
-			return nil
-		}
-	}
-
-	// set go src path
-	if c.Vendored {
-		c.AppPath = c.SrcRoot
-
-	} else {
-		c.SrcRoot = filepath.Join(c.SrcRoot, "src")
-
-		c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
-	}
 	utils.Logger.Info("Set application path", "path", c.AppPath)
 	return nil
 }
 
 // Used to initialize the package resolver
 func (c *CommandConfig) InitPackageResolver() {
+	c.initGoPaths()
 	utils.Logger.Info("InitPackageResolver", "useVendor", c.Vendored, "path", c.AppPath)
 
 	// This should get called when needed
 	c.PackageResolver = func(pkgName string) error {
-		//useVendor := utils.DirExists(filepath.Join(c.AppPath, "vendor"))
-
-		//var getCmd *exec.Cmd
 		utils.Logger.Info("Request for package ", "package", pkgName, "use vendor", c.Vendored)
+		var getCmd *exec.Cmd
 		if c.Vendored {
-			goModCmd := exec.Command("go", "mod", "tidy")
-			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
-			goModCmd.Run()
-			return nil
+			getCmd = exec.Command(c.GoCmd, "mod", "tidy")
+		} else {
+			utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
+			getCmd = exec.Command(c.GoCmd, "get", "-u", pkgName)
+		}
+
+		utils.CmdInit(getCmd, !c.Vendored, c.AppPath)
+		utils.Logger.Info("Go get command ", "exec", getCmd.Path, "dir", getCmd.Dir, "args", getCmd.Args, "env", getCmd.Env, "package", pkgName)
+		output, err := getCmd.CombinedOutput()
+		if err != nil {
+			utils.Logger.Error("Failed to import package", "error", err, "gopath", build.Default.GOPATH, "GO-ROOT", build.Default.GOROOT, "output", string(output))
 		}
 
 		return nil
@@ -278,15 +252,8 @@ func (c *CommandConfig) InitPackageResolver() {
 }
 
 // lookup and set Go related variables
-func (c *CommandConfig) InitGoPathsOld() {
-	utils.Logger.Info("InitGoPaths")
-	// lookup go path
-	c.GoPath = build.Default.GOPATH
-	if c.GoPath == "" {
-		utils.Logger.Fatal("Abort: GOPATH environment variable is not set. " +
-			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
-	}
-
+func (c *CommandConfig) initGoPaths() {
+	utils.Logger.Info("InitGoPaths", "vendored", c.Vendored)
 	// check for go executable
 	var err error
 	c.GoCmd, err = exec.LookPath("go")
@@ -294,50 +261,46 @@ func (c *CommandConfig) InitGoPathsOld() {
 		utils.Logger.Fatal("Go executable not found in PATH.")
 	}
 
+	if c.Vendored {
+		return
+	}
+
+	// lookup go path
+	c.GoPath = build.Default.GOPATH
+	if c.GoPath == "" {
+		utils.Logger.Fatal("Abort: GOPATH environment variable is not set. " +
+			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
+	}
+	return
+	//todo determine if the rest needs to happen
+
+
 	// revel/revel#1004 choose go path relative to current working directory
 
 	// What we want to do is to add the import to the end of the
 	// gopath, and discover which import exists - If none exist this is an error except in the case
 	// where we are dealing with new which is a special case where we will attempt to target the working directory first
-	workingDir, _ := os.Getwd()
-	goPathList := filepath.SplitList(c.GoPath)
-	bestpath := ""
-	for _, path := range goPathList {
-		if c.Index == NEW {
-			// If the GOPATH is part of the working dir this is the most likely target
-			if strings.HasPrefix(workingDir, path) {
-				bestpath = path
-			}
-		} else {
-			if utils.Exists(filepath.Join(path, "src", c.ImportPath)) {
-				c.SrcRoot = path
-				break
+	/*
+		// If source root is empty and this isn't a version then skip it
+		if len(c.SrcRoot) == 0 {
+			if c.Index == NEW {
+				c.SrcRoot = c.New.ImportPath
+			} else {
+				if c.Index != VERSION {
+					utils.Logger.Fatal("Abort: could not create a Revel application outside of GOPATH.")
+				}
+				return
 			}
 		}
-	}
 
-	utils.Logger.Info("Source root", "path", c.SrcRoot, "cwd", workingDir, "gopath", c.GoPath, "bestpath", bestpath)
-	if len(c.SrcRoot) == 0 && len(bestpath) > 0 {
-		c.SrcRoot = bestpath
-	}
+		// set go src path
+		c.SrcRoot = filepath.Join(c.SrcRoot, "src")
 
-	// If source root is empty and this isn't a version then skip it
-	if len(c.SrcRoot) == 0 {
-		if c.Index == NEW {
-			c.SrcRoot = c.New.ImportPath
-		} else {
-			if c.Index != VERSION {
-				utils.Logger.Fatal("Abort: could not create a Revel application outside of GOPATH.")
-			}
-			return
-		}
-	}
+		c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
+		utils.Logger.Info("Set application path", "path", c.AppPath)
 
-	// set go src path
-	c.SrcRoot = filepath.Join(c.SrcRoot, "src")
+	 */
 
-	c.AppPath = filepath.Join(c.SrcRoot, filepath.FromSlash(c.ImportPath))
-	utils.Logger.Info("Set application path", "path", c.AppPath)
 }
 
 // Sets the versions on the command config

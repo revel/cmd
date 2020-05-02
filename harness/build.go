@@ -102,28 +102,8 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		utils.Logger.Fatal("Go executable not found in PATH.")
 	}
 
-	// Detect if deps tool should be used (is there a vendor folder ?)
-	useVendor := utils.DirExists(filepath.Join(paths.BasePath, "vendor"))
-	basePath := paths.BasePath
-	for !useVendor {
-		basePath = filepath.Dir(basePath)
-		found := false
-		// Check to see if we are still in the GOPATH
-		for _, gopath := range filepath.SplitList(build.Default.GOPATH) {
-			if strings.HasPrefix(basePath, gopath) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			break
-		} else {
-			useVendor = utils.DirExists(filepath.Join(basePath, "vendor"))
-		}
-	}
-
-	// Binary path is a combination of BasePath/target/app directory, app's import path and its name.
-	binName := filepath.Join(paths.BasePath, "target", "app", paths.ImportPath, filepath.Base(paths.BasePath))
+	// Binary path is a combination of target/app directory, app's import path and its name.
+	binName := filepath.Join("target", "app", paths.ImportPath, filepath.Base(paths.BasePath))
 
 	// Change binary path for Windows build
 	goos := runtime.GOOS

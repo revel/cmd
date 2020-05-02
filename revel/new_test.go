@@ -18,6 +18,12 @@ func TestNew(t *testing.T) {
 		c := newApp("new-test", model.NEW, nil, a)
 		a.Nil(main.Commands[model.NEW].RunWith(c), "New failed")
 	})
+	t.Run("New-NotVendoredmode", func(t *testing.T) {
+		a := assert.New(t)
+		c := newApp("new-notvendored", model.NEW, nil, a)
+		c.New.NotVendored = true
+		a.Nil(main.Commands[model.NEW].RunWith(c), "New failed")
+	})
 	t.Run("Path", func(t *testing.T) {
 		a := assert.New(t)
 		c := newApp("new/test/a", model.NEW, nil, a)

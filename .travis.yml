@@ -28,10 +28,11 @@ install:
   - 'if [[ "$TRAVIS_BRANCH" == "master" ]]; then export REVEL_BRANCH="master"; fi'
   - 'echo "Travis branch: $TRAVIS_BRANCH, Revel dependency branch: $REVEL_BRANCH"'
   # Since travis already checks out go build the commandline tool (revel)
-  - go get -v github.com/revel/cmd/revel
-  - echo $GOPATH
-  - echo $PATH
+  - mkdir $HOME/GOPATH_PROTECTED
+  - export GOPATH=$HOME/GOPATH_PROTECTED
+  - go build -o $HOME/gopath/bin/revel github.com/revel/cmd/revel
   - pwd
+  - env
 script:
   - go test -v github.com/revel/cmd/revel/...
 
@@ -53,6 +54,12 @@ script:
   - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v -t build/testapp2 -m prod
   - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
   - revel package --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v -m prod
+
+  # Check build works with no-vendor flag
+  - cd $GOPATH
+  - export GO111MODULE=auto
+  - revel new  -a my/testapp2 --no-vendor
+  - revel test -a my/testapp2
 
 matrix:
   allow_failures:

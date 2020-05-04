@@ -6,7 +6,7 @@ package main
 
 import (
 	"strconv"
-
+	"encoding/json"
 	"fmt"
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
@@ -106,7 +106,9 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 		}
 	case 0:
 		// Attempt to set the import path to the current working director.
-		c.Run.ImportPath,_ = os.Getwd()
+		if c.Run.ImportPath == "" {
+			c.Run.ImportPath, _ = os.Getwd()
+		}
 	}
 	c.Index = model.RUN
 	return true
@@ -114,7 +116,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 
 // Returns true if this is an absolute path or a relative gopath
 func runIsImportPath(pathToCheck string) bool {
-	if _, err := build.Import(pathToCheck, "", build.FindOnly);err==nil {
+	if _, err := build.Import(pathToCheck, "", build.FindOnly); err == nil {
 		return true
 	}
 	return filepath.IsAbs(pathToCheck)
@@ -126,7 +128,7 @@ func runApp(c *model.CommandConfig) (err error) {
 		c.Run.Mode = "dev"
 	}
 
-	revel_path, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revel_path, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return utils.NewBuildIfError(err, "Revel paths")
 	}
@@ -157,7 +159,11 @@ func runApp(c *model.CommandConfig) (err error) {
 		utils.Logger.Errorf("Failed to build app: %s", err)
 	}
 	app.Port = revel_path.HTTPPort
-	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, app.Paths.RunMode, c.Verbose)
+	var paths []byte
+	if len(app.PackagePathMap) > 0 {
+		paths, _ = json.Marshal(app.PackagePathMap)
+	}
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))
 	if c.HistoricMode {
 		runMode = revel_path.RunMode
 	}

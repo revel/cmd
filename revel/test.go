@@ -55,6 +55,10 @@ func init() {
 // Called to update the config command with from the older stype
 func updateTestConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.TEST
+	if len(args) == 0 && c.Test.ImportPath != "" {
+		return true
+	}
+
 	// The full test runs
 	// revel test <import path> (run mode) (suite(.function))
 	if len(args) < 1 {
@@ -78,7 +82,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Find and parse app.conf
-	revel_path, err := model.NewRevelPaths(mode, c.ImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revel_path, err := model.NewRevelPaths(mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}
@@ -95,7 +99,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Direct all the output into a file in the test-results directory.
-	file, err := os.OpenFile(filepath.Join(resultPath, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(filepath.Join(resultPath, "app.log"), os.O_CREATE | os.O_WRONLY | os.O_APPEND, 0666)
 	if err != nil {
 		return utils.NewBuildError("Failed to create test result log file: ", "error", err)
 	}
@@ -104,11 +108,16 @@ func testApp(c *model.CommandConfig) (err error) {
 	if reverr != nil {
 		return utils.NewBuildIfError(reverr, "Error building: ")
 	}
-	runMode := fmt.Sprintf(`{"mode":"%s","testModeFlag":true, "specialUseFlag":%v}`, app.Paths.RunMode, c.Verbose)
+	var paths []byte
+	if len(app.PackagePathMap) > 0 {
+		paths, _ = json.Marshal(app.PackagePathMap)
+	}
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))
 	if c.HistoricMode {
 		runMode = app.Paths.RunMode
 	}
 	cmd := app.Cmd(runMode)
+	cmd.Dir = c.AppPath
 
 	cmd.Stderr = io.MultiWriter(cmd.Stderr, file)
 	cmd.Stdout = io.MultiWriter(cmd.Stderr, file)
@@ -225,7 +234,7 @@ func filterTestSuites(suites *[]tests.TestSuiteDesc, suiteArgument string) *[]te
 // in case it hasn't finished starting up yet.
 func getTestsList(baseURL string) (*[]tests.TestSuiteDesc, error) {
 	var (
-		err        error
+		err error
 		resp       *http.Response
 		testSuites []tests.TestSuiteDesc
 	)
@@ -258,7 +267,7 @@ func getTestsList(baseURL string) (*[]tests.TestSuiteDesc, error) {
 func runTestSuites(paths *model.RevelContainer, baseURL, resultPath string, testSuites *[]tests.TestSuiteDesc) (*[]tests.TestSuiteResult, bool) {
 
 	// We can determine the testsuite location by finding the test module and extracting the data from it
-	resultFilePath := filepath.Join(paths.ModulePathMap["testrunner"], "app", "views", "TestRunner/SuiteResult.html")
+	resultFilePath := filepath.Join(paths.ModulePathMap["testrunner"].Path, "app", "views", "TestRunner/SuiteResult.html")
 
 	var (
 		overallSuccess = true

@@ -40,6 +40,9 @@ func init() {
 // Called when unable to parse the command line automatically and assumes an old launch
 func updatePackageConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.PACKAGE
+	if len(args)==0 && c.Package.ImportPath!="" {
+		return true
+	}
 	c.Package.ImportPath = args[0]
 	if len(args) > 1 {
 		c.Package.Mode = args[1]
@@ -58,7 +61,7 @@ func packageApp(c *model.CommandConfig) (err error) {
 	}
 
 	appImportPath := c.ImportPath
-	revel_paths, err := model.NewRevelPaths(mode, appImportPath, "", model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revel_paths, err := model.NewRevelPaths(mode, appImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}

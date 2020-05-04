@@ -81,7 +81,7 @@ func (rl *RevelLogger) SetStackDepth(amount int) MultiLogger {
 // Create a new logger
 func New(ctx ...interface{}) MultiLogger {
 	r := &RevelLogger{Logger: log15.New(ctx...)}
-	r.SetStackDepth(1)
+	r.SetStackDepth(0)
 	return r
 }
 
@@ -99,7 +99,7 @@ func (c callHandler) Log(log *log15.Record) error {
 	ctx := log.Ctx
 	var ctxMap ContextMap
 	if len(ctx) > 0 {
-		ctxMap = make(ContextMap, len(ctx)/2)
+		ctxMap = make(ContextMap, len(ctx) / 2)
 
 		for i := 0; i < len(ctx); i += 2 {
 			v := ctx[i]
@@ -108,8 +108,8 @@ func (c callHandler) Log(log *log15.Record) error {
 				key = fmt.Sprintf("LOGGER_INVALID_KEY %v", v)
 			}
 			var value interface{}
-			if len(ctx) > i+1 {
-				value = ctx[i+1]
+			if len(ctx) > i + 1 {
+				value = ctx[i + 1]
 			} else {
 				value = "LOGGER_VALUE_MISSING"
 			}

@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"github.com/revel/cmd/logger"
+	"strconv"
+	"regexp"
 )
 
 type (
@@ -42,4 +44,61 @@ func NewBuildIfError(err error, message string, args ...interface{}) (b error) {
 // BuildError implements Error() string
 func (b *BuildError) Error() string {
 	return fmt.Sprint(b.Message, b.Args)
+}
+
+// Parse the output of the "go build" command.
+// Return a detailed Error.
+func NewCompileError(importPath, errorLink string, error error) *SourceError {
+	// Get the stack from the error
+
+	errorMatch := regexp.MustCompile(`(?m)^([^:#]+):(\d+):(\d+:)? (.*)$`).
+		FindSubmatch([]byte(error.Error()))
+	if errorMatch == nil {
+		errorMatch = regexp.MustCompile(`(?m)^(.*?):(\d+):\s(.*?)$`).FindSubmatch([]byte(error.Error()))
+
+		if errorMatch == nil {
+			Logger.Error("Failed to parse build errors", "error", error)
+			return &SourceError{
+				SourceType:  "Go code",
+				Title:       "Go Compilation Error",
+				Description: "See console for build error.",
+			}
+		}
+
+		errorMatch = append(errorMatch, errorMatch[3])
+
+		Logger.Error("Build errors", "errors", error)
+	}
+
+
+	// Read the source for the offending file.
+	var (
+		relFilename = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
+		absFilename = relFilename
+		line, _ = strconv.Atoi(string(errorMatch[2]))
+		description = string(errorMatch[4])
+		compileError = &SourceError{
+			SourceType:  "Go code",
+			Title:       "Go Compilation Error",
+			Path:        relFilename,
+			Description: description,
+			Line:        line,
+		}
+	)
+
+	// errorLink := paths.Config.StringDefault("error.link", "")
+
+	if errorLink != "" {
+		compileError.SetLink(errorLink)
+	}
+
+	fileStr, err := ReadLines(absFilename)
+	if err != nil {
+		compileError.MetaError = absFilename + ": " + err.Error()
+		Logger.Info("Unable to readlines " + compileError.MetaError, "error", err)
+		return compileError
+	}
+
+	compileError.SourceLines = fileStr
+	return compileError
 }

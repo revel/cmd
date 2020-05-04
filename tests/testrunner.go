@@ -107,7 +107,7 @@ func describeSuite(testSuite interface{}) TestSuiteDesc {
 }
 
 // errorSummary gets an error and returns its summary in human readable format.
-func errorSummary(err *utils.Error) (message string) {
+func errorSummary(err *utils.SourceError) (message string) {
 	expectedPrefix := "(expected)"
 	actualPrefix := "(actual)"
 	errDesc := err.Description

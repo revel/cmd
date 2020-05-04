@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	"sync"
 
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
@@ -21,15 +22,16 @@ import (
 // App contains the configuration for running a Revel app.  (Not for the app itself)
 // Its only purpose is constructing the command to execute.
 type App struct {
-	BinaryPath string // Path to the app executable
-	Port       int    // Port to pass as a command line argument.
-	cmd        AppCmd // The last cmd returned.
-	Paths      *model.RevelContainer
+	BinaryPath     string            // Path to the app executable
+	Port           int               // Port to pass as a command line argument.
+	cmd            AppCmd            // The last cmd returned.
+	PackagePathMap map[string]string // Package to directory path map
+	Paths          *model.RevelContainer
 }
 
 // NewApp returns app instance with binary path in it
-func NewApp(binPath string, paths *model.RevelContainer) *App {
-	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort}
+func NewApp(binPath string, paths *model.RevelContainer, packagePathMap map[string]string) *App {
+	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort, PackagePathMap:packagePathMap}
 }
 
 // Cmd returns a command to run the app server using the current configuration.
@@ -63,8 +65,8 @@ func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelConta
 func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c, &bytes.Buffer{}}
 	cmd.Stdout = listeningWriter
+	utils.CmdInit(cmd.Cmd, !c.Vendored, c.AppPath)
 	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
-	utils.CmdInit(cmd.Cmd, c.AppPath)
 	if err := cmd.Cmd.Start(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)
 	}
@@ -72,9 +74,9 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	select {
 	case exitState := <-cmd.waitChan():
 		fmt.Println("Startup failure view previous messages, \n Proxy is listening :", c.Run.Port)
-		err := utils.NewError("","Revel Run Error", "starting your application there was an exception. See terminal output, " + exitState,"")
-		// TODO pretiffy command line output
-		// err.MetaError = listeningWriter.getLastOutput()
+		err := utils.NewError("", "Revel Run Error", "starting your application there was an exception. See terminal output, " + exitState, "")
+	// TODO pretiffy command line output
+	// err.MetaError = listeningWriter.getLastOutput()
 		return err
 
 	case <-time.After(60 * time.Second):
@@ -106,9 +108,29 @@ func (cmd AppCmd) Kill() {
 		// server before this can, this check will ensure the process is still running
 		if _, err := os.FindProcess(int(cmd.Process.Pid));err!=nil {
 			// Server has already exited
-			utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
+			utils.Logger.Info("Server not running revel server pid", "pid", cmd.Process.Pid)
 			return
 		}
+
+		// Wait for the shutdown channel
+		waitMutex := &sync.WaitGroup{}
+		waitMutex.Add(1)
+		ch := make(chan bool, 1)
+		go func() {
+			waitMutex.Done()
+			s, err := cmd.Process.Wait()
+			defer func() {
+				ch <- true
+			}()
+			if err != nil {
+				utils.Logger.Info("Wait failed for process ", "error", err)
+			}
+			if s != nil {
+				utils.Logger.Info("Revel App exited", "state", s.String())
+			}
+		}()
+		// Wait for the channel to begin waiting
+		waitMutex.Wait()
 
 		// Send an interrupt signal to allow for a graceful shutdown
 		utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
@@ -128,20 +150,6 @@ func (cmd AppCmd) Kill() {
 			return
 		}
 
-		// Wait for the shutdown
-		ch := make(chan bool, 1)
-		go func() {
-			s, err := cmd.Process.Wait()
-			defer func() {
-				ch <- true
-			}()
-			if err != nil {
-				utils.Logger.Info("Wait failed for process ", "error", err)
-			}
-			if s != nil {
-				utils.Logger.Info("Revel App exited", "state", s.String())
-			}
-		}()
 
 		// Use a timer to ensure that the process exits
 		utils.Logger.Info("Waiting to exit")
@@ -149,7 +157,7 @@ func (cmd AppCmd) Kill() {
 		case <-ch:
 			return
 		case <-time.After(60 * time.Second):
-			// Kill the process
+		// Kill the process
 			utils.Logger.Error(
 				"Revel app failed to exit in 60 seconds - killing.",
 				"processid", cmd.Process.Pid,
@@ -198,7 +206,7 @@ func (w *startupListeningWriter) Write(p []byte) (int, error) {
 			w.notifyReady = nil
 		}
 	}
-	if w.notifyReady!=nil {
+	if w.notifyReady != nil {
 		w.buffer.Write(p)
 	}
 	return w.dest.Write(p)

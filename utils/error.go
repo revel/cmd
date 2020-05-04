@@ -8,7 +8,7 @@ import (
 
 // The error is a wrapper for the
 type (
-	Error struct {
+	SourceError struct {
 		SourceType               string   // The type of source that failed to build.
 		Title, Path, Description string   // Description of the error, as presented to the user.
 		Line, Column             int      // Where the error was encountered.
@@ -24,8 +24,8 @@ type (
 	}
 )
 // Return a new error object
-func NewError(source, title,path,description string) *Error {
-	return &Error {
+func NewError(source, title, path, description string) *SourceError {
+	return &SourceError{
 		SourceType:source,
 		Title:title,
 		Path:path,
@@ -34,7 +34,7 @@ func NewError(source, title,path,description string) *Error {
 }
 
 // Creates a link based on the configuration setting "errors.link"
-func (e *Error) SetLink(errorLink string) {
+func (e *SourceError) SetLink(errorLink string) {
 	errorLink = strings.Replace(errorLink, "{{Path}}", e.Path, -1)
 	errorLink = strings.Replace(errorLink, "{{Line}}", strconv.Itoa(e.Line), -1)
 
@@ -44,7 +44,7 @@ func (e *Error) SetLink(errorLink string) {
 // Error method constructs a plaintext version of the error, taking
 // account that fields are optionally set. Returns e.g. Compilation Error
 // (in views/header.html:51): expected right delim in end; got "}"
-func (e *Error) Error() string {
+func (e *SourceError) Error() string {
 	if e == nil {
 		panic("opps")
 	}
@@ -69,7 +69,7 @@ func (e *Error) Error() string {
 
 // ContextSource method returns a snippet of the source around
 // where the error occurred.
-func (e *Error) ContextSource() []SourceLine {
+func (e *SourceError) ContextSource() []SourceLine {
 	if e.SourceLines == nil {
 		return nil
 	}
@@ -82,7 +82,7 @@ func (e *Error) ContextSource() []SourceLine {
 		end = len(e.SourceLines)
 	}
 
-	lines := make([]SourceLine, end-start)
+	lines := make([]SourceLine, end - start)
 	for i, src := range e.SourceLines[start:end] {
 		fileLine := start + i + 1
 		lines[i] = SourceLine{src, fileLine, fileLine == e.Line}

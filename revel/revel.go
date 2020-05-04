@@ -71,27 +71,30 @@ func main() {
 	wd, _ := os.Getwd()
 
 	utils.InitLogger(wd, logger.LvlError)
-	parser := flags.NewParser(c, flags.HelpFlag|flags.PassDoubleDash)
-	if len(os.Args)<2 {
+	parser := flags.NewParser(c, flags.HelpFlag | flags.PassDoubleDash)
+	if len(os.Args) < 2 {
 		parser.WriteHelp(os.Stdout)
 		os.Exit(1)
 	}
 
 	if err := ParseArgs(c, parser, os.Args[1:]); err != nil {
-		fmt.Fprint(os.Stderr, err.Error() +"\n")
+		fmt.Fprint(os.Stderr, err.Error() + "\n")
 		os.Exit(1)
 	}
 
 	// Switch based on the verbose flag
-	if len(c.Verbose)>1 {
+	if len(c.Verbose) > 1 {
 		utils.InitLogger(wd, logger.LvlDebug)
-	} else if len(c.Verbose)>0 {
+	} else if len(c.Verbose) > 0 {
 		utils.InitLogger(wd, logger.LvlInfo)
 	} else {
 		utils.InitLogger(wd, logger.LvlWarn)
 	}
 
-	if err := c.UpdateImportPath();err!=nil {
+	// Setup package resolver
+	c.InitPackageResolver()
+
+	if err := c.UpdateImportPath(); err != nil {
 		utils.Logger.Error(err.Error())
 		parser.WriteHelp(os.Stdout)
 		os.Exit(1)
@@ -100,14 +103,8 @@ func main() {
 	command := Commands[c.Index]
 	println("Revel executing:", command.Short)
 
-	// Setting go paths
-	c.InitGoPaths()
-
-	// Setup package resolver
-	c.InitPackageResolver()
-
 	if err := command.RunWith(c); err != nil {
-		utils.Logger.Error("Unable to execute","error",err)
+		utils.Logger.Error("Unable to execute", "error", err)
 		os.Exit(1)
 	}
 }
@@ -142,13 +139,10 @@ func ParseArgs(c *model.CommandConfig, parser *flags.Parser, args []string) (err
 		}
 	}
 
-	if len(extraArgs) > 0 {
-		utils.Logger.Info("Found additional arguements, setting them")
-		if !Commands[c.Index].UpdateConfig(c, extraArgs) {
-			buffer := &bytes.Buffer{}
-			parser.WriteHelp(buffer)
-			err = fmt.Errorf("Invalid command line arguements %v\n%s", extraArgs, buffer.String())
-		}
+	if !Commands[c.Index].UpdateConfig(c, extraArgs) {
+		buffer := &bytes.Buffer{}
+		parser.WriteHelp(buffer)
+		err = fmt.Errorf("Invalid command line arguements %v\n%s", extraArgs, buffer.String())
 	}
 
 	return

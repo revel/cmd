@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go/build"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"fmt"
 )
 
 // Test that the event handler can be attached and it dispatches the event received
@@ -43,10 +45,26 @@ func setup(suffix string, a *assert.Assertions) (string) {
 
 // Create a new app for the name
 func newApp(name string, command model.COMMAND, precall func(c *model.CommandConfig), a *assert.Assertions) *model.CommandConfig {
-	c := &model.CommandConfig{}
+	c := &model.CommandConfig{Vendored:true}
 	switch command {
 	case model.NEW:
 		c.New.ImportPath = name
+		c.New.Callback=func() error {
+			// On callback we will invoke a specific branch of revel so that it works
+
+			goModCmd := exec.Command("go", "mod", "tidy")
+			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
+			getOutput, _ := goModCmd.CombinedOutput()
+			fmt.Printf("Calling go mod tidy %s",string(getOutput))
+
+			goModCmd = exec.Command("go", "mod", "edit", "-replace=github.com/revel/revel=github.com/revel/revel@develop")
+			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
+			getOutput, _ = goModCmd.CombinedOutput()
+			fmt.Printf("Calling go mod edit %v",string(getOutput))
+
+
+			return nil
+		}
 	case model.BUILD:
 		c.Build.ImportPath = name
 	case model.TEST:
@@ -68,7 +86,7 @@ func newApp(name string, command model.COMMAND, precall func(c *model.CommandCon
 	if c.UpdateImportPath()!=nil {
 		a.Fail("Unable to update import path")
 	}
-	c.InitGoPaths()
+
 	c.InitPackageResolver()
 	return c
 }

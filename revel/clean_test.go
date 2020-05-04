@@ -22,12 +22,12 @@ func TestClean(t *testing.T) {
 		main.Commands[model.NEW].RunWith(c)
 		c.Index = model.TEST
 		main.Commands[model.TEST].RunWith(c)
-		a.True(utils.Exists(filepath.Join(gopath, "src", "clean-test", "app", "tmp", "main.go")),
-			"Missing main from path "+filepath.Join(gopath, "src", "clean-test", "app", "tmp", "main.go"))
+		a.True(utils.Exists(filepath.Join(gopath, "clean-test", "app", "tmp", "main.go")),
+			"Missing main from path "+filepath.Join(gopath, "clean-test", "app", "tmp", "main.go"))
 		c.Clean.ImportPath = c.ImportPath
 		a.Nil(main.Commands[model.CLEAN].RunWith(c), "Failed to run clean-test")
-		a.False(utils.Exists(filepath.Join(gopath, "src", "clean-test", "app", "tmp", "main.go")),
-			"Did not remove main from path "+filepath.Join(gopath, "src", "clean-test", "app", "tmp", "main.go"))
+		a.False(utils.Exists(filepath.Join(gopath, "clean-test", "app", "tmp", "main.go")),
+			"Did not remove main from path "+filepath.Join(gopath, "clean-test", "app", "tmp", "main.go"))
 	})
 	if !t.Failed() {
 		if err := os.RemoveAll(gopath); err != nil {

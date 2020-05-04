@@ -4,15 +4,15 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
-	"go/build"
+	"errors"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"golang.org/x/tools/go/packages"
 )
 
 // DirExists returns true if the given path exists and is a directory.
@@ -109,7 +109,7 @@ func GenerateTemplate(filename, templateSource string, args map[string]interface
 func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 	tmpl, err := template.ParseFiles(srcPath)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to parse template "+srcPath)
+		return NewBuildIfError(err, "Failed to parse template " + srcPath)
 	}
 
 	f, err := os.Create(destPath)
@@ -119,12 +119,12 @@ func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 
 	err = tmpl.Execute(f, data)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to Render template "+srcPath)
+		return NewBuildIfError(err, "Failed to Render template " + srcPath)
 	}
 
 	err = f.Close()
 	if err != nil {
-		return NewBuildIfError(err, "Failed to close file stream "+destPath)
+		return NewBuildIfError(err, "Failed to close file stream " + destPath)
 	}
 	return
 }
@@ -133,12 +133,12 @@ func RenderTemplate(destPath, srcPath string, data interface{}) (err error) {
 func RenderTemplateToStream(output io.Writer, srcPath []string, data interface{}) (err error) {
 	tmpl, err := template.ParseFiles(srcPath...)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to parse template "+srcPath[0])
+		return NewBuildIfError(err, "Failed to parse template " + srcPath[0])
 	}
 
 	err = tmpl.Execute(output, data)
 	if err != nil {
-		return NewBuildIfError(err, "Failed to render template "+srcPath[0])
+		return NewBuildIfError(err, "Failed to render template " + srcPath[0])
 	}
 	return
 }
@@ -150,7 +150,7 @@ func MustChmod(filename string, mode os.FileMode) {
 
 // Called if panic
 func PanicOnError(err error, msg string) {
-	if revErr, ok := err.(*Error); (ok && revErr != nil) || (!ok && err != nil) {
+	if revErr, ok := err.(*SourceError); (ok && revErr != nil) || (!ok && err != nil) {
 		Logger.Panicf("Abort: %s: %s %s", msg, revErr, err)
 	}
 }
@@ -181,7 +181,7 @@ func CopyDir(destDir, srcDir string, data map[string]interface{}) error {
 		if info.IsDir() {
 			err := os.MkdirAll(filepath.Join(destDir, relSrcPath), 0777)
 			if !os.IsExist(err) {
-				return NewBuildIfError(err, "Failed to create directory", "path", destDir+"/"+relSrcPath)
+				return NewBuildIfError(err, "Failed to create directory", "path", destDir + "/" + relSrcPath)
 			}
 			return nil
 		}
@@ -189,7 +189,7 @@ func CopyDir(destDir, srcDir string, data map[string]interface{}) error {
 		// If this file ends in ".template", render it as a template.
 		if strings.HasSuffix(relSrcPath, ".template") {
 
-			return RenderTemplate(destPath[:len(destPath)-len(".template")], srcPath, data)
+			return RenderTemplate(destPath[:len(destPath) - len(".template")], srcPath, data)
 		}
 
 		// Else, just copy it over.
@@ -218,7 +218,7 @@ func fsWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 
 		path = filepath.Join(linkName, name)
 
-		if err == nil && info.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if err == nil && info.Mode() & os.ModeSymlink == os.ModeSymlink {
 			var symlinkPath string
 			symlinkPath, err = filepath.EvalSymlinks(path)
 			if err != nil {
@@ -320,49 +320,71 @@ func Empty(dirname string) bool {
 }
 
 // Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
-func FindSrcPaths(appImportPath, revelImportPath string, packageResolver func(pkgName string) error) (appSourcePath, revelSourcePath string, err error) {
-	var (
-		gopaths = filepath.SplitList(build.Default.GOPATH)
-		goroot  = build.Default.GOROOT
-	)
-
-	if len(gopaths) == 0 {
-		err = errors.New("GOPATH environment variable is not set. " +
-			"Please refer to http://golang.org/doc/code.html to configure your Go environment.")
-		return
-	}
-
-	if ContainsString(gopaths, goroot) {
-		err = fmt.Errorf("GOPATH (%s) must not include your GOROOT (%s). "+
-			"Please refer to http://golang.org/doc/code.html to configure your Go environment. ",
-			build.Default.GOPATH, goroot)
-		return
-
-	}
-
-	appPkgDir := ""
-	appPkgSrcDir := ""
-	if len(appImportPath)>0 {
-		Logger.Info("Seeking app package","app",appImportPath)
-		appPkg, err := build.Import(appImportPath, "", build.FindOnly)
-		if err != nil {
-			err = fmt.Errorf("Failed to import " + appImportPath + " with error %s", err.Error())
-			return "","",err
+func FindSrcPaths(appPath string, packageList []string, packageResolver func(pkgName string) error) (sourcePathsmap map[string]string, err error) {
+	sourcePathsmap, missingList, err := findSrcPaths(appPath, packageList)
+	if err != nil && packageResolver != nil || len(missingList)>0 {
+		Logger.Info("Failed to find package, attempting to call resolver for missing packages","missing packages",missingList)
+		for _, item := range missingList {
+			if err = packageResolver(item); err != nil {
+				return
+			}
 		}
-		appPkgDir,appPkgSrcDir =appPkg.Dir, appPkg.SrcRoot
+		sourcePathsmap, missingList, err = findSrcPaths(appPath, packageList)
 	}
-	Logger.Info("Seeking remote package","using",appImportPath, "remote",revelImportPath)
-	revelPkg, err := build.Default.Import(revelImportPath, appPkgDir, build.FindOnly)
-	if err != nil {
-		Logger.Info("Resolved called Seeking remote package","using",appImportPath, "remote",revelImportPath)
-		packageResolver(revelImportPath)
-		revelPkg, err = build.Import(revelImportPath, appPkgDir, build.FindOnly)
-		if err != nil {
-			err = fmt.Errorf("Failed to find Revel with error: %s", err.Error())
-			return
+	if err != nil && len(missingList) > 0 {
+		for _, missing := range missingList {
+			Logger.Error("Unable to import this package", "package", missing)
 		}
 	}
 
-	revelSourcePath, appSourcePath = revelPkg.Dir[:len(revelPkg.Dir)-len(revelImportPath)], appPkgSrcDir
+	return
+}
+
+var NO_APP_FOUND = errors.New("No app found")
+var NO_REVEL_FOUND = errors.New("No revel found")
+
+// Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
+func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[string]string, missingList[] string, err error) {
+	// Use packages to fetch
+	// by not specifying env, we will use the default env
+	config := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles,
+		Dir:appPath,
+	}
+	sourcePathsmap = map[string]string{}
+	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"),config.Env)
+
+	pkgs, err := packages.Load(config, packagesList...)
+	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"),config.Env)
+	Logger.Info("Loaded packages ", "len results", len(pkgs), "error", err, "basedir", appPath)
+	for _, packageName := range packagesList {
+		 found := false
+		log := Logger.New("seeking", packageName)
+		for _, pck := range pkgs {
+			log.Info("Found package", "package", pck.ID)
+			if pck.ID == packageName {
+				if pck.Errors != nil && len(pck.Errors) > 0 {
+					log.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID, "errors", pck.Errors)
+					continue
+
+				}
+				//a,_ := pck.MarshalJSON()
+				log.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID, "apppath", appPath)
+				if len(pck.GoFiles)>0 {
+					sourcePathsmap[packageName] = filepath.Dir(pck.GoFiles[0])
+					found = true
+				}
+			}
+		}
+		if !found {
+			if packageName == "github.com/revel/revel" {
+				err = NO_REVEL_FOUND
+			} else {
+				err = NO_APP_FOUND
+			}
+			missingList = append(missingList, packageName)
+		}
+	}
+
 	return
 }

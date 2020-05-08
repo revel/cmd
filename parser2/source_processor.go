@@ -1,8 +1,6 @@
 package parser2
 
 import (
-	"go/ast"
-	"go/token"
 	"github.com/revel/cmd/model"
 	"golang.org/x/tools/go/packages"
 	"github.com/revel/cmd/utils"
@@ -74,7 +72,7 @@ func (s *SourceProcessor) parse() (compileError error) {
 	return
 }
 func (s *SourceProcessor) addPackages() (err error) {
-	allPackages := []string{s.revelContainer.ImportPath + "/...", model.RevelImportPath}
+	allPackages := []string{s.revelContainer.ImportPath + "/...", model.RevelImportPath + "/..."}
 	for _, module := range s.revelContainer.ModulePathMap {
 		allPackages = append(allPackages, module.ImportPath + "/...") // +"/app/controllers/...")
 	}
@@ -105,6 +103,9 @@ func (s *SourceProcessor) addPackages() (err error) {
 	s.log.Info("Loaded packages ", "len results", len(s.packageList), "error", err)
 	return
 }
+
+// This function is used to populate a map so that we can lookup controller embedded types in order to determine
+// if a Struct inherits from from revel.Controller
 func (s *SourceProcessor) addImportMap() (err error) {
 	s.importMap = map[string]string{}
 	s.packageMap = map[string]string{}
@@ -119,35 +120,7 @@ func (s *SourceProcessor) addImportMap() (err error) {
 			}
 		}
 		for _, tree := range p.Syntax {
-			for _, decl := range tree.Decls {
-				genDecl, ok := decl.(*ast.GenDecl)
-				if !ok {
-					continue
-				}
-
-				if genDecl.Tok == token.IMPORT {
-					for _, spec := range genDecl.Specs {
-						importSpec := spec.(*ast.ImportSpec)
-						//fmt.Printf("*** import specification %#v\n", importSpec)
-						var pkgAlias string
-						if importSpec.Name != nil {
-							pkgAlias = importSpec.Name.Name
-							if pkgAlias == "_" {
-								continue
-							}
-						}
-						quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
-						fullPath := quotedPath[1 : len(quotedPath) - 1] // Remove the quotes
-						if pkgAlias == "" {
-							pkgAlias = fullPath
-							if index := strings.LastIndex(pkgAlias, "/"); index > 0 {
-								pkgAlias = pkgAlias[index + 1:]
-							}
-						}
-						s.importMap[pkgAlias] = fullPath
-					}
-				}
-			}
+			s.importMap[tree.Name.Name] = p.PkgPath
 		}
 	}
 	return
@@ -165,53 +138,3 @@ func (s *SourceProcessor) addSourceInfo() (err error) {
 	}
 	return
 }
-
-// Add imports to the map from the source dir
-//func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
-//	genDecl, ok := decl.(*ast.GenDecl)
-//	if !ok {
-//		return
-//	}
-//
-//	if genDecl.Tok != token.IMPORT {
-//		return
-//	}
-//
-//	for _, spec := range genDecl.Specs {
-//		importSpec := spec.(*ast.ImportSpec)
-//		var pkgAlias string
-//		if importSpec.Name != nil {
-//			pkgAlias = importSpec.Name.Name
-//			if pkgAlias == "_" {
-//				continue
-//			}
-//		}
-//		quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
-//		fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
-//
-//		// If the package was not aliased (common case), we have to import it
-//		// to see what the package name is.
-//		// TODO: Can improve performance here a lot:
-//		// 1. Do not import everything over and over again.  Keep a cache.
-//		// 2. Exempt the standard library; their directories always match the package name.
-//		// 3. Can use build.FindOnly and then use parser.ParseDir with mode PackageClauseOnly
-//		if pkgAlias == "" {
-//
-//			utils.Logger.Debug("Reading from build", "path", fullPath, "srcPath", srcDir, "gopath", build.Default.GOPATH)
-//			pkg, err := build.Import(fullPath, srcDir, 0)
-//			if err != nil {
-//				// We expect this to happen for apps using reverse routing (since we
-//				// have not yet generated the routes).  Don't log that.
-//				if !strings.HasSuffix(fullPath, "/app/routes") {
-//					utils.Logger.Warn("Could not find import:", "path", fullPath, "srcPath", srcDir, "error", err)
-//				}
-//				continue
-//			} else {
-//				utils.Logger.Debug("Found package in dir", "dir", pkg.Dir, "name", pkg.ImportPath)
-//			}
-//			pkgAlias = pkg.Name
-//		}
-//
-//		imports[pkgAlias] = fullPath
-//	}
-//}

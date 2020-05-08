@@ -57,7 +57,6 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 
 			// Look through the embedded types to see if the current type is among them.
 			for _, embeddedType := range spec.EmbeddedTypes {
-
 				// If so, add this type's simple name to the nodeQueue, and its spec to
 				// the filtered list.
 				if typeSimpleName == embeddedType.String() {
@@ -111,6 +110,7 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 // ControllerSpecs returns the all the controllers that embeds
 // `revel.Controller`
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
+	utils.Logger.Infof("Scanning controller specifications for types ","typePath",RevelImportPath + ".Controller", "speclen",len(s.controllerSpecs))
 	if s.controllerSpecs == nil {
 		s.controllerSpecs = s.TypesThatEmbed(RevelImportPath + ".Controller", "controllers")
 	}

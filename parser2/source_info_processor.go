@@ -282,6 +282,7 @@ func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec, p *packages.
 		ImportPath:  p.PkgPath,
 		PackageName: p.Name,
 	}
+	log := s.sourceProcessor.log.New("file", p.Fset.Position(spec.Pos()).Filename,"position", p.Fset.Position(spec.Pos()).Line)
 	for _, field := range structType.Fields.List {
 		// If field.Names is set, it's not an embedded type.
 		if field.Names != nil {
@@ -330,7 +331,7 @@ func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec, p *packages.
 		} else {
 			var ok bool
 			if importPath, ok = s.sourceProcessor.importMap[pkgName]; !ok {
-				s.sourceProcessor.log.Error("Error: Failed to find import path for ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap)
+				log.Error("Error: Failed to find import path for ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap, "usedin", )
 				continue
 			}
 		}

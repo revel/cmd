@@ -174,8 +174,10 @@ func (c *CommandConfig) initAppFolder() (err error) {
 
 	// Use app folder to read the go.mod if it exists and extract the package information
 	goModFile := filepath.Join(appFolder, "go.mod")
+	utils.Logger.Info("Checking gomod, extracting from file", "path", goModFile,"exists", utils.Exists(goModFile))
 	if utils.Exists(goModFile) {
 		c.Vendored = true
+		utils.Logger.Info("Found go mod, extracting from file", "path", goModFile)
 		file, err := ioutil.ReadFile(goModFile)
 		if err != nil {
 			return err
@@ -220,7 +222,7 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		c.AppPath = appFolder
 	}
 
-	utils.Logger.Info("Set application path", "path", c.AppPath)
+	utils.Logger.Info("Set application path", "path", c.AppPath, "vendored",c.Vendored, "importpath",c.ImportPath)
 	return nil
 }
 

@@ -106,7 +106,7 @@ func (cmd AppCmd) Kill() {
 	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
 		// Windows appears to send the kill to all threads, shutting down the
 		// server before this can, this check will ensure the process is still running
-		if _, err := os.FindProcess(int(cmd.Process.Pid));err!=nil {
+		if _, err := os.FindProcess(int(cmd.Process.Pid)); err != nil {
 			// Server has already exited
 			utils.Logger.Info("Server not running revel server pid", "pid", cmd.Process.Pid)
 			return
@@ -143,9 +143,9 @@ func (cmd AppCmd) Kill() {
 		}
 
 		if err != nil {
-			utils.Logger.Error(
-				"Revel app failed to kill process.",
-				"processid", cmd.Process.Pid,"error",err,
+			utils.Logger.Info(
+				"Revel app already exited.",
+				"processid", cmd.Process.Pid, "error", err,
 				"killerror", cmd.Process.Kill())
 			return
 		}

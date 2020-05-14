@@ -43,6 +43,7 @@ func NewSourceProcessor(revelContainer *model.RevelContainer) *SourceProcessor {
 	s.sourceInfoProcessor = NewSourceInfoProcessor(s)
 	return s
 }
+
 func (s *SourceProcessor) parse() (compileError error) {
 	if compileError = s.addPackages(); compileError != nil {
 		return
@@ -71,11 +72,15 @@ func (s *SourceProcessor) parse() (compileError error) {
 
 	return
 }
+
+// Using the packages.Load function load all the packages and type specifications (forces compile).
+// this sets the SourceProcessor.packageList         []*packages.Package
 func (s *SourceProcessor) addPackages() (err error) {
 	allPackages := []string{s.revelContainer.ImportPath + "/...", model.RevelImportPath + "/..."}
 	for _, module := range s.revelContainer.ModulePathMap {
 		allPackages = append(allPackages, module.ImportPath + "/...") // +"/app/controllers/...")
 	}
+	s.log.Info("Reading packages", "packageList", allPackages)
 	//allPackages = []string{s.revelContainer.ImportPath + "/..."} //+"/app/controllers/..."}
 
 	config := &packages.Config{

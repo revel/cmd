@@ -11,9 +11,7 @@ import (
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"go/build"
 	"os"
-	"path/filepath"
 )
 
 var cmdRun = &Command{
@@ -116,10 +114,7 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 
 // Returns true if this is an absolute path or a relative gopath
 func runIsImportPath(pathToCheck string) bool {
-	if _, err := build.Import(pathToCheck, "", build.FindOnly); err == nil {
-		return true
-	}
-	return filepath.IsAbs(pathToCheck)
+	return utils.DirExists(pathToCheck)
 }
 
 // Called to run the app

@@ -119,9 +119,7 @@ func (s *SourceProcessor) addImportMap() (err error) {
 		if len(p.Errors) > 0 {
 			// Generate a compile error
 			for _, e := range p.Errors {
-				if !strings.Contains(e.Msg, "fsnotify") {
-					err = utils.NewCompileError("", "", e)
-				}
+				s.log.Info("While reading packages encountered import error ignoring ", "PkgPath", p.PkgPath, "error", e)
 			}
 		}
 		for _, tree := range p.Syntax {

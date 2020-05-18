@@ -46,9 +46,11 @@ func NewSourceProcessor(revelContainer *model.RevelContainer) *SourceProcessor {
 }
 
 func (s *SourceProcessor) parse() (compileError error) {
+	print("Parsing packages, (may require download if not cached)...")
 	if compileError = s.addPackages(); compileError != nil {
 		return
 	}
+	println(" Completed")
 	if compileError = s.addImportMap(); compileError != nil {
 		return
 	}

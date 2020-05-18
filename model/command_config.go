@@ -236,6 +236,7 @@ func (c *CommandConfig) InitPackageResolver() {
 		utils.Logger.Info("Request for package ", "package", pkgName, "use vendor", c.Vendored)
 		var getCmd *exec.Cmd
 		if c.Vendored {
+			println("Downloading related packages")
 			getCmd = exec.Command(c.GoCmd, "mod", "tidy")
 		} else {
 			utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
@@ -245,6 +246,7 @@ func (c *CommandConfig) InitPackageResolver() {
 		utils.CmdInit(getCmd, !c.Vendored, c.AppPath)
 		utils.Logger.Info("Go get command ", "exec", getCmd.Path, "dir", getCmd.Dir, "args", getCmd.Args, "env", getCmd.Env, "package", pkgName)
 		output, err := getCmd.CombinedOutput()
+		println("Downloading related packages completed")
 		if err != nil {
 			utils.Logger.Error("Failed to import package", "error", err, "gopath", build.Default.GOPATH, "GO-ROOT", build.Default.GOROOT, "output", string(output))
 		}

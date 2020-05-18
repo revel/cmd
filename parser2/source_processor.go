@@ -4,10 +4,15 @@ import (
 	"github.com/revel/cmd/model"
 	"golang.org/x/tools/go/packages"
 	"github.com/revel/cmd/utils"
-	"errors"
-
+	"go/parser"
 	"strings"
 	"github.com/revel/cmd/logger"
+	"os"
+	"path/filepath"
+	"go/ast"
+	"go/token"
+	"go/scanner"
+
 )
 
 type (
@@ -31,10 +36,6 @@ func ProcessSource(revelContainer *model.RevelContainer) (sourceInfo *model.Sour
 		processor.log.Infof("From parsers : Structures:%d InitImports:%d ValidationKeys:%d %v", len(sourceInfo.StructSpecs), len(sourceInfo.InitImportPaths), len(sourceInfo.ValidationKeys), sourceInfo.PackageMap)
 	}
 
-	if false {
-		compileError = errors.New("Incompleted")
-		utils.Logger.Panic("Not implemented")
-	}
 	return
 }
 
@@ -54,6 +55,7 @@ func (s *SourceProcessor) parse() (compileError error) {
 	if compileError = s.addSourceInfo(); compileError != nil {
 		return
 	}
+
 	s.sourceInfo.PackageMap = map[string]string{}
 	getImportFromMap := func(packagePath string) string {
 		for path := range s.packageMap {
@@ -76,7 +78,7 @@ func (s *SourceProcessor) parse() (compileError error) {
 // Using the packages.Load function load all the packages and type specifications (forces compile).
 // this sets the SourceProcessor.packageList         []*packages.Package
 func (s *SourceProcessor) addPackages() (err error) {
-	allPackages := []string{s.revelContainer.ImportPath + "/...", model.RevelImportPath + "/..."}
+	allPackages := []string{model.RevelImportPath + "/..."}
 	for _, module := range s.revelContainer.ModulePathMap {
 		allPackages = append(allPackages, module.ImportPath + "/...") // +"/app/controllers/...")
 	}
@@ -105,8 +107,111 @@ func (s *SourceProcessor) addPackages() (err error) {
 		Dir:s.revelContainer.AppPath,
 	}
 	s.packageList, err = packages.Load(config, allPackages...)
-	s.log.Info("Loaded packages ", "len results", len(s.packageList), "error", err)
+	s.log.Info("Loaded modules ", "len results", len(s.packageList), "error", err)
+
+
+	// Now process the files in the aap source folder	s.revelContainer.ImportPath + "/...",
+	err = utils.Walk(s.revelContainer.AppPath, s.processPath)
+	s.log.Info("Loaded apps and modules ", "len results", len(s.packageList), "error", err)
 	return
+}
+
+// This callback is used to build the packages for the "app" package. This allows us to
+// parse the source files without doing a full compile on them
+// This callback only processes folders, so any files passed to this will return a nil
+func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		s.log.Error("Error scanning app source:", "error", err)
+		return nil
+	}
+
+	// Ignore files and folders not marked tmp (since those are generated)
+	if !info.IsDir() || info.Name() == "tmp" {
+		return nil
+	}
+
+	// Real work for processing the folder
+	pkgImportPath := s.revelContainer.ImportPath
+	appPath := s.revelContainer.BasePath
+	if appPath != path {
+		pkgImportPath = s.revelContainer.ImportPath + "/" + filepath.ToSlash(path[len(appPath)+1:])
+	}
+	// Parse files within the path.
+	var pkgMap map[string]*ast.Package
+	fset := token.NewFileSet()
+	pkgMap, err = parser.ParseDir(
+		fset,
+		path,
+		func(f os.FileInfo) bool {
+			return !f.IsDir() && !strings.HasPrefix(f.Name(), ".") && strings.HasSuffix(f.Name(), ".go")
+		},
+		0)
+
+	if err != nil {
+		if errList, ok := err.(scanner.ErrorList); ok {
+			var pos = errList[0].Pos
+			newError := &utils.SourceError{
+				SourceType:  ".go source",
+				Title:       "Go Compilation Error",
+				Path:        pos.Filename,
+				Description: errList[0].Msg,
+				Line:        pos.Line,
+				Column:      pos.Column,
+				SourceLines: utils.MustReadLines(pos.Filename),
+			}
+
+			errorLink := s.revelContainer.Config.StringDefault("error.link", "")
+			if errorLink != "" {
+				newError.SetLink(errorLink)
+			}
+			return newError
+		}
+
+		// This is exception, err already checked above. Here just a print
+		ast.Print(nil, err)
+		s.log.Fatal("Failed to parse dir", "error", err)
+	}
+	// Skip "main" packages.
+	delete(pkgMap, "main")
+
+	// Ignore packages that end with _test
+	// These cannot be included in source code that is not generated specifically as a test
+	for i := range pkgMap {
+		if len(i) > 6 {
+			if string(i[len(i)-5:]) == "_test" {
+				delete(pkgMap, i)
+			}
+		}
+	}
+
+	// If there is no code in this directory, skip it.
+	if len(pkgMap) == 0 {
+		return nil
+	}
+
+	// There should be only one package in this directory.
+	if len(pkgMap) > 1 {
+		for i := range pkgMap {
+			println("Found package ", i)
+		}
+		utils.Logger.Fatal("Most unexpected! Multiple packages in a single directory:", "packages", pkgMap)
+	}
+
+	// At this point there is only one package in the pkgs map,
+	p := &packages.Package{}
+	p.PkgPath = pkgImportPath
+	p.Fset = fset
+	for _, pkg := range pkgMap {
+		p.Name = pkg.Name
+		s.log.Info("Found package","pkg.Name", pkg.Name,"p.Name", p.PkgPath)
+		for filename,astFile := range pkg.Files {
+			p.Syntax = append(p.Syntax,astFile)
+			p.GoFiles = append(p.GoFiles,filename)
+		}
+	}
+	s.packageList = append(s.packageList, p)
+
+	return nil
 }
 
 // This function is used to populate a map so that we can lookup controller embedded types in order to determine

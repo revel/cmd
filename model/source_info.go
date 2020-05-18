@@ -110,7 +110,7 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 // ControllerSpecs returns the all the controllers that embeds
 // `revel.Controller`
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
-	utils.Logger.Infof("Scanning controller specifications for types ","typePath",RevelImportPath + ".Controller", "speclen",len(s.controllerSpecs))
+	utils.Logger.Info("Scanning controller specifications for types ","typePath",RevelImportPath + ".Controller", "speclen",len(s.controllerSpecs))
 	if s.controllerSpecs == nil {
 		s.controllerSpecs = s.TypesThatEmbed(RevelImportPath + ".Controller", "controllers")
 	}

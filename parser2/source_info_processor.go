@@ -34,6 +34,7 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 	)
 	localImportMap := map[string]string{}
 	log := s.sourceProcessor.log.New("package", p.PkgPath)
+	log.Info("Processing package")
 	for _, tree := range p.Syntax {
 		for _, decl := range tree.Decls {
 
@@ -41,8 +42,8 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 			if !s.addImport(decl, p, localImportMap, log) {
 				continue
 			}
-			// log.Info("*** checking", p.Fset.Position(decl.Pos()).Filename)
 			spec, found := s.getStructTypeDecl(decl, p.Fset)
+			//log.Info("Checking file","filename", p.Fset.Position(decl.Pos()).Filename,"found",found)
 			if found {
 				if isController || isTest {
 					controllerSpec := s.getControllerSpec(spec, p, localImportMap)

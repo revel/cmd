@@ -203,7 +203,8 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	return fsWalk(root, root, walkFn)
 }
 
-// Walk the tree using the function
+// Walk the path tree using the function
+// Every file found will call the function
 func fsWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 	fsWalkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {

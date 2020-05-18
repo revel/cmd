@@ -203,13 +203,13 @@ func setApplicationPath(c *model.CommandConfig) (err error) {
 	// revel/revel#1014 validate relative path, we cannot use built-in functions
 	// since Go import path is valid relative path too.
 	// so check basic part of the path, which is "."
-	if filepath.IsAbs(c.ImportPath) || strings.HasPrefix(c.ImportPath, ".") {
-		utils.Logger.Fatalf("Abort: '%s' looks like a directory.  Please provide a Go import path instead.",
-			c.ImportPath)
-	}
 
 	// If we are running a vendored version of Revel we do not need to check for it.
 	if !c.Vendored {
+		if filepath.IsAbs(c.ImportPath) || strings.HasPrefix(c.ImportPath, ".") {
+			utils.Logger.Fatalf("Abort: '%s' looks like a directory.  Please provide a Go import path instead.",
+				c.ImportPath)
+		}
 		_, err = build.Import(model.RevelImportPath, "", build.FindOnly)
 		if err != nil {
 			//// Go get the revel project

@@ -47,7 +47,7 @@ script:
   #- revel package my/testapp prod
 
   # Ensure the new-app flow works (plus the other commands).
-  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
+  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 --package revelframework.com -v
   - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
   - revel clean   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v
   - revel build   --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@develop" -a my/testapp2 -v -t build/testapp2

@@ -309,9 +309,13 @@ func Exists(filename string) bool {
 // empty returns true if the given directory is empty.
 // the directory must exist.
 func Empty(dirname string) bool {
+	if !DirExists(dirname) {
+		return true
+	}
 	dir, err := os.Open(dirname)
 	if err != nil {
 		Logger.Infof("error opening directory: %s", err)
+		return false
 	}
 	defer func() {
 		_ = dir.Close()

@@ -72,7 +72,7 @@ func newApp(c *model.CommandConfig) (err error) {
 	// Check for an existing folder so we don't clobber it
 	_, err = build.Import(c.ImportPath, "", build.FindOnly)
 	if err == nil || !utils.Empty(c.AppPath) {
-		return utils.NewBuildError("Abort: Import path already exists.", "path", c.ImportPath)
+		return utils.NewBuildError("Abort: Import path already exists.", "path", c.ImportPath, "apppath", c.AppPath)
 	}
 
 	// checking and setting skeleton
@@ -112,6 +112,10 @@ func newApp(c *model.CommandConfig) (err error) {
 	fmt.Fprintln(os.Stdout, "Your application has been created in:\n  ", c.AppPath)
 	// Check to see if it should be run right off
 	if c.New.Run {
+		// Need to prep the run command
+		c.Run.ImportPath = c.ImportPath
+		updateRunConfig(c,nil)
+		c.UpdateImportPath()
 		runApp(c)
 	} else {
 		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a ", c.ImportPath)

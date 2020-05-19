@@ -16,6 +16,7 @@ package harness
 import (
 	"crypto/tls"
 	"fmt"
+	"time"
 	"go/build"
 	"io"
 	"net"
@@ -56,6 +57,8 @@ type Harness struct {
 	paths      *model.RevelContainer  // The Revel container
 	config     *model.CommandConfig   // The configuration
 	runMode    string                 // The runmode the harness is running in
+	isError    bool                   // True if harness is in error state
+	ranOnce    bool                   // True app compiled once
 }
 
 func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err error) {
@@ -202,6 +205,21 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 // Refresh method rebuilds the Revel application and run it on the given port.
 // called by the watcher
 func (h *Harness) Refresh() (err *utils.SourceError) {
+	t  := time.Now();
+	fmt.Println("Changed detected, recompiling")
+	err = h.refresh()
+	if err!=nil && !h.ranOnce && h.useProxy {
+		addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)
+
+		fmt.Printf("\nError compiling code, to view error details see proxy running on http://%s\n\n",addr)
+	}
+
+	h.ranOnce = true
+	fmt.Printf("\nTime to recompile %s\n",time.Now().Sub(t).String())
+	return
+}
+
+func (h *Harness) refresh() (err *utils.SourceError) {
 	// Allow only one thread to rebuild the process
 	// If multiple requests to rebuild are queued only the last one is executed on
 	// So before a build is started we wait for a second to determine if
@@ -281,7 +299,8 @@ func (h *Harness) Run() {
 	paths = append(paths, h.paths.CodePaths...)
 	h.watcher = watcher.NewWatcher(h.paths, false)
 	h.watcher.Listen(h, paths...)
-	h.watcher.Notify()
+	go h.Refresh()
+	// h.watcher.Notify()
 
 	if h.useProxy {
 		go func() {
@@ -291,6 +310,7 @@ func (h *Harness) Run() {
 			}
 			addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)
 			utils.Logger.Infof("Proxy server is listening on %s", addr)
+
 
 			var err error
 			if h.paths.HTTPSsl {
@@ -308,13 +328,15 @@ func (h *Harness) Run() {
 		}()
 
 	}
-	// Kill the app on signal.
+
+	// Make a new channel to listen for the interrupt event
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt, os.Kill)
-	<-ch
+	// Kill the app and exit
 	if h.app != nil {
 		h.app.Kill()
 	}
+	<-ch
 	os.Exit(1)
 }
 

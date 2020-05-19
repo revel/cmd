@@ -33,7 +33,7 @@ type DiscerningListener interface {
 // Watcher allows listeners to register to be notified of changes under a given
 // directory.
 type Watcher struct {
-	// Parallel arrays of watcher/listener pairs.
+	                                  // Parallel arrays of watcher/listener pairs.
 	watchers            []*fsnotify.Watcher
 	listeners           []Listener
 	forceRefresh        bool
@@ -42,8 +42,8 @@ type Watcher struct {
 	lastError           int
 	notifyMutex         sync.Mutex
 	paths               *model.RevelContainer
-	refreshTimer        *time.Timer // The timer to countdown the next refresh
-	timerMutex          *sync.Mutex // A mutex to prevent concurrent updates
+	refreshTimer        *time.Timer   // The timer to countdown the next refresh
+	timerMutex          *sync.Mutex   // A mutex to prevent concurrent updates
 	refreshChannel      chan *utils.SourceError
 	refreshChannelCount int
 	refreshTimerMS      time.Duration // The number of milliseconds between refreshing builds
@@ -52,10 +52,10 @@ type Watcher struct {
 // Creates a new watched based on the container
 func NewWatcher(paths *model.RevelContainer, eagerRefresh bool) *Watcher {
 	return &Watcher{
-		forceRefresh:   true,
+		forceRefresh:   false,
 		lastError:      -1,
 		paths:          paths,
-		refreshTimerMS: time.Duration(paths.Config.IntDefault("watch.rebuild.delay", 10)),
+		refreshTimerMS: time.Duration(paths.Config.IntDefault("watch.rebuild.delay", 1000)),
 		eagerRefresh: eagerRefresh ||
 			paths.DevMode &&
 				paths.Config.BoolDefault("watch", true) &&
@@ -85,7 +85,7 @@ func (w *Watcher) Listen(listener Listener, roots ...string) {
 	for _, p := range roots {
 		// is the directory / file a symlink?
 		f, err := os.Lstat(p)
-		if err == nil && f.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if err == nil && f.Mode() & os.ModeSymlink == os.ModeSymlink {
 			var realPath string
 			realPath, err = filepath.EvalSymlinks(p)
 			if err != nil {
@@ -200,12 +200,13 @@ func (w *Watcher) Notify() *utils.SourceError {
 			case <-watcher.Errors:
 				continue
 			default:
-				// No events left to pull
+			// No events left to pull
 			}
 			break
 		}
 
-		utils.Logger.Info("Watcher:Notify refresh state", "Current Index", i, " last error index", w.lastError)
+		utils.Logger.Info("Watcher:Notify refresh state", "Current Index", i, " last error index", w.lastError,
+			"force", w.forceRefresh, "refresh", refresh, "lastError", w.lastError == i)
 		if w.forceRefresh || refresh || w.lastError == i {
 			var err *utils.SourceError
 			if w.serial {
@@ -285,22 +286,10 @@ func (w *Watcher) rebuildRequired(ev fsnotify.Event, listener Listener) bool {
 	}
 
 	if dl, ok := listener.(DiscerningListener); ok {
-		if !dl.WatchFile(ev.Name) || ev.Op&fsnotify.Chmod == fsnotify.Chmod {
+		if !dl.WatchFile(ev.Name) || ev.Op & fsnotify.Chmod == fsnotify.Chmod {
 			return false
 		}
 	}
 	return true
 }
 
-/*
-var WatchFilter = func(c *Controller, fc []Filter) {
-	if MainWatcher != nil {
-		err := MainWatcher.Notify()
-		if err != nil {
-			c.Result = c.RenderError(err)
-			return
-		}
-	}
-	fc[0](c, fc[1:])
-}
-*/

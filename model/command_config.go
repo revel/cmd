@@ -174,8 +174,10 @@ func (c *CommandConfig) initAppFolder() (err error) {
 
 	// Use app folder to read the go.mod if it exists and extract the package information
 	goModFile := filepath.Join(appFolder, "go.mod")
+	utils.Logger.Info("Checking gomod, extracting from file", "path", goModFile,"exists", utils.Exists(goModFile))
 	if utils.Exists(goModFile) {
 		c.Vendored = true
+		utils.Logger.Info("Found go mod, extracting from file", "path", goModFile)
 		file, err := ioutil.ReadFile(goModFile)
 		if err != nil {
 			return err
@@ -220,7 +222,7 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		c.AppPath = appFolder
 	}
 
-	utils.Logger.Info("Set application path", "path", c.AppPath)
+	utils.Logger.Info("Set application path", "path", c.AppPath, "vendored",c.Vendored, "importpath",c.ImportPath)
 	return nil
 }
 
@@ -233,6 +235,7 @@ func (c *CommandConfig) InitPackageResolver() {
 	c.PackageResolver = func(pkgName string) error {
 		utils.Logger.Info("Request for package ", "package", pkgName, "use vendor", c.Vendored)
 		var getCmd *exec.Cmd
+		print("Downloading related packages ...")
 		if c.Vendored {
 			getCmd = exec.Command(c.GoCmd, "mod", "tidy")
 		} else {
@@ -246,6 +249,7 @@ func (c *CommandConfig) InitPackageResolver() {
 		if err != nil {
 			utils.Logger.Error("Failed to import package", "error", err, "gopath", build.Default.GOPATH, "GO-ROOT", build.Default.GOROOT, "output", string(output))
 		}
+		println(" completed.")
 
 		return nil
 	}

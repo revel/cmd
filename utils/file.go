@@ -203,7 +203,8 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	return fsWalk(root, root, walkFn)
 }
 
-// Walk the tree using the function
+// Walk the path tree using the function
+// Every file found will call the function
 func fsWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 	fsWalkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -308,9 +309,13 @@ func Exists(filename string) bool {
 // empty returns true if the given directory is empty.
 // the directory must exist.
 func Empty(dirname string) bool {
+	if !DirExists(dirname) {
+		return true
+	}
 	dir, err := os.Open(dirname)
 	if err != nil {
 		Logger.Infof("error opening directory: %s", err)
+		return false
 	}
 	defer func() {
 		_ = dir.Close()
@@ -322,8 +327,8 @@ func Empty(dirname string) bool {
 // Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory
 func FindSrcPaths(appPath string, packageList []string, packageResolver func(pkgName string) error) (sourcePathsmap map[string]string, err error) {
 	sourcePathsmap, missingList, err := findSrcPaths(appPath, packageList)
-	if err != nil && packageResolver != nil || len(missingList)>0 {
-		Logger.Info("Failed to find package, attempting to call resolver for missing packages","missing packages",missingList)
+	if err != nil && packageResolver != nil || len(missingList) > 0 {
+		Logger.Info("Failed to find package, attempting to call resolver for missing packages", "missing packages", missingList)
 		for _, item := range missingList {
 			if err = packageResolver(item); err != nil {
 				return
@@ -352,25 +357,25 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 		Dir:appPath,
 	}
 	sourcePathsmap = map[string]string{}
-	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"),config.Env)
+	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"), config.Env)
 
 	pkgs, err := packages.Load(config, packagesList...)
-	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"),config.Env)
+	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"), config.Env)
 	Logger.Info("Loaded packages ", "len results", len(pkgs), "error", err, "basedir", appPath)
 	for _, packageName := range packagesList {
-		 found := false
+		found := false
 		log := Logger.New("seeking", packageName)
 		for _, pck := range pkgs {
 			log.Info("Found package", "package", pck.ID)
 			if pck.ID == packageName {
 				if pck.Errors != nil && len(pck.Errors) > 0 {
-					log.Info("Error ", "count", len(pck.Errors), "App Import Path", pck.ID, "errors", pck.Errors)
-					continue
+					log.Error("Error ", "count", len(pck.Errors), "App Import Path", pck.ID, "filesystem path", pck.PkgPath, "errors", pck.Errors)
+					// continue
 
 				}
 				//a,_ := pck.MarshalJSON()
 				log.Info("Found ", "count", len(pck.GoFiles), "App Import Path", pck.ID, "apppath", appPath)
-				if len(pck.GoFiles)>0 {
+				if len(pck.GoFiles) > 0 {
 					sourcePathsmap[packageName] = filepath.Dir(pck.GoFiles[0])
 					found = true
 				}

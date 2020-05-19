@@ -34,8 +34,8 @@ func TestVersion(t *testing.T) {
 		a.Nil(main.Commands[model.VERSION].RunWith(c), "Failed to run version-test")
 	})
 	if !t.Failed() {
-		if err := os.RemoveAll(gopath); err != nil {
-			a.Fail("Failed to remove test path")
+		if err := os.RemoveAll(gopath); err != nil && err!=os.ErrNotExist {
+			a.Fail("Failed to remove test path",err.Error())
 		}
 	}
 }

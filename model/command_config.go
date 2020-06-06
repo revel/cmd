@@ -48,7 +48,7 @@ type (
 		Vendored          bool                                                                                                                        // True if the application is vendored
 		PackageResolver   func(pkgName string) error                                                                                                  //  a package resolver for the config
 		BuildFlags        []string                   `short:"X" long:"build-flags" description:"These flags will be used when building the application. May be specified multiple times, only applicable for Build, Run, Package, Test commands"`
-		GoModFlags        []string            `long:"gomod-flags" description:"These flags will execut go mod commands for each flag, this happens during the build process"`
+		GoModFlags        []string            `long:"gomod-flags" description:"These flags will execute go mod commands for each flag, this happens during the build process"`
 		New               command.New `command:"new"`
 		Build             command.Build `command:"build"`
 		Run               command.Run `command:"run"`

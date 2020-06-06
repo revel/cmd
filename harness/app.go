@@ -135,10 +135,8 @@ func (cmd AppCmd) Kill() {
 		// Send an interrupt signal to allow for a graceful shutdown
 		utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
 		var err error
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS != "windows" {
 			// os.Interrupt is not available on windows
-			err = cmd.Process.Signal(os.Kill)
-		} else {
 			err = cmd.Process.Signal(os.Interrupt)
 		}
 

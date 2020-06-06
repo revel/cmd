@@ -110,16 +110,6 @@ func (v *VersionCommand) doRepoCheck(updateLibs bool) (versionInfo string, needs
 		}
 
 		// Only do an update on the first loop, and if specified to update
-		shouldUpdate := updateLibs && v.Command.Version.Update
-		if v.Command.Version.Update {
-			if localVersion == nil || (versonFromRepo != nil && versonFromRepo.Newer(localVersion)) {
-				needsUpdate = true
-				if shouldUpdate {
-					v.doUpdate(title, repo, localVersion, versonFromRepo)
-					v.updateLocalVersions()
-				}
-			}
-		}
 		versionInfo = versionInfo + v.outputVersion(title, repo, localVersion, versonFromRepo)
 	}
 	return
@@ -233,6 +223,10 @@ func (v *VersionCommand) updateLocalVersions() {
 	v.cmdVersion.ParseVersion(cmd.Version)
 	v.cmdVersion.BuildDate = cmd.BuildDate
 	v.cmdVersion.MinGoVersion = cmd.MinimumGoVersion
+
+	if v.Command.Version.ImportPath=="" {
+		return
+	}
 
 	pathMap, err := utils.FindSrcPaths(v.Command.AppPath, []string{model.RevelImportPath, model.RevelModulesImportPath}, v.Command.PackageResolver)
 	if err != nil {

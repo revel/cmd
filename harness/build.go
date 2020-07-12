@@ -160,25 +160,21 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			if !contains(c.BuildFlags, "build") {
 				flags = []string{"build"}
 			}
-			flags = append(flags, c.BuildFlags...)
 			if !contains(flags, "-ldflags") {
 				ldflags := "-ldflags= " + versionLinkerFlags
-				// Add in build flags
+				// Add user defined build flags
 				for i := range c.BuildFlags {
-					ldflags += "-X '" + c.BuildFlags[i] + "'"
+					ldflags += " -X '" + c.BuildFlags[i] + "'"
 				}
 				flags = append(flags, ldflags)
 			}
-			if !contains(flags, "-tags") {
+			if !contains(flags, "-tags") && buildTags != "" {
 				flags = append(flags, "-tags", buildTags)
 			}
 			if !contains(flags, "-o") {
 				flags = append(flags, "-o", binName)
 			}
 		}
-
-		// Add in build flags
-		flags = append(flags, c.BuildFlags...)
 
 		// Note: It's not applicable for filepath.* usage
 		flags = append(flags, path.Join(paths.ImportPath, "app", "tmp"))

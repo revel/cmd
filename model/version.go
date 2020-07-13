@@ -21,7 +21,7 @@ type Version struct {
 var frameworkCompatibleRangeList = [][]string{
 	{"0.0.0", "0.20.0"}, // minimum Revel version to use with this version of the tool
 	{"0.19.99", "0.30.0"}, // Compatible with Framework V 0.19.99 - 0.30.0
-	{"1.0.0", "1.1.0"}, // Compatible with Framework V 1.0 - 1.1
+	{"1.0.0", "1.9.0"}, // Compatible with Framework V 1.0 - 1.9
 }
 
 // Parses a version like v1.2.3a or 1.2

@@ -458,7 +458,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceEr
 	return compileError
 }
 
-// RevelMainTemplate template for app/tmp/main.go
+// RevelMainTemplate template for app/tmp/run/run.go
 const RevelRunTemplate = `// GENERATED CODE - DO NOT EDIT
 // This file is the run file for Revel.
 // It registers all the controllers and provides details for the Revel server engine to

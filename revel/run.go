@@ -162,6 +162,6 @@ func runApp(c *model.CommandConfig) (err error) {
 	if c.HistoricMode {
 		runMode = revel_path.RunMode
 	}
-	app.Cmd(runMode).Run()
+	app.Cmd(runMode).Run(c)
 	return
 }

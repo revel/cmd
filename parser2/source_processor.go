@@ -12,7 +12,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/scanner"
-
 )
 
 type (
@@ -111,9 +110,8 @@ func (s *SourceProcessor) addPackages() (err error) {
 	s.packageList, err = packages.Load(config, allPackages...)
 	s.log.Info("Loaded modules ", "len results", len(s.packageList), "error", err)
 
-
 	// Now process the files in the aap source folder	s.revelContainer.ImportPath + "/...",
-	err = utils.Walk(s.revelContainer.AppPath, s.processPath)
+	err = utils.Walk(s.revelContainer.BasePath, s.processPath)
 	s.log.Info("Loaded apps and modules ", "len results", len(s.packageList), "error", err)
 	return
 }
@@ -136,8 +134,10 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 	pkgImportPath := s.revelContainer.ImportPath
 	appPath := s.revelContainer.BasePath
 	if appPath != path {
-		pkgImportPath = s.revelContainer.ImportPath + "/" + filepath.ToSlash(path[len(appPath)+1:])
+		pkgImportPath = s.revelContainer.ImportPath + "/" + filepath.ToSlash(path[len(appPath) + 1:])
 	}
+	s.log.Info("Processing source package folder", "package", pkgImportPath, "path", path)
+
 	// Parse files within the path.
 	var pkgMap map[string]*ast.Package
 	fset := token.NewFileSet()
@@ -173,6 +173,7 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 		ast.Print(nil, err)
 		s.log.Fatal("Failed to parse dir", "error", err)
 	}
+
 	// Skip "main" packages.
 	delete(pkgMap, "main")
 
@@ -180,7 +181,7 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 	// These cannot be included in source code that is not generated specifically as a test
 	for i := range pkgMap {
 		if len(i) > 6 {
-			if string(i[len(i)-5:]) == "_test" {
+			if string(i[len(i) - 5:]) == "_test" {
 				delete(pkgMap, i)
 			}
 		}
@@ -194,7 +195,7 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 	// There should be only one package in this directory.
 	if len(pkgMap) > 1 {
 		for i := range pkgMap {
-			println("Found package ", i)
+			println("Found duplicate packages in single directory ", i)
 		}
 		utils.Logger.Fatal("Most unexpected! Multiple packages in a single directory:", "packages", pkgMap)
 	}
@@ -205,10 +206,10 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 	p.Fset = fset
 	for _, pkg := range pkgMap {
 		p.Name = pkg.Name
-		s.log.Info("Found package","pkg.Name", pkg.Name,"p.Name", p.PkgPath)
-		for filename,astFile := range pkg.Files {
-			p.Syntax = append(p.Syntax,astFile)
-			p.GoFiles = append(p.GoFiles,filename)
+		s.log.Info("Found package", "pkg.Name", pkg.Name, "p.Name", p.PkgPath)
+		for filename, astFile := range pkg.Files {
+			p.Syntax = append(p.Syntax, astFile)
+			p.GoFiles = append(p.GoFiles, filename)
 		}
 	}
 	s.packageList = append(s.packageList, p)

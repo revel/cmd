@@ -93,7 +93,8 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 }
 
 // Run the app server inline.  Never returns.
-func (cmd AppCmd) Run() {
+func (cmd AppCmd) Run(c *model.CommandConfig) {
+	utils.CmdInit(cmd.Cmd, !c.Vendored, c.AppPath)
 	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Run(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)

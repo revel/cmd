@@ -62,7 +62,7 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 					funcDecl.Name.IsExported() && // be public
 					funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) == 1 {
 					// return one result
-					if m, receiver := s.getControllerFunc(funcDecl, p); m != nil {
+					if m, receiver := s.getControllerFunc(funcDecl, p, localImportMap); m != nil {
 						methodMap[receiver] = append(methodMap[receiver], m)
 						log.Info("Added method map to ", "receiver", receiver, "method", m.Name)
 					}
@@ -191,7 +191,7 @@ func (s *SourceInfoProcessor)  getValidationParameter(funcDecl *ast.FuncDecl) *a
 	}
 	return nil
 }
-func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packages.Package) (method *model.MethodSpec, recvTypeName string) {
+func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packages.Package, localImportMap map[string]string) (method *model.MethodSpec, recvTypeName string) {
 	selExpr, ok := funcDecl.Type.Results.List[0].Type.(*ast.SelectorExpr)
 	if !ok {
 		return
@@ -220,8 +220,11 @@ func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packa
 				importPath = p.PkgPath
 			} else if typeExpr.PkgName != "" {
 				var ok bool
-				if importPath, ok = s.sourceProcessor.importMap[typeExpr.PkgName]; !ok {
-					utils.Logger.Fatalf("Failed to find import for arg of type: %s , %s", typeExpr.PkgName, typeExpr.TypeName(""))
+				if importPath, ok = localImportMap[typeExpr.PkgName]; !ok {
+					if importPath, ok = s.sourceProcessor.importMap[typeExpr.PkgName]; !ok {
+						utils.Logger.Error("Unable to find import", "importMap", s.sourceProcessor.importMap, "localimport", localImportMap)
+						utils.Logger.Fatalf("Failed to find import for arg of type: %s , %s", typeExpr.PkgName, typeExpr.TypeName(""))
+					}
 				}
 			}
 			method.Args = append(method.Args, &model.MethodArg{

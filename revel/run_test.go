@@ -1,15 +1,16 @@
 package main_test
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// test the commands
+// test the commands.
 func TestRun(t *testing.T) {
 	a := assert.New(t)
-	gopath := setup("revel-test-run",  a)
+	gopath := setup("revel-test-run", a)
 
 	// TODO Testing run
 

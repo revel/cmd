@@ -1,18 +1,19 @@
 package main_test
 
 import (
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/revel"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/revel/cmd/model"
+	main "github.com/revel/cmd/revel"
+	"github.com/stretchr/testify/assert"
 )
 
-// test the commands
+// test the commands.
 func TestVersion(t *testing.T) {
 	a := assert.New(t)
-	gopath := setup("revel-test-version",  a)
+	gopath := setup("revel-test-version", a)
 
 	t.Run("Version", func(t *testing.T) {
 		a := assert.New(t)
@@ -34,8 +35,8 @@ func TestVersion(t *testing.T) {
 		a.Nil(main.Commands[model.VERSION].RunWith(c), "Failed to run version-test")
 	})
 	if !t.Failed() {
-		if err := os.RemoveAll(gopath); err != nil && err!=os.ErrNotExist {
-			a.Fail("Failed to remove test path",err.Error())
+		if err := os.RemoveAll(gopath); err != nil && err != os.ErrNotExist {
+			a.Fail("Failed to remove test path", err.Error())
 		}
 	}
 }

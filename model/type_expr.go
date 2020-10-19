@@ -13,7 +13,7 @@ type TypeExpr struct {
 	Valid    bool
 }
 
-// Returns a new type from the data
+// Returns a new type from the data.
 func NewTypeExprFromData(expr, pkgName string, pkgIndex int, valid bool) TypeExpr {
 	return TypeExpr{expr, pkgName, pkgIndex, valid}
 }
@@ -47,7 +47,6 @@ func NewTypeExprFromAst(pkgName string, expr ast.Expr) TypeExpr {
 		return NewTypeExprFromData("[]"+e.Expr, e.PkgName, e.pkgIndex+2, e.Valid)
 	default:
 		error = fmt.Sprintf("Failed to generate name for field: %v Package: %v. Make sure the field name is valid.", expr, pkgName)
-
 	}
 	return NewTypeExprFromData(error, "", 0, false)
 }
@@ -85,13 +84,13 @@ var builtInTypes = map[string]struct{}{
 	"uintptr":    {},
 }
 
-// IsBuiltinType checks the given type is built-in types of Go
+// IsBuiltinType checks the given type is built-in types of Go.
 func IsBuiltinType(name string) bool {
 	_, ok := builtInTypes[name]
 	return ok
 }
 
-// Returns the first non empty string from a list of arguements
+// Returns the first non empty string from a list of arguments.
 func FirstNonEmpty(strs ...string) string {
 	for _, str := range strs {
 		if len(str) > 0 {

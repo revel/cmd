@@ -6,11 +6,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
-
 	"os"
 	"path/filepath"
+
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
 )
 
 var cmdClean = &Command{
@@ -34,7 +34,7 @@ func init() {
 	cmdClean.RunWith = cleanApp
 }
 
-// Update the clean command configuration, using old method
+// Update the clean command configuration, using old method.
 func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.CLEAN
 	if len(args) == 0 && c.Clean.ImportPath != "" {
@@ -48,9 +48,8 @@ func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 	return true
 }
 
-// Clean the source directory of generated files
+// Clean the source directory of generated files.
 func cleanApp(c *model.CommandConfig) (err error) {
-
 	purgeDirs := []string{
 		filepath.Join(c.AppPath, "app", "tmp"),
 		filepath.Join(c.AppPath, "app", "routes"),

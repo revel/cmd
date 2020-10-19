@@ -9,11 +9,8 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-
-	"github.com/revel/cmd"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -23,11 +20,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"bytes"
+
+	"github.com/revel/cmd"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
 )
 
 type (
-	// The version container
+	// The version container.
 	VersionCommand struct {
 		Command        *model.CommandConfig // The command
 		revelVersion   *model.Version       // The Revel framework version
@@ -54,7 +54,7 @@ func init() {
 	cmdVersion.RunWith = v.RunWith
 }
 
-// Update the version
+// Update the version.
 func (v *VersionCommand) UpdateConfig(c *model.CommandConfig, args []string) bool {
 	if len(args) > 0 {
 		c.Version.ImportPath = args[0]
@@ -62,7 +62,7 @@ func (v *VersionCommand) UpdateConfig(c *model.CommandConfig, args []string) boo
 	return true
 }
 
-// Displays the version of go and Revel
+// Displays the version of go and Revel.
 func (v *VersionCommand) RunWith(c *model.CommandConfig) (err error) {
 	utils.Logger.Info("Requesting version information", "config", c)
 	v.Command = c
@@ -73,7 +73,6 @@ func (v *VersionCommand) RunWith(c *model.CommandConfig) (err error) {
 	needsUpdates := true
 	versionInfo := ""
 	for x := 0; x < 2 && needsUpdates; x++ {
-		needsUpdates = false
 		versionInfo, needsUpdates = v.doRepoCheck(x == 0)
 	}
 
@@ -89,10 +88,10 @@ func (v *VersionCommand) RunWith(c *model.CommandConfig) (err error) {
 	return
 }
 
-// Checks the Revel repos for the latest version
+// Checks the Revel repos for the latest version.
 func (v *VersionCommand) doRepoCheck(updateLibs bool) (versionInfo string, needsUpdate bool) {
 	var (
-		title string
+		title        string
 		localVersion *model.Version
 	)
 	for _, repo := range []string{"revel", "cmd", "modules"} {
@@ -110,25 +109,12 @@ func (v *VersionCommand) doRepoCheck(updateLibs bool) (versionInfo string, needs
 		}
 
 		// Only do an update on the first loop, and if specified to update
-		versionInfo = versionInfo + v.outputVersion(title, repo, localVersion, versonFromRepo)
+		versionInfo += v.outputVersion(title, repo, localVersion, versonFromRepo)
 	}
 	return
 }
 
-// Checks for updates if needed
-func (v *VersionCommand) doUpdate(title, repo string, local, remote *model.Version) {
-	utils.Logger.Info("Updating package", "package", title, "repo", repo)
-	fmt.Println("Attempting to update package", title)
-	if err := v.Command.PackageResolver(repo); err != nil {
-		utils.Logger.Error("Unable to update repo", "repo", repo, "error", err)
-	} else if repo == "github.com/revel/cmd/revel" {
-		// One extra step required here to run the install for the command
-		utils.Logger.Fatal("Revel command tool was updated, you must manually run the following command before continuing\ngo install github.com/revel/cmd/revel")
-	}
-	return
-}
-
-// Prints out the local and remote versions, calls update if needed
+// Prints out the local and remote versions, calls update if needed.
 func (v *VersionCommand) outputVersion(title, repo string, local, remote *model.Version) (output string) {
 	buffer := &bytes.Buffer{}
 	remoteVersion := "Unknown"
@@ -144,7 +130,7 @@ func (v *VersionCommand) outputVersion(title, repo string, local, remote *model.
 	return buffer.String()
 }
 
-// Returns the version from the repository
+// Returns the version from the repository.
 func (v *VersionCommand) versionFromRepo(repoName, branchName, fileName string) (version *model.Version, err error) {
 	if branchName == "" {
 		branchName = "master"
@@ -166,10 +152,6 @@ func (v *VersionCommand) versionFromRepo(repoName, branchName, fileName string) 
 	return v.versionFromBytes(body)
 }
 
-// Returns version information from a file called version on the gopath
-func (v *VersionCommand) compareAndUpdateVersion(remoteVersion *model.Version, localVersion *model.Version) (err error) {
-	return
-}
 func (v *VersionCommand) versionFromFilepath(sourcePath string) (version *model.Version, err error) {
 	utils.Logger.Info("Fullpath to revel", "dir", sourcePath)
 
@@ -180,7 +162,7 @@ func (v *VersionCommand) versionFromFilepath(sourcePath string) (version *model.
 	return v.versionFromBytes(sourceStream)
 }
 
-// Returns version information from a file called version on the gopath
+// Returns version information from a file called version on the gopath.
 func (v *VersionCommand) versionFromBytes(sourceStream []byte) (version *model.Version, err error) {
 	fset := token.NewFileSet() // positions are relative to fset
 
@@ -206,7 +188,7 @@ func (v *VersionCommand) versionFromBytes(sourceStream []byte) (version *model.V
 			r := spec.Values[0].(*ast.BasicLit)
 			switch spec.Names[0].Name {
 			case "Version":
-				version.ParseVersion(strings.Replace(r.Value, `"`, "", -1))
+				version.ParseVersion(strings.ReplaceAll(r.Value, `"`, ""))
 			case "BuildDate":
 				version.BuildDate = r.Value
 			case "MinimumGoVersion":
@@ -217,14 +199,14 @@ func (v *VersionCommand) versionFromBytes(sourceStream []byte) (version *model.V
 	return
 }
 
-// Fetch the local version of revel from the file system
+// Fetch the local version of revel from the file system.
 func (v *VersionCommand) updateLocalVersions() {
 	v.cmdVersion = &model.Version{}
 	v.cmdVersion.ParseVersion(cmd.Version)
 	v.cmdVersion.BuildDate = cmd.BuildDate
 	v.cmdVersion.MinGoVersion = cmd.MinimumGoVersion
 
-	if v.Command.Version.ImportPath=="" {
+	if v.Command.Version.ImportPath == "" {
 		return
 	}
 
@@ -243,6 +225,4 @@ func (v *VersionCommand) updateLocalVersions() {
 	if err != nil {
 		utils.Logger.Warn("Unable to extract version information from Revel Modules", "path", pathMap[model.RevelModulesImportPath], "error", err)
 	}
-
-	return
 }

@@ -37,10 +37,10 @@ func init() {
 	cmdPackage.UpdateConfig = updatePackageConfig
 }
 
-// Called when unable to parse the command line automatically and assumes an old launch
+// Called when unable to parse the command line automatically and assumes an old launch.
 func updatePackageConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.PACKAGE
-	if len(args)==0 && c.Package.ImportPath!="" {
+	if len(args) == 0 && c.Package.ImportPath != "" {
 		return true
 	}
 	c.Package.ImportPath = args[0]
@@ -48,26 +48,21 @@ func updatePackageConfig(c *model.CommandConfig, args []string) bool {
 		c.Package.Mode = args[1]
 	}
 	return true
-
 }
 
-// Called to package the app
+// Called to package the app.
 func packageApp(c *model.CommandConfig) (err error) {
-
 	// Determine the run mode.
-	mode := DefaultRunMode
-	if len(c.Package.Mode) >= 0 {
-		mode = c.Package.Mode
-	}
+	mode := c.Package.Mode
 
 	appImportPath := c.ImportPath
-	revel_paths, err := model.NewRevelPaths(mode, appImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revelPaths, err := model.NewRevelPaths(mode, appImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}
 
 	// Remove the archive if it already exists.
-	destFile := filepath.Join(c.AppPath, filepath.Base(revel_paths.BasePath)+".tar.gz")
+	destFile := filepath.Join(c.AppPath, filepath.Base(revelPaths.BasePath)+".tar.gz")
 	if c.Package.TargetPath != "" {
 		if filepath.IsAbs(c.Package.TargetPath) {
 			destFile = c.Package.TargetPath
@@ -80,13 +75,11 @@ func packageApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Collect stuff in a temp directory.
-	tmpDir, err := ioutil.TempDir("", filepath.Base(revel_paths.BasePath))
+	tmpDir, err := ioutil.TempDir("", filepath.Base(revelPaths.BasePath))
 	utils.PanicOnError(err, "Failed to get temp dir")
 
 	// Build expects the command the build to contain the proper data
-	if len(c.Package.Mode) >= 0 {
-		c.Build.Mode = c.Package.Mode
-	}
+	c.Build.Mode = c.Package.Mode
 	c.Build.TargetPath = tmpDir
 	c.Build.CopySource = c.Package.CopySource
 	if err = buildApp(c); err != nil {

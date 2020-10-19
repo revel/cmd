@@ -20,7 +20,7 @@ import (
 	"github.com/revel/cmd/utils"
 )
 
-// A container used to support the reflection package
+// A container used to support the reflection package.
 type processContainer struct {
 	root, rootImportPath string                // The paths
 	paths                *model.RevelContainer // The Revel paths
@@ -54,7 +54,7 @@ func ProcessSource(paths *model.RevelContainer) (_ *model.SourceInfo, compileErr
 	return pc.srcInfo, compileError
 }
 
-// Called during the "walk process"
+// Called during the "walk process".
 func (pc *processContainer) processPath(path string, info os.FileInfo, err error) error {
 	if err != nil {
 		utils.Logger.Error("Error scanning app source:", "error", err)
@@ -84,7 +84,7 @@ func (pc *processContainer) processPath(path string, info os.FileInfo, err error
 
 	if err != nil {
 		if errList, ok := err.(scanner.ErrorList); ok {
-			var pos = errList[0].Pos
+			pos := errList[0].Pos
 			newError := &utils.SourceError{
 				SourceType:  ".go source",
 				Title:       "Go Compilation Error",
@@ -114,7 +114,7 @@ func (pc *processContainer) processPath(path string, info os.FileInfo, err error
 	// These cannot be included in source code that is not generated specifically as a test
 	for i := range pkgs {
 		if len(i) > 6 {
-			if string(i[len(i)-5:]) == "_test" {
+			if i[len(i)-5:] == "_test" {
 				delete(pkgs, i)
 			}
 		}
@@ -146,7 +146,7 @@ func (pc *processContainer) processPath(path string, info os.FileInfo, err error
 	return nil
 }
 
-// Process a single package within a file
+// Process a single package within a file.
 func processPackage(fset *token.FileSet, pkgImportPath, pkgPath string, pkg *ast.Package) *model.SourceInfo {
 	var (
 		structSpecs     []*model.TypeInfo

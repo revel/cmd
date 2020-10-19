@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// test the commands
+// test the commands.
 func TestBuild(t *testing.T) {
 	a := assert.New(t)
 	gopath := setup("revel-test-build", a)

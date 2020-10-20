@@ -5,13 +5,14 @@
 package main
 
 import (
-	"strconv"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"os"
 )
 
 var cmdRun = &Command{
@@ -32,13 +33,6 @@ Run mode defaults to "dev".
 You can set a port as well.  For example:
 
     revel run -m prod -p 8080 github.com/revel/examples/chat `,
-}
-
-// RunArgs holds revel run parameters
-type RunArgs struct {
-	ImportPath string
-	Mode       string
-	Port       int
 }
 
 func init() {
@@ -112,56 +106,56 @@ func updateRunConfig(c *model.CommandConfig, args []string) bool {
 	return true
 }
 
-// Returns true if this is an absolute path or a relative gopath
+// Returns true if this is an absolute path or a relative gopath.
 func runIsImportPath(pathToCheck string) bool {
 	return utils.DirExists(pathToCheck)
 }
 
-// Called to run the app
+// Called to run the app.
 func runApp(c *model.CommandConfig) (err error) {
 	if c.Run.Mode == "" {
 		c.Run.Mode = "dev"
 	}
 
-	revel_path, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revelPath, err := model.NewRevelPaths(c.Run.Mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return utils.NewBuildIfError(err, "Revel paths")
 	}
 	if c.Run.Port > -1 {
-		revel_path.HTTPPort = c.Run.Port
+		revelPath.HTTPPort = c.Run.Port
 	} else {
-		c.Run.Port = revel_path.HTTPPort
+		c.Run.Port = revelPath.HTTPPort
 	}
 
-	utils.Logger.Infof("Running %s (%s) in %s mode\n", revel_path.AppName, revel_path.ImportPath, revel_path.RunMode)
-	utils.Logger.Debug("Base path:", "path", revel_path.BasePath)
+	utils.Logger.Infof("Running %s (%s) in %s mode\n", revelPath.AppName, revelPath.ImportPath, revelPath.RunMode)
+	utils.Logger.Debug("Base path:", "path", revelPath.BasePath)
 
 	// If the app is run in "watched" mode, use the harness to run it.
-	if revel_path.Config.BoolDefault("watch", true) && revel_path.Config.BoolDefault("watch.code", true) {
+	if revelPath.Config.BoolDefault("watch", true) && revelPath.Config.BoolDefault("watch.code", true) {
 		utils.Logger.Info("Running in watched mode.")
-		runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, revel_path.RunMode, c.Verbose)
+		runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, revelPath.RunMode, c.Verbose)
 		if c.HistoricMode {
-			runMode = revel_path.RunMode
+			runMode = revelPath.RunMode
 		}
 		// **** Never returns.
-		harness.NewHarness(c, revel_path, runMode, c.Run.NoProxy).Run()
+		harness.NewHarness(c, revelPath, runMode, c.Run.NoProxy).Run()
 	}
 
 	// Else, just build and run the app.
 	utils.Logger.Debug("Running in live build mode.")
-	app, err := harness.Build(c, revel_path)
+	app, err := harness.Build(c, revelPath)
 	if err != nil {
 		utils.Logger.Errorf("Failed to build app: %s", err)
 	}
-	app.Port = revel_path.HTTPPort
+	app.Port = revelPath.HTTPPort
 	var paths []byte
 	if len(app.PackagePathMap) > 0 {
 		paths, _ = json.Marshal(app.PackagePathMap)
 	}
 	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))
 	if c.HistoricMode {
-		runMode = revel_path.RunMode
+		runMode = revelPath.RunMode
 	}
-	app.Cmd(runMode).Run()
+	app.Cmd(runMode).Run(c)
 	return
 }

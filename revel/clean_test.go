@@ -1,20 +1,20 @@
 package main_test
 
 import (
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/revel"
-	"github.com/revel/cmd/utils"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/revel/cmd/model"
+	main "github.com/revel/cmd/revel"
+	"github.com/revel/cmd/utils"
+	"github.com/stretchr/testify/assert"
 )
 
-// test the commands
+// test the commands.
 func TestClean(t *testing.T) {
 	a := assert.New(t)
-	gopath := setup("revel-test-clean",  a)
-
+	gopath := setup("revel-test-clean", a)
 
 	t.Run("Clean", func(t *testing.T) {
 		a := assert.New(t)

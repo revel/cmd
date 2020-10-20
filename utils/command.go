@@ -1,15 +1,15 @@
 package utils
 
 import (
+	"bytes"
 	"go/build"
 	"os"
 	"os/exec"
-	"strings"
-	"bytes"
 	"path/filepath"
+	"strings"
 )
 
-// Initialize the command based on the GO environment
+// Initialize the command based on the GO environment.
 func CmdInit(c *exec.Cmd, addGoPath bool, basePath string) {
 	c.Dir = basePath
 	// Dep does not like paths that are not real, convert all paths in go to real paths

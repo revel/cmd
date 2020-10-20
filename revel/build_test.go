@@ -1,19 +1,20 @@
 package main_test
 
 import (
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/revel"
-	"github.com/revel/cmd/utils"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/revel/cmd/model"
+	main "github.com/revel/cmd/revel"
+	"github.com/revel/cmd/utils"
+	"github.com/stretchr/testify/assert"
 )
 
-// test the commands
+// test the commands.
 func TestBuild(t *testing.T) {
 	a := assert.New(t)
-	gopath := setup("revel-test-build",  a)
+	gopath := setup("revel-test-build", a)
 
 	t.Run("Build", func(t *testing.T) {
 		a := assert.New(t)
@@ -23,6 +24,21 @@ func TestBuild(t *testing.T) {
 		c.Build.TargetPath = filepath.Join(gopath, "build-test", "target")
 		c.Build.ImportPath = c.ImportPath
 		a.Nil(main.Commands[model.BUILD].RunWith(c), "Failed to run build-test")
+		a.True(utils.Exists(filepath.Join(gopath, "build-test", "target")))
+	})
+
+	t.Run("Build-withFlags", func(t *testing.T) {
+		a := assert.New(t)
+		c := newApp("build-test-WithFlags", model.NEW, nil, a)
+		c.BuildFlags = []string{
+			"build-test-WithFlags/app.AppVersion=SomeValue",
+			"build-test-WithFlags/app.SomeOtherValue=SomeValue",
+		}
+		main.Commands[model.NEW].RunWith(c)
+		c.Index = model.BUILD
+		c.Build.TargetPath = filepath.Join(gopath, "build-test", "target")
+		c.Build.ImportPath = c.ImportPath
+		a.Nil(main.Commands[model.BUILD].RunWith(c), "Failed to run build-test-withFlags")
 		a.True(utils.Exists(filepath.Join(gopath, "build-test", "target")))
 	})
 

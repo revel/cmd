@@ -1,14 +1,15 @@
 package parser2
 
 import (
-	"github.com/revel/cmd/utils"
-	"golang.org/x/tools/go/packages"
-	"github.com/revel/cmd/model"
 	"go/ast"
 	"go/token"
-	"strings"
 	"path/filepath"
+	"strings"
+
 	"github.com/revel/cmd/logger"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"golang.org/x/tools/go/packages"
 )
 
 type (
@@ -18,7 +19,7 @@ type (
 )
 
 func NewSourceInfoProcessor(sourceProcessor *SourceProcessor) *SourceInfoProcessor {
-	return &SourceInfoProcessor{sourceProcessor:sourceProcessor}
+	return &SourceInfoProcessor{sourceProcessor: sourceProcessor}
 }
 
 func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *model.SourceInfo) {
@@ -37,13 +38,12 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 	log.Info("Processing package")
 	for _, tree := range p.Syntax {
 		for _, decl := range tree.Decls {
-
 			s.sourceProcessor.packageMap[p.PkgPath] = filepath.Dir(p.Fset.Position(decl.Pos()).Filename)
 			if !s.addImport(decl, p, localImportMap, log) {
 				continue
 			}
 			spec, found := s.getStructTypeDecl(decl, p.Fset)
-			//log.Info("Checking file","filename", p.Fset.Position(decl.Pos()).Filename,"found",found)
+			// log.Info("Checking file","filename", p.Fset.Position(decl.Pos()).Filename,"found",found)
 			if found {
 				if isController || isTest {
 					controllerSpec := s.getControllerSpec(spec, p, localImportMap)
@@ -62,14 +62,14 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 					funcDecl.Name.IsExported() && // be public
 					funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) == 1 {
 					// return one result
-					if m, receiver := s.getControllerFunc(funcDecl, p); m != nil {
+					if m, receiver := s.getControllerFunc(funcDecl, p, localImportMap); m != nil {
 						methodMap[receiver] = append(methodMap[receiver], m)
 						log.Info("Added method map to ", "receiver", receiver, "method", m.Name)
 					}
 				}
 				// Check for validation
 				if lineKeyMap := s.getValidation(funcDecl, p); len(lineKeyMap) > 1 {
-					sourceInfo.ValidationKeys[p.PkgPath + "." + s.getFuncName(funcDecl)] = lineKeyMap
+					sourceInfo.ValidationKeys[p.PkgPath+"."+s.getFuncName(funcDecl)] = lineKeyMap
 				}
 				if funcDecl.Name.Name == "init" {
 					sourceInfo.InitImportPaths = append(sourceInfo.InitImportPaths, p.PkgPath)
@@ -85,6 +85,7 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 
 	return
 }
+
 // Scan app source code for calls to X.Y(), where X is of type *Validation.
 //
 // Recognize these scenarios:
@@ -99,7 +100,7 @@ func (s *SourceInfoProcessor) processPackage(p *packages.Package) (sourceInfo *m
 //
 // The end result is that we can set the default validation key for each call to
 // be the same as the local variable.
-func (s *SourceInfoProcessor) getValidation(funcDecl *ast.FuncDecl, p *packages.Package) (map[int]string) {
+func (s *SourceInfoProcessor) getValidation(funcDecl *ast.FuncDecl, p *packages.Package) map[int]string {
 	var (
 		lineKeys = make(map[int]string)
 
@@ -165,10 +166,10 @@ func (s *SourceInfoProcessor) getValidation(funcDecl *ast.FuncDecl, p *packages.
 	})
 
 	return lineKeys
-
 }
+
 // Check to see if there is a *revel.Validation as an argument.
-func (s *SourceInfoProcessor)  getValidationParameter(funcDecl *ast.FuncDecl) *ast.Object {
+func (s *SourceInfoProcessor) getValidationParameter(funcDecl *ast.FuncDecl) *ast.Object {
 	for _, field := range funcDecl.Type.Params.List {
 		starExpr, ok := field.Type.(*ast.StarExpr) // e.g. *revel.Validation
 		if !ok {
@@ -191,7 +192,8 @@ func (s *SourceInfoProcessor)  getValidationParameter(funcDecl *ast.FuncDecl) *a
 	}
 	return nil
 }
-func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packages.Package) (method *model.MethodSpec, recvTypeName string) {
+
+func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packages.Package, localImportMap map[string]string) (method *model.MethodSpec, recvTypeName string) {
 	selExpr, ok := funcDecl.Type.Results.List[0].Type.(*ast.SelectorExpr)
 	if !ok {
 		return
@@ -220,8 +222,11 @@ func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packa
 				importPath = p.PkgPath
 			} else if typeExpr.PkgName != "" {
 				var ok bool
-				if importPath, ok = s.sourceProcessor.importMap[typeExpr.PkgName]; !ok {
-					utils.Logger.Fatalf("Failed to find import for arg of type: %s , %s", typeExpr.PkgName, typeExpr.TypeName(""))
+				if importPath, ok = localImportMap[typeExpr.PkgName]; !ok {
+					if importPath, ok = s.sourceProcessor.importMap[typeExpr.PkgName]; !ok {
+						utils.Logger.Error("Unable to find import", "importMap", s.sourceProcessor.importMap, "localimport", localImportMap)
+						utils.Logger.Fatalf("Failed to find import for arg of type: %s , %s", typeExpr.PkgName, typeExpr.TypeName(""))
+					}
 				}
 			}
 			method.Args = append(method.Args, &model.MethodArg{
@@ -271,7 +276,7 @@ func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packa
 		return true
 	})
 
-	var recvType = funcDecl.Recv.List[0].Type
+	recvType := funcDecl.Recv.List[0].Type
 	if recvStarType, ok := recvType.(*ast.StarExpr); ok {
 		recvTypeName = recvStarType.X.(*ast.Ident).Name
 	} else {
@@ -279,6 +284,7 @@ func (s *SourceInfoProcessor) getControllerFunc(funcDecl *ast.FuncDecl, p *packa
 	}
 	return
 }
+
 func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec, p *packages.Package, localImportMap map[string]string) (controllerSpec *model.TypeInfo) {
 	structType := spec.Type.(*ast.StructType)
 
@@ -339,9 +345,9 @@ func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec, p *packages.
 		} else {
 			var ok bool
 			if importPath, ok = localImportMap[pkgName]; !ok {
-				log.Debug("Debug: Unusual, failed to find package locally ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap, "usedin", )
+				log.Debug("Debug: Unusual, failed to find package locally ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap, "usedin")
 				if importPath, ok = s.sourceProcessor.importMap[pkgName]; !ok {
-					log.Error("Error: Failed to find import path for ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap, "usedin", )
+					log.Error("Error: Failed to find import path for ", "package", pkgName, "type", typeName, "map", s.sourceProcessor.importMap, "usedin")
 					continue
 				}
 			}
@@ -355,6 +361,7 @@ func (s *SourceInfoProcessor) getControllerSpec(spec *ast.TypeSpec, p *packages.
 	s.sourceProcessor.log.Info("Added controller spec", "name", controllerSpec.StructName, "package", controllerSpec.ImportPath)
 	return
 }
+
 func (s *SourceInfoProcessor) getStructTypeDecl(decl ast.Decl, fset *token.FileSet) (spec *ast.TypeSpec, found bool) {
 	genDecl, ok := decl.(*ast.GenDecl)
 	if !ok {
@@ -374,8 +381,8 @@ func (s *SourceInfoProcessor) getStructTypeDecl(decl ast.Decl, fset *token.FileS
 	_, found = spec.Type.(*ast.StructType)
 
 	return
-
 }
+
 func (s *SourceInfoProcessor) getFuncName(funcDecl *ast.FuncDecl) string {
 	prefix := ""
 	if funcDecl.Recv != nil {
@@ -389,6 +396,7 @@ func (s *SourceInfoProcessor) getFuncName(funcDecl *ast.FuncDecl) string {
 	}
 	return prefix + funcDecl.Name.Name
 }
+
 func (s *SourceInfoProcessor) addImport(decl ast.Decl, p *packages.Package, localImportMap map[string]string, log logger.MultiLogger) (shouldContinue bool) {
 	shouldContinue = true
 	genDecl, ok := decl.(*ast.GenDecl)
@@ -400,7 +408,7 @@ func (s *SourceInfoProcessor) addImport(decl ast.Decl, p *packages.Package, loca
 		shouldContinue = false
 		for _, spec := range genDecl.Specs {
 			importSpec := spec.(*ast.ImportSpec)
-			//fmt.Printf("*** import specification %#v\n", importSpec)
+			// fmt.Printf("*** import specification %#v\n", importSpec)
 			var pkgAlias string
 			if importSpec.Name != nil {
 				pkgAlias = importSpec.Name.Name
@@ -409,16 +417,15 @@ func (s *SourceInfoProcessor) addImport(decl ast.Decl, p *packages.Package, loca
 				}
 			}
 			quotedPath := importSpec.Path.Value           // e.g. "\"sample/app/models\""
-			fullPath := quotedPath[1 : len(quotedPath) - 1] // Remove the quotes
+			fullPath := quotedPath[1 : len(quotedPath)-1] // Remove the quotes
 			if pkgAlias == "" {
 				pkgAlias = fullPath
 				if index := strings.LastIndex(pkgAlias, "/"); index > 0 {
-					pkgAlias = pkgAlias[index + 1:]
+					pkgAlias = pkgAlias[index+1:]
 				}
 			}
 			localImportMap[pkgAlias] = fullPath
 		}
-
 	}
 	return
 }

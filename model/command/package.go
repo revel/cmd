@@ -1,4 +1,5 @@
 package command
+
 type (
 	Package struct {
 		ImportCommand

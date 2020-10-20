@@ -18,13 +18,13 @@ const (
 	errorKey            = "REVEL_ERROR"
 )
 
-var (
-	levelString = map[LogLevel]string{LvlDebug: "DEBUG",
-		LvlInfo: "INFO", LvlWarn: "WARN", LvlError: "ERROR", LvlCrit: "CRIT"}
-)
+var levelString = map[LogLevel]string{
+	LvlDebug: "DEBUG",
+	LvlInfo:  "INFO", LvlWarn: "WARN", LvlError: "ERROR", LvlCrit: "CRIT",
+}
 
 // Outputs to the terminal in a format like below
-// INFO  09:11:32 server-engine.go:169: Request Stats
+// INFO  09:11:32 server-engine.go:169: Request Stats.
 func TerminalFormatHandler(noColor bool, smallDate bool) LogFormat {
 	dateFormat := termTimeFormat
 	if smallDate {
@@ -32,7 +32,7 @@ func TerminalFormatHandler(noColor bool, smallDate bool) LogFormat {
 	}
 	return FormatFunc(func(r *Record) []byte {
 		// Bash coloring http://misc.flogisoft.com/bash/tip_colors_and_formatting
-		var color = 0
+		color := 0
 		switch r.Level {
 		case LvlCrit:
 			// Magenta
@@ -54,7 +54,7 @@ func TerminalFormatHandler(noColor bool, smallDate bool) LogFormat {
 		b := &bytes.Buffer{}
 		caller, _ := r.Context["caller"].(string)
 		module, _ := r.Context["module"].(string)
-		if noColor == false && color > 0 {
+		if !noColor && color > 0 {
 			if len(module) > 0 {
 				fmt.Fprintf(b, "\x1b[%dm%-5s\x1b[0m %s %6s %13s: %-40s ", color, levelString[r.Level], r.Time.Format(dateFormat), module, caller, r.Message)
 			} else {
@@ -77,7 +77,7 @@ func TerminalFormatHandler(noColor bool, smallDate bool) LogFormat {
 			v := formatLogfmtValue(v)
 
 			// TODO: we should probably check that all of your key bytes aren't invalid
-			if noColor == false && color > 0 {
+			if !noColor && color > 0 {
 				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m=%s", color, k, v)
 			} else {
 				b.WriteString(k)
@@ -92,7 +92,7 @@ func TerminalFormatHandler(noColor bool, smallDate bool) LogFormat {
 	})
 }
 
-// formatValue formats a value for serialization
+// formatValue formats a value for serialization.
 func formatLogfmtValue(value interface{}) string {
 	if value == nil {
 		return "nil"
@@ -121,7 +121,7 @@ func formatLogfmtValue(value interface{}) string {
 	}
 }
 
-// Format the value in json format
+// Format the value in json format.
 func formatShared(value interface{}) (result interface{}) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -148,12 +148,12 @@ func formatShared(value interface{}) (result interface{}) {
 	}
 }
 
-// A reusuable buffer for outputting data
+// A reusuable buffer for outputting data.
 var stringBufPool = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
 
-// Escape the string when needed
+// Escape the string when needed.
 func escapeString(s string) string {
 	needsQuotes := false
 	needsEscape := false
@@ -165,7 +165,7 @@ func escapeString(s string) string {
 			needsEscape = true
 		}
 	}
-	if needsEscape == false && needsQuotes == false {
+	if !needsEscape && !needsQuotes {
 		return s
 	}
 	e := stringBufPool.Get().(*bytes.Buffer)
@@ -215,7 +215,7 @@ func JsonFormatEx(pretty, lineSeparated bool) LogFormat {
 		props["lvl"] = levelString[r.Level]
 		props["msg"] = r.Message
 		for k, v := range r.Context {
-			props[k] = formatJsonValue(v)
+			props[k] = formatJSONValue(v)
 		}
 
 		b, err := jsonMarshal(props)
@@ -234,7 +234,7 @@ func JsonFormatEx(pretty, lineSeparated bool) LogFormat {
 	})
 }
 
-func formatJsonValue(value interface{}) interface{} {
+func formatJSONValue(value interface{}) interface{} {
 	value = formatShared(value)
 	switch value.(type) {
 	case int, int8, int16, int32, int64, float32, float64, uint, uint8, uint16, uint32, uint64, string:

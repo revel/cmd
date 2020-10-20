@@ -1,23 +1,24 @@
 package main_test
 
 import (
-	"github.com/revel/cmd/logger"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
-	"github.com/stretchr/testify/assert"
+	"fmt"
 	"go/build"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"fmt"
+
+	"github.com/revel/cmd/logger"
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
+	"github.com/stretchr/testify/assert"
 )
 
-// Test that the event handler can be attached and it dispatches the event received
-func setup(suffix string, a *assert.Assertions) (string) {
+// Test that the event handler can be attached and it dispatches the event received.
+func setup(suffix string, a *assert.Assertions) string {
 	temp := os.TempDir()
 	wd, _ := os.Getwd()
 	utils.InitLogger(wd, logger.LvlInfo)
-	gopath := filepath.Join(temp, "revel-test",suffix)
+	gopath := filepath.Join(temp, "revel-test", suffix)
 	if utils.Exists(gopath) {
 		utils.Logger.Info("Removing test path", "path", gopath)
 		if err := os.RemoveAll(gopath); err != nil {
@@ -38,30 +39,29 @@ func setup(suffix string, a *assert.Assertions) (string) {
 	defaultBuild := build.Default
 	defaultBuild.GOPATH = gopath
 	build.Default = defaultBuild
-	utils.Logger.Info("Setup stats", "original wd", wd, "new wd", newwd, "gopath",gopath, "gopath exists", utils.DirExists(gopath), "wd exists", utils.DirExists(newwd))
+	utils.Logger.Info("Setup stats", "original wd", wd, "new wd", newwd, "gopath", gopath, "gopath exists", utils.DirExists(gopath), "wd exists", utils.DirExists(newwd))
 
 	return gopath
 }
 
-// Create a new app for the name
+// Create a new app for the name.
 func newApp(name string, command model.COMMAND, precall func(c *model.CommandConfig), a *assert.Assertions) *model.CommandConfig {
-	c := &model.CommandConfig{Vendored:true}
+	c := &model.CommandConfig{Vendored: true}
 	switch command {
 	case model.NEW:
 		c.New.ImportPath = name
-		c.New.Callback=func() error {
+		c.New.Callback = func() error {
 			// On callback we will invoke a specific branch of revel so that it works
 
 			goModCmd := exec.Command("go", "mod", "tidy")
 			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
 			getOutput, _ := goModCmd.CombinedOutput()
-			fmt.Printf("Calling go mod tidy %s",string(getOutput))
+			fmt.Printf("Calling go mod tidy %s", string(getOutput))
 
 			goModCmd = exec.Command("go", "mod", "edit", "-replace=github.com/revel/revel=github.com/revel/revel@develop")
 			utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
 			getOutput, _ = goModCmd.CombinedOutput()
-			fmt.Printf("Calling go mod edit %v",string(getOutput))
-
+			fmt.Printf("Calling go mod edit %v", string(getOutput))
 
 			return nil
 		}
@@ -83,7 +83,7 @@ func newApp(name string, command model.COMMAND, precall func(c *model.CommandCon
 	if precall != nil {
 		precall(c)
 	}
-	if c.UpdateImportPath()!=nil {
+	if c.UpdateImportPath() != nil {
 		a.Fail("Unable to update import path")
 	}
 

@@ -11,12 +11,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"time"
+	"runtime"
 	"sync"
+	"time"
 
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"runtime"
 )
 
 // App contains the configuration for running a Revel app.  (Not for the app itself)
@@ -29,9 +29,9 @@ type App struct {
 	Paths          *model.RevelContainer
 }
 
-// NewApp returns app instance with binary path in it
+// NewApp returns app instance with binary path in it.
 func NewApp(binPath string, paths *model.RevelContainer, packagePathMap map[string]string) *App {
-	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort, PackagePathMap:packagePathMap}
+	return &App{BinaryPath: binPath, Paths: paths, Port: paths.HTTPPort, PackagePathMap: packagePathMap}
 }
 
 // Cmd returns a command to run the app server using the current configuration.
@@ -51,7 +51,7 @@ type AppCmd struct {
 	*exec.Cmd
 }
 
-// NewAppCmd returns the AppCmd with parameters initialized for running app
+// NewAppCmd returns the AppCmd with parameters initialized for running app.
 func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelContainer) AppCmd {
 	cmd := exec.Command(binPath,
 		fmt.Sprintf("-port=%d", port),
@@ -74,9 +74,9 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	select {
 	case exitState := <-cmd.waitChan():
 		fmt.Println("Startup failure view previous messages, \n Proxy is listening :", c.Run.Port)
-		err := utils.NewError("", "Revel Run Error", "starting your application there was an exception. See terminal output, " + exitState, "")
-	// TODO pretiffy command line output
-	// err.MetaError = listeningWriter.getLastOutput()
+		err := utils.NewError("", "Revel Run Error", "starting your application there was an exception. See terminal output, "+exitState, "")
+		// TODO pretiffy command line output
+		// err.MetaError = listeningWriter.getLastOutput()
 		return err
 
 	case <-time.After(60 * time.Second):
@@ -89,11 +89,11 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 		println("Revel proxy is listening, point your browser to :", c.Run.Port)
 		return nil
 	}
-
 }
 
 // Run the app server inline.  Never returns.
-func (cmd AppCmd) Run() {
+func (cmd AppCmd) Run(c *model.CommandConfig) {
+	utils.CmdInit(cmd.Cmd, !c.Vendored, c.AppPath)
 	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args)
 	if err := cmd.Cmd.Run(); err != nil {
 		utils.Logger.Fatal("Error running:", "error", err)
@@ -102,11 +102,10 @@ func (cmd AppCmd) Run() {
 
 // Kill terminates the app server if it's running.
 func (cmd AppCmd) Kill() {
-
 	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
 		// Windows appears to send the kill to all threads, shutting down the
 		// server before this can, this check will ensure the process is still running
-		if _, err := os.FindProcess(int(cmd.Process.Pid)); err != nil {
+		if _, err := os.FindProcess(cmd.Process.Pid); err != nil {
 			// Server has already exited
 			utils.Logger.Info("Server not running revel server pid", "pid", cmd.Process.Pid)
 			return
@@ -148,14 +147,13 @@ func (cmd AppCmd) Kill() {
 			return
 		}
 
-
 		// Use a timer to ensure that the process exits
 		utils.Logger.Info("Waiting to exit")
 		select {
 		case <-ch:
 			return
 		case <-time.After(60 * time.Second):
-		// Kill the process
+			// Kill the process
 			utils.Logger.Error(
 				"Revel app failed to exit in 60 seconds - killing.",
 				"processid", cmd.Process.Pid,
@@ -192,7 +190,7 @@ type startupListeningWriter struct {
 	buffer      *bytes.Buffer
 }
 
-// Writes to this output stream
+// Writes to this output stream.
 func (w *startupListeningWriter) Write(p []byte) (int, error) {
 	if w.notifyReady != nil && bytes.Contains(p, []byte("Revel engine is listening on")) {
 		w.notifyReady <- true
@@ -209,10 +207,3 @@ func (w *startupListeningWriter) Write(p []byte) (int, error) {
 	}
 	return w.dest.Write(p)
 }
-
-// Returns the cleaned output from the response
-// TODO clean the response more
-func (w *startupListeningWriter) getLastOutput() string {
-	return w.buffer.String()
-}
-

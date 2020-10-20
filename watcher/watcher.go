@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
-	"github.com/fsnotify/fsnotify"
-	"time"
 )
 
 // Listener is an interface for receivers of filesystem events.
@@ -33,7 +33,7 @@ type DiscerningListener interface {
 // Watcher allows listeners to register to be notified of changes under a given
 // directory.
 type Watcher struct {
-	                                  // Parallel arrays of watcher/listener pairs.
+	// Parallel arrays of watcher/listener pairs.
 	watchers            []*fsnotify.Watcher
 	listeners           []Listener
 	forceRefresh        bool
@@ -42,14 +42,14 @@ type Watcher struct {
 	lastError           int
 	notifyMutex         sync.Mutex
 	paths               *model.RevelContainer
-	refreshTimer        *time.Timer   // The timer to countdown the next refresh
-	timerMutex          *sync.Mutex   // A mutex to prevent concurrent updates
+	refreshTimer        *time.Timer // The timer to countdown the next refresh
+	timerMutex          *sync.Mutex // A mutex to prevent concurrent updates
 	refreshChannel      chan *utils.SourceError
 	refreshChannelCount int
 	refreshTimerMS      time.Duration // The number of milliseconds between refreshing builds
 }
 
-// Creates a new watched based on the container
+// Creates a new watched based on the container.
 func NewWatcher(paths *model.RevelContainer, eagerRefresh bool) *Watcher {
 	return &Watcher{
 		forceRefresh:   false,
@@ -85,7 +85,7 @@ func (w *Watcher) Listen(listener Listener, roots ...string) {
 	for _, p := range roots {
 		// is the directory / file a symlink?
 		f, err := os.Lstat(p)
-		if err == nil && f.Mode() & os.ModeSymlink == os.ModeSymlink {
+		if err == nil && f.Mode()&os.ModeSymlink == os.ModeSymlink {
 			var realPath string
 			realPath, err = filepath.EvalSymlinks(p)
 			if err != nil {
@@ -109,9 +109,7 @@ func (w *Watcher) Listen(listener Listener, roots ...string) {
 			continue
 		}
 
-		var watcherWalker func(path string, info os.FileInfo, err error) error
-
-		watcherWalker = func(path string, info os.FileInfo, err error) error {
+		watcherWalker := func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				utils.Logger.Fatal("Watcher: Error walking path:", "error", err)
 				return nil
@@ -150,7 +148,6 @@ func (w *Watcher) Listen(listener Listener, roots ...string) {
 
 // NotifyWhenUpdated notifies the watcher when a file event is received.
 func (w *Watcher) NotifyWhenUpdated(listener Listener, watcher *fsnotify.Watcher) {
-
 	for {
 		select {
 		case ev := <-watcher.Events:
@@ -200,7 +197,7 @@ func (w *Watcher) Notify() *utils.SourceError {
 			case <-watcher.Errors:
 				continue
 			default:
-			// No events left to pull
+				// No events left to pull
 			}
 			break
 		}
@@ -218,10 +215,10 @@ func (w *Watcher) Notify() *utils.SourceError {
 				w.lastError = i
 				w.forceRefresh = true
 				return err
-			} else {
-				w.lastError = -1
-				w.forceRefresh = false
 			}
+
+			w.lastError = -1
+			w.forceRefresh = false
 		}
 	}
 
@@ -229,7 +226,7 @@ func (w *Watcher) Notify() *utils.SourceError {
 }
 
 // Build a queue for refresh notifications
-// this will not return until one of the queue completes
+// this will not return until one of the queue completes.
 func (w *Watcher) notifyInProcess(listener Listener) (err *utils.SourceError) {
 	shouldReturn := false
 	// This code block ensures that either a timer is created
@@ -286,10 +283,9 @@ func (w *Watcher) rebuildRequired(ev fsnotify.Event, listener Listener) bool {
 	}
 
 	if dl, ok := listener.(DiscerningListener); ok {
-		if !dl.WatchFile(ev.Name) || ev.Op & fsnotify.Chmod == fsnotify.Chmod {
+		if !dl.WatchFile(ev.Name) || ev.Op&fsnotify.Chmod == fsnotify.Chmod {
 			return false
 		}
 	}
 	return true
 }
-

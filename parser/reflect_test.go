@@ -67,7 +67,7 @@ var expectedValidationKeys = []map[int]string{
 	},
 }
 
-// This tests the recording of line number to validation key of the preceeding
+// This tests the recording of line number to validation key of the preceding
 // example source.
 func TestGetValidationKeys(t *testing.T) {
 	fset := token.NewFileSet()

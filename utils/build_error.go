@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"github.com/revel/cmd/logger"
-	"strconv"
 	"regexp"
+	"strconv"
+
+	"github.com/revel/cmd/logger"
 )
 
 type (
@@ -15,7 +16,7 @@ type (
 	}
 )
 
-// Returns a new builed error
+// Returns a new builed error.
 func NewBuildError(message string, args ...interface{}) (b *BuildError) {
 	Logger.Info(message, args...)
 	b = &BuildError{}
@@ -26,22 +27,23 @@ func NewBuildError(message string, args ...interface{}) (b *BuildError) {
 	return b
 }
 
-// Returns a new BuildError if err is not nil
+// Returns a new BuildError if err is not nil.
 func NewBuildIfError(err error, message string, args ...interface{}) (b error) {
 	if err != nil {
 		if berr, ok := err.(*BuildError); ok {
 			// This is already a build error so just append the args
 			berr.Args = append(berr.Args, args...)
 			return berr
-		} else {
-			args = append(args, "error", err.Error())
-			b = NewBuildError(message, args...)
 		}
+
+		args = append(args, "error", err.Error())
+		b = NewBuildError(message, args...)
 	}
+
 	return
 }
 
-// BuildError implements Error() string
+// BuildError implements Error() string.
 func (b *BuildError) Error() string {
 	return fmt.Sprint(b.Message, b.Args)
 }
@@ -70,13 +72,12 @@ func NewCompileError(importPath, errorLink string, error error) *SourceError {
 		Logger.Error("Build errors", "errors", error)
 	}
 
-
 	// Read the source for the offending file.
 	var (
-		relFilename = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
-		absFilename = relFilename
-		line, _ = strconv.Atoi(string(errorMatch[2]))
-		description = string(errorMatch[4])
+		relFilename  = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
+		absFilename  = relFilename
+		line, _      = strconv.Atoi(string(errorMatch[2]))
+		description  = string(errorMatch[4])
 		compileError = &SourceError{
 			SourceType:  "Go code",
 			Title:       "Go Compilation Error",
@@ -95,7 +96,7 @@ func NewCompileError(importPath, errorLink string, error error) *SourceError {
 	fileStr, err := ReadLines(absFilename)
 	if err != nil {
 		compileError.MetaError = absFilename + ": " + err.Error()
-		Logger.Info("Unable to readlines " + compileError.MetaError, "error", err)
+		Logger.Info("Unable to readlines "+compileError.MetaError, "error", err)
 		return compileError
 	}
 

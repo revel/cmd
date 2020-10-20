@@ -5,11 +5,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"fmt"
 	"github.com/revel/cmd/harness"
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
@@ -34,7 +34,7 @@ func init() {
 	cmdBuild.UpdateConfig = updateBuildConfig
 }
 
-// The update config updates the configuration command so that it can run
+// The update config updates the configuration command so that it can run.
 func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.BUILD
 	if c.Build.TargetPath == "" {
@@ -57,9 +57,8 @@ func updateBuildConfig(c *model.CommandConfig, args []string) bool {
 	return true
 }
 
-// The main entry point to build application from command line
+// The main entry point to build application from command line.
 func buildApp(c *model.CommandConfig) (err error) {
-
 	appImportPath, destPath, mode := c.ImportPath, c.Build.TargetPath, DefaultRunMode
 	if len(c.Build.Mode) > 0 {
 		mode = c.Build.Mode
@@ -70,7 +69,7 @@ func buildApp(c *model.CommandConfig) (err error) {
 	c.Build.Mode = mode
 	c.Build.ImportPath = appImportPath
 
-	revel_paths, err := model.NewRevelPaths(mode, appImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revelPaths, err := model.NewRevelPaths(mode, appImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}
@@ -80,7 +79,7 @@ func buildApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Ensure the application can be built, this generates the main file
-	app, err := harness.Build(c, revel_paths)
+	app, err := harness.Build(c, revelPaths)
 	if err != nil {
 		return err
 	}
@@ -91,11 +90,11 @@ func buildApp(c *model.CommandConfig) (err error) {
 	// - revel
 	// - app
 
-	packageFolders, err := buildCopyFiles(c, app, revel_paths)
+	packageFolders, err := buildCopyFiles(c, app, revelPaths)
 	if err != nil {
 		return
 	}
-	err = buildCopyModules(c, revel_paths, packageFolders, app)
+	err = buildCopyModules(c, revelPaths, packageFolders, app)
 	if err != nil {
 		return
 	}
@@ -106,36 +105,36 @@ func buildApp(c *model.CommandConfig) (err error) {
 	return
 }
 
-// Copy the files to the target
-func buildCopyFiles(c *model.CommandConfig, app *harness.App, revel_paths *model.RevelContainer) (packageFolders []string, err error) {
+// Copy the files to the target.
+func buildCopyFiles(c *model.CommandConfig, app *harness.App, revelPaths *model.RevelContainer) (packageFolders []string, err error) {
 	appImportPath, destPath := c.ImportPath, c.Build.TargetPath
 
 	// Revel and the app are in a directory structure mirroring import path
 	srcPath := filepath.Join(destPath, "src")
 	destBinaryPath := filepath.Join(destPath, filepath.Base(app.BinaryPath))
 	tmpRevelPath := filepath.Join(srcPath, filepath.FromSlash(model.RevelImportPath))
-	if err = utils.CopyFile(destBinaryPath, filepath.Join(revel_paths.BasePath, app.BinaryPath)); err != nil {
+	if err = utils.CopyFile(destBinaryPath, filepath.Join(revelPaths.BasePath, app.BinaryPath)); err != nil {
 		return
 	}
 	utils.MustChmod(destBinaryPath, 0755)
 
 	// Copy the templates  from the revel
-	if err = utils.CopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revel_paths.RevelPath, "conf"), nil); err != nil {
+	if err = utils.CopyDir(filepath.Join(tmpRevelPath, "conf"), filepath.Join(revelPaths.RevelPath, "conf"), nil); err != nil {
 		return
 	}
-	if err = utils.CopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revel_paths.RevelPath, "templates"), nil); err != nil {
+	if err = utils.CopyDir(filepath.Join(tmpRevelPath, "templates"), filepath.Join(revelPaths.RevelPath, "templates"), nil); err != nil {
 		return
 	}
 
 	// Get the folders to be packaged
-	packageFolders = strings.Split(revel_paths.Config.StringDefault("package.folders", "conf,public,app/views"), ",")
+	packageFolders = strings.Split(revelPaths.Config.StringDefault("package.folders", "conf,public,app/views"), ",")
 	for i, p := range packageFolders {
 		// Clean spaces, reformat slash to filesystem
 		packageFolders[i] = filepath.FromSlash(strings.TrimSpace(p))
 	}
 
 	if c.Build.CopySource {
-		err = utils.CopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revel_paths.BasePath, nil)
+		err = utils.CopyDir(filepath.Join(srcPath, filepath.FromSlash(appImportPath)), revelPaths.BasePath, nil)
 		if err != nil {
 			return
 		}
@@ -143,7 +142,7 @@ func buildCopyFiles(c *model.CommandConfig, app *harness.App, revel_paths *model
 		for _, folder := range packageFolders {
 			err = utils.CopyDir(
 				filepath.Join(srcPath, filepath.FromSlash(appImportPath), folder),
-				filepath.Join(revel_paths.BasePath, folder),
+				filepath.Join(revelPaths.BasePath, folder),
 				nil)
 			if err != nil {
 				return
@@ -154,11 +153,11 @@ func buildCopyFiles(c *model.CommandConfig, app *harness.App, revel_paths *model
 	return
 }
 
-// Based on the section copy over the build modules
-func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer, packageFolders []string, app *harness.App) (err error) {
+// Based on the section copy over the build modules.
+func buildCopyModules(c *model.CommandConfig, revelPaths *model.RevelContainer, packageFolders []string, app *harness.App) (err error) {
 	destPath := filepath.Join(c.Build.TargetPath, "src")
 	// Find all the modules used and copy them over.
-	config := revel_paths.Config.Raw()
+	config := revelPaths.Config.Raw()
 
 	// We should only copy over the section of options what the build is targeted for
 	// We will default to prod
@@ -178,7 +177,6 @@ func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer,
 				continue
 			}
 			moduleImportList = append(moduleImportList, moduleImportPath)
-
 		}
 	}
 
@@ -207,7 +205,7 @@ func buildCopyModules(c *model.CommandConfig, revel_paths *model.RevelContainer,
 	return
 }
 
-// Write the run scripts for the build
+// Write the run scripts for the build.
 func buildWriteScripts(c *model.CommandConfig, app *harness.App) (err error) {
 	tmplData := map[string]interface{}{
 		"BinName":    filepath.Base(app.BinaryPath),
@@ -238,9 +236,8 @@ func buildWriteScripts(c *model.CommandConfig, app *harness.App) (err error) {
 	return
 }
 
-// Checks to see if the target folder exists and can be created
+// Checks to see if the target folder exists and can be created.
 func buildSafetyCheck(destPath string) error {
-
 	// First, verify that it is either already empty or looks like a previous
 	// build (to avoid clobbering anything)
 	if utils.Exists(destPath) && !utils.Empty(destPath) && !utils.Exists(filepath.Join(destPath, "run.sh")) {
@@ -262,6 +259,7 @@ const PACKAGE_RUN_SH = `#!/bin/sh
 SCRIPTPATH=$(cd "$(dirname "$0")"; pwd)
 "$SCRIPTPATH/{{.BinName}}" -importPath {{.ImportPath}} -srcPath "$SCRIPTPATH/src" -runMode {{.Mode}}
 `
+
 const PACKAGE_RUN_BAT = `@echo off
 
 {{.BinName}} -importPath {{.ImportPath}} -srcPath "%CD%\src" -runMode {{.Mode}}

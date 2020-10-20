@@ -1,15 +1,16 @@
 package parser
 
 import (
-	"github.com/revel/cmd/utils"
 	"go/ast"
 	"go/build"
 	"go/token"
 	"path/filepath"
 	"strings"
+
+	"github.com/revel/cmd/utils"
 )
 
-// Add imports to the map from the source dir
+// Add imports to the map from the source dir.
 func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 	genDecl, ok := decl.(*ast.GenDecl)
 	if !ok {
@@ -42,7 +43,6 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 		// 2. Exempt the standard library; their directories always match the package name.
 		// 3. Can use build.FindOnly and then use parser.ParseDir with mode PackageClauseOnly
 		if pkgAlias == "" {
-
 			utils.Logger.Debug("Reading from build", "path", fullPath, "srcPath", srcDir, "gopath", build.Default.GOPATH)
 			pkg, err := build.Import(fullPath, srcDir, 0)
 			if err != nil {
@@ -63,7 +63,7 @@ func addImports(imports map[string]string, decl ast.Decl, srcDir string) {
 }
 
 // Returns a valid import string from the path
-// using the build.Defaul.GOPATH to determine the root
+// using the build.Defaul.GOPATH to determine the root.
 func importPathFromPath(root, basePath string) string {
 	vendorTest := filepath.Join(basePath, "vendor")
 	if len(root) > len(vendorTest) && root[:len(vendorTest)] == vendorTest {

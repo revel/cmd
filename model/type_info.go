@@ -9,7 +9,7 @@ type TypeInfo struct {
 	EmbeddedTypes []*EmbeddedTypeName // Used internally to identify controllers that indirectly embed *revel.Controller.
 }
 
-// Return the type information as a properly formatted import string
+// Return the type information as a properly formatted import string.
 func (s *TypeInfo) String() string {
 	return s.ImportPath + "." + s.StructName
 }

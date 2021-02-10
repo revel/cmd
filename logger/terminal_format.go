@@ -197,10 +197,10 @@ func escapeString(s string) string {
 	return ret
 }
 
-// JsonFormatEx formats log records as JSON objects. If pretty is true,
+// JSONFormatEx formats log records as JSON objects. If pretty is true,
 // records will be pretty-printed. If lineSeparated is true, records
 // will be logged with a new line between each record.
-func JsonFormatEx(pretty, lineSeparated bool) LogFormat {
+func JSONFormatEx(pretty, lineSeparated bool) LogFormat {
 	jsonMarshal := json.Marshal
 	if pretty {
 		jsonMarshal = func(v interface{}) ([]byte, error) {

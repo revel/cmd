@@ -33,7 +33,10 @@ func setup(suffix string, a *assert.Assertions) string {
 	// But if you change into that directory and read the current folder it is
 	// /private/var/folders/nz/vv4_9tw56nv9k3tkvyszvwg80000gn/T/revel-test/revel-test-build
 	// So to make this work on darwin this code was added
-	os.Chdir(gopath)
+	if err := os.Chdir(gopath); err != nil {
+		panic(err)
+	}
+
 	newwd, _ := os.Getwd()
 	gopath = newwd
 	defaultBuild := build.Default

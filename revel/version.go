@@ -82,7 +82,9 @@ func (v *VersionCommand) RunWith(c *model.CommandConfig) (err error) {
 	if e := cmd.Start(); e != nil {
 		fmt.Println("Go command error ", e)
 	} else {
-		cmd.Wait()
+		if err = cmd.Wait(); err != nil {
+			return
+		}
 	}
 
 	return
@@ -188,7 +190,9 @@ func (v *VersionCommand) versionFromBytes(sourceStream []byte) (version *model.V
 			r := spec.Values[0].(*ast.BasicLit)
 			switch spec.Names[0].Name {
 			case "Version":
-				version.ParseVersion(strings.ReplaceAll(r.Value, `"`, ""))
+				if err = version.ParseVersion(strings.ReplaceAll(r.Value, `"`, "")); err != nil {
+					return
+				}
 			case "BuildDate":
 				version.BuildDate = r.Value
 			case "MinimumGoVersion":
@@ -202,7 +206,12 @@ func (v *VersionCommand) versionFromBytes(sourceStream []byte) (version *model.V
 // Fetch the local version of revel from the file system.
 func (v *VersionCommand) updateLocalVersions() {
 	v.cmdVersion = &model.Version{}
-	v.cmdVersion.ParseVersion(cmd.Version)
+
+	if err := v.cmdVersion.ParseVersion(cmd.Version); err != nil {
+		utils.Logger.Warn("Error parsing version", "error", err, "version", cmd.Version)
+		return
+	}
+
 	v.cmdVersion.BuildDate = cmd.BuildDate
 	v.cmdVersion.MinGoVersion = cmd.MinimumGoVersion
 

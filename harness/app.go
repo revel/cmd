@@ -6,7 +6,6 @@ package harness
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +17,16 @@ import (
 	"github.com/revel/cmd/model"
 	"github.com/revel/cmd/utils"
 )
+
+// Error is used for constant errors.
+type Error string
+
+// Error implements the error interface.
+func (e Error) Error() string {
+	return string(e)
+}
+
+const ErrTimedOut Error = "app timed out"
 
 // App contains the configuration for running a Revel app.  (Not for the app itself)
 // Its only purpose is constructing the command to execute.
@@ -83,7 +92,8 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 		println("Revel proxy is listening, point your browser to :", c.Run.Port)
 		utils.Logger.Error("Killing revel server process did not respond after wait timeout.", "processid", cmd.Process.Pid)
 		cmd.Kill()
-		return errors.New("revel/harness: app timed out")
+
+		return fmt.Errorf("revel/harness: %w", ErrTimedOut)
 
 	case <-listeningWriter.notifyReady:
 		println("Revel proxy is listening, point your browser to :", c.Run.Port)

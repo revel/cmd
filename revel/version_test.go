@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,8 +35,9 @@ func TestVersion(t *testing.T) {
 		c.Version.ImportPath = c.ImportPath
 		a.Nil(main.Commands[model.VERSION].RunWith(c), "Failed to run version-test")
 	})
+
 	if !t.Failed() {
-		if err := os.RemoveAll(gopath); err != nil && err != os.ErrNotExist {
+		if err := os.RemoveAll(gopath); err != nil && !errors.Is(err, os.ErrNotExist) {
 			a.Fail("Failed to remove test path", err.Error())
 		}
 	}

@@ -33,7 +33,7 @@ func InitLogger(basePath string, logLevel logger.LogLevel) {
 
 // This function is to throw a panic that may be caught by the packger so it can perform the needed
 // imports.
-func Retry(format string, args ...interface{}) {
+func Retryf(format string, args ...interface{}) {
 	// Ensure the user's command prompt starts on the next line.
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"

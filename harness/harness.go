@@ -16,6 +16,7 @@ package harness
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/build"
 	"html/template"
@@ -69,6 +70,7 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 	if err == nil {
 		utils.Logger.Panic("Caller passed in a nil error")
 	}
+
 	templateSet := template.New("__root__")
 	seekViewOnPath := func(view string) (path string) {
 		path = filepath.Join(h.paths.ViewsPath, "errors", view)
@@ -86,26 +88,27 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 		}
 		return
 	}
+
 	target := []string{seekViewOnPath("500.html"), seekViewOnPath("500-dev.html")}
 	if !utils.Exists(target[0]) {
 		fmt.Fprintf(iw, "Target template not found not found %s<br />\n", target[0])
 		fmt.Fprintf(iw, "An error occurred %s", err.Error())
 		return
 	}
+
 	var revelError *utils.SourceError
-	switch e := err.(type) {
-	case *utils.SourceError:
-		revelError = e
-	case error:
+
+	if !errors.As(err, &revelError) {
 		revelError = &utils.SourceError{
 			Title:       "Server Error",
-			Description: e.Error(),
+			Description: err.Error(),
 		}
 	}
 
 	if revelError == nil {
 		panic("no error provided")
 	}
+
 	viewArgs := map[string]interface{}{}
 	viewArgs["RunMode"] = h.paths.RunMode
 	viewArgs["DevMode"] = h.paths.DevMode
@@ -236,32 +239,42 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 	h.app, newErr = Build(h.config, h.paths)
 	if newErr != nil {
 		utils.Logger.Error("Build detected an error", "error", newErr)
-		if castErr, ok := newErr.(*utils.SourceError); ok {
+
+		var castErr *utils.SourceError
+		if errors.As(newErr, &castErr) {
 			return castErr
 		}
+
 		err = &utils.SourceError{
 			Title:       "App failed to start up",
 			Description: err.Error(),
 		}
+
 		return
 	}
 
 	if h.useProxy {
 		h.app.Port = h.port
 		runMode := h.runMode
+
 		if !h.config.HistoricMode {
 			// Recalulate run mode based on the config
 			var paths []byte
 			if len(h.app.PackagePathMap) > 0 {
 				paths, _ = json.Marshal(h.app.PackagePathMap)
 			}
+
 			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose, string(paths))
 		}
+
 		if err2 := h.app.Cmd(runMode).Start(h.config); err2 != nil {
 			utils.Logger.Error("Could not start application", "error", err2)
-			if err, k := err2.(*utils.SourceError); k {
+
+			var serr *utils.SourceError
+			if errors.As(err2, &serr) {
 				return err
 			}
+
 			return &utils.SourceError{
 				Title:       "App failed to start up",
 				Description: err2.Error(),
@@ -297,7 +310,11 @@ func (h *Harness) Run() {
 	paths = append(paths, h.paths.CodePaths...)
 	h.watcher = watcher.NewWatcher(h.paths, false)
 	h.watcher.Listen(h, paths...)
-	go h.Refresh()
+	go func() {
+		if err := h.Refresh(); err != nil {
+			utils.Logger.Error("Failed to refresh", "error", err)
+		}
+	}()
 	// h.watcher.Notify()
 
 	if h.useProxy {

@@ -9,7 +9,6 @@ require (
 	github.com/inconshreveable/log15 v0.0.0-20200109203555-b30bc20e4fd1 // indirect
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/mattn/go-colorable v0.1.6
-	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/revel/config v0.21.0
 	github.com/revel/log15 v2.11.20+incompatible

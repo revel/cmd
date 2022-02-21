@@ -358,9 +358,10 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 	// Use packages to fetch
 	// by not specifying env, we will use the default env
 	config := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles,
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedDeps,
 		Dir:  appPath,
 	}
+	config.Env = ReducedEnv(false)
 	sourcePathsmap = map[string]string{}
 	Logger.Infof("Environment path %s root %s config env %s", os.Getenv("GOPATH"), os.Getenv("GOROOT"), config.Env)
 

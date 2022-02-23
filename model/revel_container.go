@@ -273,12 +273,11 @@ func (rp *RevelContainer) ResolveImportPath(importPath string) (string, error) {
 		return filepath.Join(rp.SourcePath, importPath), nil
 	}
 	config := &packages.Config{
-		// TODO: packages.LoadSyntax deprecated, Need instead
-		//nolint:staticcheck
-		Mode: packages.LoadSyntax,
-		Dir:  rp.AppPath,
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports |
+			packages.NeedTypes | packages.NeedTypesSizes | packages.NeedSyntax | packages.NeedTypesInfo,
+		Dir: rp.AppPath,
 	}
-
+	config.Env = utils.ReducedEnv(false)
 	pkgs, err := packages.Load(config, importPath)
 	if len(pkgs) == 0 {
 		return "", errors.New("No packages found for import " + importPath + " using app path " + rp.AppPath)

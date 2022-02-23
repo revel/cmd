@@ -206,7 +206,7 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 // called by the watcher
 func (h *Harness) Refresh() (err *utils.SourceError) {
 	t  := time.Now();
-	fmt.Println("Changed detected, recompiling")
+	fmt.Println("Change detected, recompiling")
 	err = h.refresh()
 	if err!=nil && !h.ranOnce && h.useProxy {
 		addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)

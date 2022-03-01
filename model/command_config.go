@@ -165,8 +165,6 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		} else {
 			appFolder = filepath.Join(wd, appFolder)
 		}
-	} else if strings.Contains(appFolder, ".") {
-		appFolder = filepath.Join(wd, filepath.Base(c.ImportPath))
 	} else if !filepath.IsAbs(appFolder) {
 		appFolder = filepath.Join(wd, appFolder)
 	}

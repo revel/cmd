@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/revel/cmd/model"
@@ -65,6 +66,7 @@ func NewAppCmd(binPath string, port int, runMode string, paths *model.RevelConta
 func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	listeningWriter := &startupListeningWriter{os.Stdout, make(chan bool), c, &bytes.Buffer{}}
 	cmd.Stdout = listeningWriter
+	cmd.Stderr = listeningWriter
 	utils.CmdInit(cmd.Cmd, !c.Vendored, c.AppPath)
 	utils.Logger.Info("Exec app:", "path", cmd.Path, "args", cmd.Args, "dir", cmd.Dir, "env", cmd.Env)
 	if err := cmd.Cmd.Start(); err != nil {
@@ -75,8 +77,9 @@ func (cmd AppCmd) Start(c *model.CommandConfig) error {
 	case exitState := <-cmd.waitChan():
 		fmt.Println("Startup failure view previous messages, \n Proxy is listening :", c.Run.Port)
 		err := utils.NewError("", "Revel Run Error", "starting your application there was an exception. See terminal output, "+exitState, "")
+		atomic.SwapInt32(&startupError, 1)
 		// TODO pretiffy command line output
-		// err.MetaError = listeningWriter.getLastOutput()
+		err.Stack = listeningWriter.buffer.String()
 		return err
 
 	case <-time.After(60 * time.Second):

@@ -19,7 +19,7 @@ import (
 )
 
 var cmdNew = &Command{
-	UsageLine: "new -i [path] -s [skeleton]",
+	UsageLine: "new -i [path] -s [skeleton] -p [package name]",
 	Short:     "create a skeleton Revel application",
 	Long: `
 New creates a few files to get a new Revel application running quickly.

@@ -41,7 +41,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceRoot}/.temp/revel/reveltest/app/tmp/main.go",
-            "args": ["-port=34373","-importPath=revel.com/testproject/reveltest", "-runMode={\"mode\":\"dev\", \"specialUseFlag\":true,\"packagePathMap\":{\"github.com/revel/modules/static\":\"/home/notzippy/go/pkg/mod/github.com/revel/modules@v1.0.0/static\",\"github.com/revel/modules/testrunner\":\"/home/notzippy/go/pkg/mod/github.com/revel/modules@v1.0.0/testrunner\",\"github.com/revel/revel\":\"/home/notzippy/go/pkg/mod/github.com/revel/revel@v1.0.0\",\"revel.com/testproject/reveltest\":\"/mnt/DevSystem/Work/Workareas/revel/revel3/cmd/.temp/revel/reveltest\"}}"],
+            "args": ["-port=9000","-importPath=revel.com/testproject/reveltest", "-runMode={\"mode\":\"dev\", \"specialUseFlag\":true,\"packagePathMap\":{\"github.com/revel/modules/static\":\"/home/notzippy/go/pkg/mod/github.com/revel/modules@v1.0.0/static\",\"github.com/revel/modules/testrunner\":\"/home/notzippy/go/pkg/mod/github.com/revel/modules@v1.0.0/testrunner\",\"github.com/revel/revel\":\"/home/notzippy/go/pkg/mod/github.com/revel/revel@v1.0.0\",\"revel.com/testproject/reveltest\":\"/mnt/DevSystem/Work/Workareas/revel/revel3/cmd/.temp/revel/reveltest\"}}"],
             "env": {
                 "GOPATH": "${workspaceRoot}/.temp/revel/GOPATH"
               },            

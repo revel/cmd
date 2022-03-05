@@ -7,6 +7,14 @@
             "label": "Clean-Test-Project",
             "type": "shell",
             "command": "rm -rf ${workspaceRoot}/.temp/revel/testproject"
-        }
+        },
+        {
+            "label": "Update Go Mod",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceRoot}/.temp/revel/testproject"
+            },
+            "command": "go mod tidy && go mod edit -replace github.com/revel/revel => ../../../revel"
+        },
     ]
 } 

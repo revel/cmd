@@ -3,23 +3,24 @@ package model
 // SourceInfo is the top-level struct containing all extracted information
 // about the app source code, used to generate main.go.
 import (
-	"github.com/revel/cmd/utils"
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/revel/cmd/utils"
 )
 
 type SourceInfo struct {
 	// StructSpecs lists type info for all structs found under the code paths.
 	// They may be queried to determine which ones (transitively) embed certain types.
-	StructSpecs     []*TypeInfo
+	StructSpecs []*TypeInfo
 	// ValidationKeys provides a two-level lookup.  The keys are:
 	// 1. The fully-qualified function name,
 	//    e.g. "github.com/revel/examples/chat/app/controllers.(*Application).Action"
 	// 2. Within that func's file, the line number of the (overall) expression statement.
 	//    e.g. the line returned from runtime.Caller()
 	// The result of the lookup the name of variable being validated.
-	ValidationKeys  map[string]map[int]string
+	ValidationKeys map[string]map[int]string
 	// A list of import paths.
 	// Revel notices files with an init() function and imports that package.
 	InitImportPaths []string
@@ -28,14 +29,14 @@ type SourceInfo struct {
 	// app/controllers/... that embed (directly or indirectly) revel.Controller
 	controllerSpecs []*TypeInfo
 	// testSuites list the types that constitute the set of application tests.
-	testSuites      []*TypeInfo
+	testSuites []*TypeInfo
 	// packageMap a map of import to system directory (if available)
-	PackageMap      map[string]string
+	PackageMap map[string]string
 }
 
 // TypesThatEmbed returns all types that (directly or indirectly) embed the
 // target type, which must be a fully qualified type name,
-// e.g. "github.com/revel/revel.Controller"
+// e.g. "github.com/revel/revel.Controller".
 func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered []*TypeInfo) {
 	// Do a search in the "embedded type graph", starting with the target type.
 	var (
@@ -75,7 +76,8 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 				utils.Logger.Info("Debug: Skipping adding spec for unexported type",
 					"type", filteredItem.StructName,
 					"package", filteredItem.ImportPath)
-				filtered = append(filtered[:i], filtered[i + 1:]...)
+				filtered = append(filtered[:i], filtered[i+1:]...)
+				//nolint:ineffassign // huh?
 				exit = false
 				break
 			}
@@ -98,8 +100,8 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 
 			// Report non controller structures in controller folder.
 			if !found && !strings.HasPrefix(spec.StructName, "Test") {
-				utils.Logger.Warn("Type found in package: " + packageFilter +
-					", but did not embed from: " + filepath.Base(targetType),
+				utils.Logger.Warn("Type found in package: "+packageFilter+
+					", but did not embed from: "+filepath.Base(targetType),
 					"name", spec.StructName, "importpath", spec.ImportPath, "foundstructures", unfoundNames)
 			}
 		}
@@ -108,20 +110,20 @@ func (s *SourceInfo) TypesThatEmbed(targetType, packageFilter string) (filtered 
 }
 
 // ControllerSpecs returns the all the controllers that embeds
-// `revel.Controller`
+// `revel.Controller`.
 func (s *SourceInfo) ControllerSpecs() []*TypeInfo {
-	utils.Logger.Info("Scanning controller specifications for types ","typePath",RevelImportPath + ".Controller", "speclen",len(s.controllerSpecs))
+	utils.Logger.Info("Scanning controller specifications for types ", "typePath", RevelImportPath+".Controller", "speclen", len(s.controllerSpecs))
 	if s.controllerSpecs == nil {
-		s.controllerSpecs = s.TypesThatEmbed(RevelImportPath + ".Controller", "controllers")
+		s.controllerSpecs = s.TypesThatEmbed(RevelImportPath+".Controller", "controllers")
 	}
 	return s.controllerSpecs
 }
 
 // TestSuites returns the all the Application tests that embeds
-// `testing.TestSuite`
+// `testing.TestSuite`.
 func (s *SourceInfo) TestSuites() []*TypeInfo {
 	if s.testSuites == nil {
-		s.testSuites = s.TypesThatEmbed(RevelImportPath + "/testing.TestSuite", "testsuite")
+		s.testSuites = s.TypesThatEmbed(RevelImportPath+"/testing.TestSuite", "testsuite")
 	}
 	return s.testSuites
 }

@@ -4,8 +4,8 @@ import (
 	"os"
 )
 
-// The log function map can be added to, so that you can specify your own logging mechanism
-// it has defaults for off, stdout, stderr
+// LogFunctionMap can be added to, so that you can specify your own logging mechanism
+// it has defaults for off, stdout, stderr.
 var LogFunctionMap = map[string]func(*CompositeMultiHandler, *LogOptions){
 	// Do nothing - set the logger off
 	"off": func(c *CompositeMultiHandler, logOptions *LogOptions) {

@@ -2,9 +2,10 @@ package model
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"regexp"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 type Version struct {
@@ -17,26 +18,24 @@ type Version struct {
 	MinGoVersion string
 }
 
-// The compatibility list
+// The compatibility list.
 var frameworkCompatibleRangeList = [][]string{
-	{"0.0.0", "0.20.0"}, // minimum Revel version to use with this version of the tool
+	{"0.0.0", "0.20.0"},   // minimum Revel version to use with this version of the tool
 	{"0.19.99", "0.30.0"}, // Compatible with Framework V 0.19.99 - 0.30.0
-	{"1.0.0", "1.9.0"}, // Compatible with Framework V 1.0 - 1.9
+	{"1.0.0", "1.9.0"},    // Compatible with Framework V 1.0 - 1.9
 }
 
-// Parses a version like v1.2.3a or 1.2
+// Parses a version like v1.2.3a or 1.2.
 var versionRegExp = regexp.MustCompile(`([^\d]*)?([0-9]*)\.([0-9]*)(\.([0-9]*))?(.*)`)
 
-// Parse the version and return it as a Version object
+// Parse the version and return it as a Version object.
 func ParseVersion(version string) (v *Version, err error) {
-
 	v = &Version{}
 	return v, v.ParseVersion(version)
 }
 
-// Parse the version and return it as a Version object
-func (v *Version)ParseVersion(version string) (err error) {
-
+// Parse the version and return it as a Version object.
+func (v *Version) ParseVersion(version string) (err error) {
 	parsedResult := versionRegExp.FindAllStringSubmatch(version, -1)
 	if len(parsedResult) != 1 {
 		err = errors.Errorf("Invalid version %s", version)
@@ -55,7 +54,8 @@ func (v *Version)ParseVersion(version string) (err error) {
 
 	return
 }
-// Returns 0 or an int value for the string, errors are returned as 0
+
+// Returns 0 or an int value for the string, errors are returned as 0.
 func (v *Version) intOrZero(input string) (value int) {
 	if input != "" {
 		value, _ = strconv.Atoi(input)
@@ -63,7 +63,7 @@ func (v *Version) intOrZero(input string) (value int) {
 	return value
 }
 
-// Returns true if this major revision is compatible
+// Returns true if this major revision is compatible.
 func (v *Version) CompatibleFramework(c *CommandConfig) error {
 	for i, rv := range frameworkCompatibleRangeList {
 		start, _ := ParseVersion(rv[0])
@@ -81,7 +81,7 @@ func (v *Version) CompatibleFramework(c *CommandConfig) error {
 	return errors.New("Tool out of date - do a 'go get -u github.com/revel/cmd/revel'")
 }
 
-// Returns true if this major revision is newer then the passed in
+// Returns true if this major revision is newer then the passed in.
 func (v *Version) MajorNewer(o *Version) bool {
 	if v.Major != o.Major {
 		return v.Major > o.Major
@@ -89,7 +89,7 @@ func (v *Version) MajorNewer(o *Version) bool {
 	return false
 }
 
-// Returns true if this major or major and minor revision is newer then the value passed in
+// Returns true if this major or major and minor revision is newer then the value passed in.
 func (v *Version) MinorNewer(o *Version) bool {
 	if v.Major != o.Major {
 		return v.Major > o.Major
@@ -100,7 +100,7 @@ func (v *Version) MinorNewer(o *Version) bool {
 	return false
 }
 
-// Returns true if the version is newer then the current on
+// Returns true if the version is newer then the current on.
 func (v *Version) Newer(o *Version) bool {
 	if v.Major != o.Major {
 		return v.Major > o.Major
@@ -114,13 +114,13 @@ func (v *Version) Newer(o *Version) bool {
 	return true
 }
 
-// Convert the version to a string
+// Convert the version to a string.
 func (v *Version) VersionString() string {
 	return fmt.Sprintf("%s%d.%d.%d%s", v.Prefix, v.Major, v.Minor, v.Maintenance, v.Suffix)
 }
 
-// Convert the version build date and go version to a string
+// Convert the version build date and go version to a string.
 func (v *Version) String() string {
-	return fmt.Sprintf("Version: %s%d.%d.%d%s\nBuild Date: %s\n Minimium Go Version: %s",
+	return fmt.Sprintf("Version: %s%d.%d.%d%s\nBuild Date: %s\n Minimum Go Version: %s",
 		v.Prefix, v.Major, v.Minor, v.Maintenance, v.Suffix, v.BuildDate, v.MinGoVersion)
 }

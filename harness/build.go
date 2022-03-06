@@ -19,22 +19,24 @@ import (
 	"time"
 
 	"github.com/revel/cmd/model"
-	_ "github.com/revel/cmd/parser"
-	"github.com/revel/cmd/utils"
-	"github.com/revel/cmd/parser2"
 	"github.com/revel/cmd/parser"
+	"github.com/revel/cmd/parser2"
+	"github.com/revel/cmd/utils"
 )
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
+var importErrorPattern2 = regexp.MustCompile("no required module provides package ([^;]+)+")
 
 type ByString []*model.TypeInfo
 
 func (c ByString) Len() int {
 	return len(c)
 }
+
 func (c ByString) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
+
 func (c ByString) Less(i, j int) bool {
 	return c[i].String() < c[j].String()
 }
@@ -155,7 +157,8 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 				"build",
 				"-ldflags", versionLinkerFlags,
 				"-tags", buildTags,
-				"-o", binName}
+				"-o", binName,
+			}
 		} else {
 			if !contains(c.BuildFlags, "build") {
 				flags = []string{"build"}
@@ -188,7 +191,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			}
 
 			buildCmd.Env = append(os.Environ(),
-				"GOPATH=" + gopath,
+				"GOPATH="+gopath,
 			)
 		}
 		utils.CmdInit(buildCmd, !c.Vendored, c.AppPath)
@@ -208,6 +211,9 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 
 		// See if it was an import error that we can go get.
 		matches := importErrorPattern.FindAllStringSubmatch(stOutput, -1)
+		if matches == nil {
+			matches = importErrorPattern2.FindAllStringSubmatch(stOutput, -1)
+		}
 		utils.Logger.Info("Build failed checking for missing imports", "message", stOutput, "missing_imports", len(matches))
 		if matches == nil {
 			utils.Logger.Info("Build failed no missing imports", "message", stOutput)
@@ -224,6 +230,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			}
 			gotten[pkgName] = struct{}{}
 			if err := c.PackageResolver(pkgName); err != nil {
+				panic("failed to resolve")
 				utils.Logger.Error("Unable to resolve package", "package", pkgName, "error", err)
 				return nil, newCompileError(paths, []byte(err.Error()))
 			}
@@ -232,9 +239,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		// Success getting the import, attempt to build again.
 	}
 
-	// TODO remove this unreachable code and document it
-	utils.Logger.Fatal("Not reachable")
-	return nil, nil
+	// unreachable
 }
 
 // Try to define a version string for the compiled app
@@ -256,10 +261,9 @@ func getAppVersion(paths *model.RevelContainer) string {
 		if (err != nil && os.IsNotExist(err)) || !info.IsDir() {
 			return ""
 		}
-		gitCmd := exec.Command(gitPath, "--git-dir=" + gitDir, "--work-tree=" + paths.BasePath, "describe", "--always", "--dirty")
+		gitCmd := exec.Command(gitPath, "--git-dir="+gitDir, "--work-tree="+paths.BasePath, "describe", "--always", "--dirty")
 		utils.Logger.Info("Exec:", "args", gitCmd.Args)
 		output, err := gitCmd.Output()
-
 		if err != nil {
 			utils.Logger.Error("Cannot determine git repository version:", "error", err)
 			return ""
@@ -317,7 +321,6 @@ func cleanDir(paths *model.RevelContainer, dir string) {
 // genSource renders the given template to produce source code, which it writes
 // to the given directory and file.
 func genSource(paths *model.RevelContainer, dir, filename, templateSource string, args map[string]interface{}) error {
-
 	return utils.GenerateTemplate(filepath.Join(paths.AppPath, dir, filename), templateSource, args)
 }
 
@@ -353,17 +356,16 @@ func calcImportAliases(src *model.SourceInfo) map[string]string {
 	return aliases
 }
 
-// Adds an alias to the map of alias names
+// Adds an alias to the map of alias names.
 func addAlias(aliases map[string]string, importPath, pkgName string) {
-	alias, ok := aliases[importPath]
+	_, ok := aliases[importPath]
 	if ok {
 		return
 	}
-	alias = makePackageAlias(aliases, pkgName)
-	aliases[importPath] = alias
+	aliases[importPath] = makePackageAlias(aliases, pkgName)
 }
 
-// Generates a package alias
+// Generates a package alias.
 func makePackageAlias(aliases map[string]string, pkgName string) string {
 	i := 0
 	alias := pkgName
@@ -374,7 +376,7 @@ func makePackageAlias(aliases map[string]string, pkgName string) string {
 	return alias
 }
 
-// Returns true if this value is in the map
+// Returns true if this value is in the map.
 func containsValue(m map[string]string, val string) bool {
 	for _, v := range m {
 		if v == val {
@@ -421,13 +423,12 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceEr
 		return newPath
 	}
 
-
 	// Read the source for the offending file.
 	var (
-		relFilename = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
-		absFilename = findInPaths(relFilename)
-		line, _ = strconv.Atoi(string(errorMatch[2]))
-		description = string(errorMatch[4])
+		relFilename  = string(errorMatch[1]) // e.g. "src/revel/sample/app/controllers/app.go"
+		absFilename  = findInPaths(relFilename)
+		line, _      = strconv.Atoi(string(errorMatch[2]))
+		description  = string(errorMatch[4])
 		compileError = &utils.SourceError{
 			SourceType:  "Go code",
 			Title:       "Go Compilation Error",
@@ -446,7 +447,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceEr
 	fileStr, err := utils.ReadLines(absFilename)
 	if err != nil {
 		compileError.MetaError = absFilename + ": " + err.Error()
-		utils.Logger.Info("Unable to readlines " + compileError.MetaError, "error", err)
+		utils.Logger.Info("Unable to readlines "+compileError.MetaError, "error", err)
 		return compileError
 	}
 
@@ -454,7 +455,7 @@ func newCompileError(paths *model.RevelContainer, output []byte) *utils.SourceEr
 	return compileError
 }
 
-// RevelMainTemplate template for app/tmp/run/run.go
+// RevelMainTemplate template for app/tmp/run/run.go.
 const RevelRunTemplate = `// GENERATED CODE - DO NOT EDIT
 // This file is the run file for Revel.
 // It registers all the controllers and provides details for the Revel server engine to
@@ -509,6 +510,7 @@ func Register() {
 	}
 }
 `
+
 const RevelMainTemplate = `// GENERATED CODE - DO NOT EDIT
 // This file is the main file for Revel.
 // It registers all the controllers and provides details for the Revel server engine to
@@ -536,7 +538,7 @@ func main() {
 }
 `
 
-// RevelRoutesTemplate template for app/conf/routes
+// RevelRoutesTemplate template for app/conf/routes.
 const RevelRoutesTemplate = `// GENERATED CODE - DO NOT EDIT
 // This file provides a way of creating URL's based on all the actions
 // found in all the controllers.

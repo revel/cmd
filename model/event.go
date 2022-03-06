@@ -1,11 +1,11 @@
 package model
 
 type (
-	// The event type
+	// The event type.
 	Event int
-	// The event response
+	// The event response.
 	EventResponse int
-	// The handler signature
+	// The handler signature.
 	EventHandler  func(typeOf Event, value interface{}) (responseOf EventResponse)
 	RevelCallback interface {
 		FireEvent(key Event, value interface{}) (response EventResponse)
@@ -14,40 +14,40 @@ type (
 )
 
 const (
-	// Event type when templates are going to be refreshed (receivers are registered template engines added to the template.engine conf option)
+	// Event type when templates are going to be refreshed (receivers are registered template engines added to the template.engine conf option).
 	TEMPLATE_REFRESH_REQUESTED Event = iota
-	// Event type when templates are refreshed (receivers are registered template engines added to the template.engine conf option)
+	// Event type when templates are refreshed (receivers are registered template engines added to the template.engine conf option).
 	TEMPLATE_REFRESH_COMPLETED
-	// Event type before all module loads, events thrown to handlers added to AddInitEventHandler
+	// Event type before all module loads, events thrown to handlers added to AddInitEventHandler.
 
-	// Event type before all module loads, events thrown to handlers added to AddInitEventHandler
+	// Event type before all module loads, events thrown to handlers added to AddInitEventHandler.
 	REVEL_BEFORE_MODULES_LOADED
-	// Event type before module loads, events thrown to handlers added to AddInitEventHandler
+	// Event type before module loads, events thrown to handlers added to AddInitEventHandler.
 	REVEL_BEFORE_MODULE_LOADED
-	// Event type after module loads, events thrown to handlers added to AddInitEventHandler
+	// Event type after module loads, events thrown to handlers added to AddInitEventHandler.
 	REVEL_AFTER_MODULE_LOADED
-	// Event type after all module loads, events thrown to handlers added to AddInitEventHandler
+	// Event type after all module loads, events thrown to handlers added to AddInitEventHandler.
 	REVEL_AFTER_MODULES_LOADED
 
-	// Event type before server engine is initialized, receivers are active server engine and handlers added to AddInitEventHandler
+	// Event type before server engine is initialized, receivers are active server engine and handlers added to AddInitEventHandler.
 	ENGINE_BEFORE_INITIALIZED
-	// Event type before server engine is started, receivers are active server engine and handlers added to AddInitEventHandler
+	// Event type before server engine is started, receivers are active server engine and handlers added to AddInitEventHandler.
 	ENGINE_STARTED
-	// Event type after server engine is stopped, receivers are active server engine and handlers added to AddInitEventHandler
+	// Event type after server engine is stopped, receivers are active server engine and handlers added to AddInitEventHandler.
 	ENGINE_SHUTDOWN
 
-	// Called before routes are refreshed
+	// Called before routes are refreshed.
 	ROUTE_REFRESH_REQUESTED
-	// Called after routes have been refreshed
+	// Called after routes have been refreshed.
 	ROUTE_REFRESH_COMPLETED
 
-	// Fired when a panic is caught during the startup process
+	// Fired when a panic is caught during the startup process.
 	REVEL_FAILURE
 )
 
 var initEventList = []EventHandler{} // Event handler list for receiving events
 
-// Fires system events from revel
+// Fires system events from revel.
 func RaiseEvent(key Event, value interface{}) (response EventResponse) {
 	for _, handler := range initEventList {
 		response |= handler(key, value)
@@ -55,8 +55,7 @@ func RaiseEvent(key Event, value interface{}) (response EventResponse) {
 	return
 }
 
-// Add event handler to listen for all system events
+// Add event handler to listen for all system events.
 func AddInitEventHandler(handler EventHandler) {
 	initEventList = append(initEventList, handler)
-	return
 }

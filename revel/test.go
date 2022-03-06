@@ -52,7 +52,7 @@ func init() {
 	cmdTest.UpdateConfig = updateTestConfig
 }
 
-// Called to update the config command with from the older stype
+// Called to update the config command with from the older stype.
 func updateTestConfig(c *model.CommandConfig, args []string) bool {
 	c.Index = model.TEST
 	if len(args) == 0 && c.Test.ImportPath != "" {
@@ -74,7 +74,7 @@ func updateTestConfig(c *model.CommandConfig, args []string) bool {
 	return true
 }
 
-// Called to test the application
+// Called to test the application.
 func testApp(c *model.CommandConfig) (err error) {
 	mode := DefaultRunMode
 	if c.Test.Mode != "" {
@@ -82,7 +82,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Find and parse app.conf
-	revel_path, err := model.NewRevelPaths(mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
+	revelPath, err := model.NewRevelPaths(mode, c.ImportPath, c.AppPath, model.NewWrappedRevelCallback(nil, c.PackageResolver))
 	if err != nil {
 		return
 	}
@@ -90,7 +90,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	// todo Ensure that the testrunner is loaded in this mode.
 
 	// Create a directory to hold the test result files.
-	resultPath := filepath.Join(revel_path.BasePath, "test-results")
+	resultPath := filepath.Join(revelPath.BasePath, "test-results")
 	if err = os.RemoveAll(resultPath); err != nil {
 		return utils.NewBuildError("Failed to remove test result directory ", "path", resultPath, "error", err)
 	}
@@ -99,12 +99,12 @@ func testApp(c *model.CommandConfig) (err error) {
 	}
 
 	// Direct all the output into a file in the test-results directory.
-	file, err := os.OpenFile(filepath.Join(resultPath, "app.log"), os.O_CREATE | os.O_WRONLY | os.O_APPEND, 0666)
+	file, err := os.OpenFile(filepath.Join(resultPath, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return utils.NewBuildError("Failed to create test result log file: ", "error", err)
 	}
 
-	app, reverr := harness.Build(c, revel_path)
+	app, reverr := harness.Build(c, revelPath)
 	if reverr != nil {
 		return utils.NewBuildIfError(reverr, "Error building: ")
 	}
@@ -128,20 +128,20 @@ func testApp(c *model.CommandConfig) (err error) {
 	}
 	defer cmd.Kill()
 
-	var httpAddr = revel_path.HTTPAddr
+	httpAddr := revelPath.HTTPAddr
 	if httpAddr == "" {
 		httpAddr = "localhost"
 	}
 
-	var httpProto = "http"
-	if revel_path.HTTPSsl {
+	httpProto := "http"
+	if revelPath.HTTPSsl {
 		httpProto = "https"
 	}
 
 	// Get a list of tests
-	var baseURL = fmt.Sprintf("%s://%s:%d", httpProto, httpAddr, revel_path.HTTPPort)
+	baseURL := fmt.Sprintf("%s://%s:%d", httpProto, httpAddr, revelPath.HTTPPort)
 
-	utils.Logger.Infof("Testing %s (%s) in %s mode URL %s \n", revel_path.AppName, revel_path.ImportPath, mode, baseURL)
+	utils.Logger.Infof("Testing %s (%s) in %s mode URL %s \n", revelPath.AppName, revelPath.ImportPath, mode, baseURL)
 	testSuites, _ := getTestsList(baseURL)
 
 	// If a specific TestSuite[.Method] is specified, only run that suite/test
@@ -154,7 +154,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	fmt.Println()
 
 	// Run each suite.
-	failedResults, overallSuccess := runTestSuites(revel_path, baseURL, resultPath, testSuites)
+	failedResults, overallSuccess := runTestSuites(revelPath, baseURL, resultPath, testSuites)
 
 	fmt.Println()
 	if overallSuccess {
@@ -177,14 +177,14 @@ func testApp(c *model.CommandConfig) (err error) {
 	return
 }
 
-// Outputs the results to a file
+// Outputs the results to a file.
 func writeResultFile(resultPath, name, content string) {
 	if err := ioutil.WriteFile(filepath.Join(resultPath, name), []byte(content), 0666); err != nil {
 		utils.Logger.Errorf("Failed to write result file %s: %s", filepath.Join(resultPath, name), err)
 	}
 }
 
-// Determines if response should be plural
+// Determines if response should be plural.
 func pluralize(num int, singular, plural string) string {
 	if num == 1 {
 		return singular
@@ -193,7 +193,7 @@ func pluralize(num int, singular, plural string) string {
 }
 
 // Filters test suites and individual tests to match
-// the parsed command line parameter
+// the parsed command line parameter.
 func filterTestSuites(suites *[]tests.TestSuiteDesc, suiteArgument string) *[]tests.TestSuiteDesc {
 	var suiteName, testName string
 	argArray := strings.Split(suiteArgument, ".")
@@ -234,7 +234,7 @@ func filterTestSuites(suites *[]tests.TestSuiteDesc, suiteArgument string) *[]te
 // in case it hasn't finished starting up yet.
 func getTestsList(baseURL string) (*[]tests.TestSuiteDesc, error) {
 	var (
-		err error
+		err        error
 		resp       *http.Response
 		testSuites []tests.TestSuiteDesc
 	)
@@ -263,9 +263,8 @@ func getTestsList(baseURL string) (*[]tests.TestSuiteDesc, error) {
 	return &testSuites, err
 }
 
-// Run the testsuites using the container
+// Run the testsuites using the container.
 func runTestSuites(paths *model.RevelContainer, baseURL, resultPath string, testSuites *[]tests.TestSuiteDesc) (*[]tests.TestSuiteResult, bool) {
-
 	// We can determine the testsuite location by finding the test module and extracting the data from it
 	resultFilePath := filepath.Join(paths.ModulePathMap["testrunner"].Path, "app", "views", "TestRunner/SuiteResult.html")
 

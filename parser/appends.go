@@ -2,9 +2,10 @@ package parser
 
 import (
 	"go/ast"
-	"github.com/revel/cmd/utils"
-	"github.com/revel/cmd/model"
 	"go/token"
+
+	"github.com/revel/cmd/model"
+	"github.com/revel/cmd/utils"
 )
 
 // If this Decl is a struct type definition, it is summarized and added to specs.
@@ -91,7 +92,7 @@ func appendStruct(fileName string, specs []*model.TypeInfo, pkgImportPath string
 
 // If decl is a Method declaration, it is summarized and added to the array
 // underneath its receiver type.
-// e.g. "Login" => {MethodSpec, MethodSpec, ..}
+// e.g. "Login" => {MethodSpec, MethodSpec, ..}.
 func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPath, pkgName string, imports map[string]string) {
 	// Func declaration?
 	funcDecl, ok := decl.(*ast.FuncDecl)
@@ -194,7 +195,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 	})
 
 	var recvTypeName string
-	var recvType = funcDecl.Recv.List[0].Type
+	recvType := funcDecl.Recv.List[0].Type
 	if recvStarType, ok := recvType.(*ast.StarExpr); ok {
 		recvTypeName = recvStarType.X.(*ast.Ident).Name
 	} else {
@@ -204,7 +205,7 @@ func appendAction(fset *token.FileSet, mm methodMap, decl ast.Decl, pkgImportPat
 	mm[recvTypeName] = append(mm[recvTypeName], method)
 }
 
-// Combine the 2 source info models into one
+// Combine the 2 source info models into one.
 func appendSourceInfo(srcInfo1, srcInfo2 *model.SourceInfo) *model.SourceInfo {
 	if srcInfo1 == nil {
 		return srcInfo2

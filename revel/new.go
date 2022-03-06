@@ -117,7 +117,7 @@ func newApp(c *model.CommandConfig) (err error) {
 		c.UpdateImportPath()
 		runApp(c)
 	} else {
-		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a ", c.ImportPath)
+		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a", c.ImportPath)
 	}
 	return
 }

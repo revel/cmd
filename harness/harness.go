@@ -243,7 +243,7 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 		}
 		err = &utils.SourceError{
 			Title:       "App failed to start up",
-			Description: err.Error(),
+			Description: newErr.Error(),
 		}
 		return
 	}

@@ -12,7 +12,7 @@ require (
 	github.com/revel/log15 v2.11.20+incompatible
 	github.com/revel/revel v0.21.0
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/tools v0.0.0-20200219054238-753a1d49df85
+	golang.org/x/tools v0.1.10
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/stack.v0 v0.0.0-20141108040640-9b43fcefddd0
 )

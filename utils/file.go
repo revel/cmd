@@ -150,8 +150,9 @@ func MustChmod(filename string, mode os.FileMode) {
 
 // Called if panic.
 func PanicOnError(err error, msg string) {
-	if revErr, ok := err.(*SourceError); (ok && revErr != nil) || (!ok && err != nil) {
-		Logger.Panicf("Abort: %s: %s %s", msg, revErr, err)
+	var serr *SourceError
+	if (errors.As(err, &serr) && serr != nil) || err != nil {
+		Logger.Panicf("Abort: %s: %s %s", msg, serr, err)
 	}
 }
 
@@ -348,9 +349,17 @@ func FindSrcPaths(appPath string, packageList []string, packageResolver func(pkg
 	return
 }
 
+// Error is used for constant errors.
+type Error string
+
+// Error implements the error interface.
+func (e Error) Error() string {
+	return string(e)
+}
+
 var (
-	NO_APP_FOUND   = errors.New("no app found")
-	NO_REVEL_FOUND = errors.New("no revel found")
+	ErrNoApp   Error = "no app found"
+	ErrNoRevel Error = "no revel found"
 )
 
 // Find the full source dir for the import path, uses the build.Default.GOPATH to search for the directory.
@@ -388,9 +397,9 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 		}
 		if !found {
 			if packageName == "github.com/revel/revel" {
-				err = NO_REVEL_FOUND
+				err = ErrNoRevel
 			} else {
-				err = NO_APP_FOUND
+				err = ErrNoApp
 			}
 			missingList = append(missingList, packageName)
 		}

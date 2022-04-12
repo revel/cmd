@@ -28,6 +28,11 @@ const (
 	VERSION
 )
 
+const (
+	ErrImportInvalid  Error = "invalid import path, working dir is in GOPATH root"
+	ErrUnableToImport Error = "unable to determine import path from"
+)
+
 type (
 	// The Revel command type.
 	COMMAND int
@@ -110,7 +115,7 @@ func (c *CommandConfig) UpdateImportPath() error {
 						importPath = importPath[4:]
 					} else if importPath == "src" {
 						if c.Index != VERSION {
-							return fmt.Errorf("invalid import path, working dir is in GOPATH root")
+							return ErrImportInvalid
 						}
 						importPath = ""
 					}
@@ -122,7 +127,10 @@ func (c *CommandConfig) UpdateImportPath() error {
 
 	c.ImportPath = importPath
 	// We need the source root determined at this point to check the setversions
-	c.initAppFolder()
+	if err := c.initAppFolder(); err != nil {
+		utils.Logger.Error("Error initing app folder", "error", err)
+	}
+
 	utils.Logger.Info("Returned import path", "path", importPath)
 	if required && c.Index != NEW {
 		if err := c.SetVersions(); err != nil {
@@ -138,7 +146,7 @@ func (c *CommandConfig) UpdateImportPath() error {
 		return nil
 	}
 	if len(importPath) == 0 {
-		return fmt.Errorf("unable to determine import path from : %s", importPath)
+		return fmt.Errorf("%w: %s", ErrUnableToImport, importPath)
 	}
 	return nil
 }
@@ -165,8 +173,6 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		} else {
 			appFolder = filepath.Join(wd, appFolder)
 		}
-	} else if strings.Contains(appFolder, ".") {
-		appFolder = filepath.Join(wd, filepath.Base(c.ImportPath))
 	} else if !filepath.IsAbs(appFolder) {
 		appFolder = filepath.Join(wd, appFolder)
 	}

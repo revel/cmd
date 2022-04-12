@@ -26,6 +26,7 @@ import (
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
 var importErrorPattern2 = regexp.MustCompile("no required module provides package ([^;]+)+")
+var addPackagePattern = regexp.MustCompile(`to add:\n\tgo get (.*)\n`)
 
 type ByString []*model.TypeInfo
 
@@ -213,6 +214,10 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 		matches := importErrorPattern.FindAllStringSubmatch(stOutput, -1)
 		if matches == nil {
 			matches = importErrorPattern2.FindAllStringSubmatch(stOutput, -1)
+		}
+		if matches == nil {
+			matches = addPackagePattern.FindAllStringSubmatch(stOutput, -1)
+
 		}
 		utils.Logger.Info("Build failed checking for missing imports", "message", stOutput, "missing_imports", len(matches))
 		if matches == nil {

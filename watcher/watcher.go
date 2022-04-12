@@ -46,16 +46,16 @@ type Watcher struct {
 	timerMutex          *sync.Mutex // A mutex to prevent concurrent updates
 	refreshChannel      chan *utils.SourceError
 	refreshChannelCount int
-	refreshTimerMS      time.Duration // The number of milliseconds between refreshing builds
+	refreshInterval     time.Duration // The interval between refreshing builds
 }
 
 // Creates a new watched based on the container.
 func NewWatcher(paths *model.RevelContainer, eagerRefresh bool) *Watcher {
 	return &Watcher{
-		forceRefresh:   false,
-		lastError:      -1,
-		paths:          paths,
-		refreshTimerMS: time.Duration(paths.Config.IntDefault("watch.rebuild.delay", 1000)),
+		forceRefresh:    true,
+		lastError:       -1,
+		paths:           paths,
+		refreshInterval: time.Duration(paths.Config.IntDefault("watch.rebuild.delay", 1000)) * time.Millisecond,
 		eagerRefresh: eagerRefresh ||
 			paths.DevMode &&
 				paths.Config.BoolDefault("watch", true) &&
@@ -163,7 +163,10 @@ func (w *Watcher) NotifyWhenUpdated(listener Listener, watcher *fsnotify.Watcher
 				} else {
 					// Run refresh in parallel
 					go func() {
-						w.notifyInProcess(listener)
+						if err := w.notifyInProcess(listener); err != nil {
+							utils.Logger.Error("failed to notify",
+								"error", err)
+						}
 					}()
 				}
 			}
@@ -238,11 +241,11 @@ func (w *Watcher) notifyInProcess(listener Listener) (err *utils.SourceError) {
 		w.forceRefresh = true
 		if w.refreshTimer != nil {
 			utils.Logger.Info("Found existing timer running, resetting")
-			w.refreshTimer.Reset(time.Millisecond * w.refreshTimerMS)
+			w.refreshTimer.Reset(w.refreshInterval)
 			shouldReturn = true
 			w.refreshChannelCount++
 		} else {
-			w.refreshTimer = time.NewTimer(time.Millisecond * w.refreshTimerMS)
+			w.refreshTimer = time.NewTimer(w.refreshInterval)
 		}
 	}()
 

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -30,7 +31,8 @@ func NewBuildError(message string, args ...interface{}) (b *BuildError) {
 // Returns a new BuildError if err is not nil.
 func NewBuildIfError(err error, message string, args ...interface{}) (b error) {
 	if err != nil {
-		if berr, ok := err.(*BuildError); ok {
+		var berr *BuildError
+		if errors.As(err, &berr) {
 			// This is already a build error so just append the args
 			berr.Args = append(berr.Args, args...)
 			return berr
@@ -50,16 +52,16 @@ func (b *BuildError) Error() string {
 
 // Parse the output of the "go build" command.
 // Return a detailed Error.
-func NewCompileError(importPath, errorLink string, error error) *SourceError {
+func NewCompileError(importPath, errorLink string, err error) *SourceError {
 	// Get the stack from the error
 
 	errorMatch := regexp.MustCompile(`(?m)^([^:#]+):(\d+):(\d+:)? (.*)$`).
-		FindSubmatch([]byte(error.Error()))
+		FindSubmatch([]byte(err.Error()))
 	if errorMatch == nil {
-		errorMatch = regexp.MustCompile(`(?m)^(.*?):(\d+):\s(.*?)$`).FindSubmatch([]byte(error.Error()))
+		errorMatch = regexp.MustCompile(`(?m)^(.*?):(\d+):\s(.*?)$`).FindSubmatch([]byte(err.Error()))
 
 		if errorMatch == nil {
-			Logger.Error("Failed to parse build errors", "error", error)
+			Logger.Error("Failed to parse build errors", "error", err)
 			return &SourceError{
 				SourceType:  "Go code",
 				Title:       "Go Compilation Error",
@@ -69,7 +71,7 @@ func NewCompileError(importPath, errorLink string, error error) *SourceError {
 
 		errorMatch = append(errorMatch, errorMatch[3])
 
-		Logger.Error("Build errors", "errors", error)
+		Logger.Error("Build errors", "errors", err)
 	}
 
 	// Read the source for the offending file.

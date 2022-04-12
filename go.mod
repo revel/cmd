@@ -4,20 +4,20 @@ go 1.17
 
 require (
 	github.com/agtorre/gocolorize v1.0.0
-	github.com/fsnotify/fsnotify v1.5.1
+	github.com/fsnotify/fsnotify v1.4.9
+	github.com/go-stack/stack v1.8.0 // indirect
+	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac // indirect
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/mattn/go-colorable v0.1.12
+	github.com/mattn/go-colorable v0.1.8
+	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/revel/config v1.0.0
 	github.com/revel/log15 v2.11.20+incompatible
-	github.com/revel/revel v0.21.0
+	github.com/revel/revel v1.0.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/tools v0.1.10
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/stack.v0 v0.0.0-20141108040640-9b43fcefddd0
-)
-
-require (
 	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac // indirect

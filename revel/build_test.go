@@ -19,7 +19,7 @@ func TestBuild(t *testing.T) {
 	t.Run("Build", func(t *testing.T) {
 		a := assert.New(t)
 		c := newApp("build-test", model.NEW, nil, a)
-		main.Commands[model.NEW].RunWith(c)
+		a.Nil(main.Commands[model.NEW].RunWith(c), "failed to run new")
 		c.Index = model.BUILD
 		c.Build.TargetPath = filepath.Join(gopath, "build-test", "target")
 		c.Build.ImportPath = c.ImportPath
@@ -34,7 +34,7 @@ func TestBuild(t *testing.T) {
 			"build-test-WithFlags/app.AppVersion=SomeValue",
 			"build-test-WithFlags/app.SomeOtherValue=SomeValue",
 		}
-		main.Commands[model.NEW].RunWith(c)
+		a.Nil(main.Commands[model.NEW].RunWith(c), "failed to run new")
 		c.Index = model.BUILD
 		c.Build.TargetPath = filepath.Join(gopath, "build-test", "target")
 		c.Build.ImportPath = c.ImportPath

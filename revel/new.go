@@ -18,8 +18,10 @@ import (
 	"github.com/revel/cmd/utils"
 )
 
+const ErrNoSkeleton Error = "failed to find skeleton in filepath"
+
 var cmdNew = &Command{
-	UsageLine: "new -i [path] -s [skeleton]",
+	UsageLine: "new -i [path] -s [skeleton] -p [package name]",
 	Short:     "create a skeleton Revel application",
 	Long: `
 New creates a few files to get a new Revel application running quickly.
@@ -92,7 +94,9 @@ func newApp(c *model.CommandConfig) (err error) {
 	// This kicked off the download of the revel app, not needed for vendor
 	if !c.Vendored {
 		// At this point the versions can be set
-		c.SetVersions()
+		if err = c.SetVersions(); err != nil {
+			return
+		}
 	}
 
 	// copy files to new app directory
@@ -114,11 +118,18 @@ func newApp(c *model.CommandConfig) (err error) {
 		// Need to prep the run command
 		c.Run.ImportPath = c.ImportPath
 		updateRunConfig(c, nil)
-		c.UpdateImportPath()
-		runApp(c)
+
+		if err = c.UpdateImportPath(); err != nil {
+			return
+		}
+
+		if err = runApp(c); err != nil {
+			return
+		}
 	} else {
 		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a", c.ImportPath)
 	}
+
 	return
 }
 
@@ -129,13 +140,16 @@ func createModVendor(c *model.CommandConfig) (err error) {
 	utils.CmdInit(goModCmd, !c.Vendored, c.AppPath)
 
 	utils.Logger.Info("Exec:", "args", goModCmd.Args, "env", goModCmd.Env, "workingdir", goModCmd.Dir)
+
 	getOutput, err := goModCmd.CombinedOutput()
 	if c.New.Callback != nil {
 		err = c.New.Callback()
 	}
+
 	if err != nil {
 		return utils.NewBuildIfError(err, string(getOutput))
 	}
+
 	return
 }
 
@@ -206,7 +220,7 @@ func setSkeletonPath(c *model.CommandConfig) (err error) {
 			c.New.SkeletonPath = fullpath
 			utils.Logger.Info("Set skeleton path to ", fullpath)
 			if !utils.DirExists(fullpath) {
-				return fmt.Errorf("failed to find skeleton in filepath %s %s", fullpath, sp.String())
+				return fmt.Errorf("%w %s %s", ErrNoSkeleton, fullpath, sp.String())
 			}
 		case "git":
 			fallthrough

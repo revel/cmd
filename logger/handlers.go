@@ -50,6 +50,7 @@ func CallerFileHandler(h LogHandler) LogHandler {
 // Adds in a context called `caller` to the record (contains file name and line number like `foo.go:12`)
 // Uses the `log15.CallerFuncHandler` to perform this task.
 func CallerFuncHandler(h LogHandler) LogHandler {
+	// TODO: infinite recursion
 	return CallerFuncHandler(h)
 }
 
@@ -137,8 +138,9 @@ func NotMatchHandler(key string, value interface{}, h LogHandler) LogHandler {
 func MultiHandler(hs ...LogHandler) LogHandler {
 	return FuncHandler(func(r *Record) error {
 		for _, h := range hs {
-			// what to do about failures?
-			h.Log(r)
+			if err := h.Log(r); err != nil {
+				panic(err)
+			}
 		}
 		return nil
 	})
@@ -189,6 +191,7 @@ func (ll *ListLogHandler) Log(r *Record) (err error) {
 			handler.Log(r)
 		}
 	}
+
 	return
 }
 

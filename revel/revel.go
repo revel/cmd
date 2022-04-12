@@ -22,6 +22,16 @@ import (
 	"github.com/revel/cmd/utils"
 )
 
+// Error is used for constant errors.
+type Error string
+
+// Error implements the error interface.
+func (e Error) Error() string {
+	return string(e)
+}
+
+const ErrInvalidCommandLine Error = "invalid command line arguments"
+
 const (
 	// RevelCmdImportPath Revel framework cmd tool import path.
 	RevelSkeletonsImportPath = "github.com/revel/skeletons"
@@ -138,7 +148,7 @@ func ParseArgs(c *model.CommandConfig, parser *flags.Parser, args []string) (err
 	if !Commands[c.Index].UpdateConfig(c, extraArgs) {
 		buffer := &bytes.Buffer{}
 		parser.WriteHelp(buffer)
-		err = fmt.Errorf("invalid command line arguments %v\n%s", extraArgs, buffer.String())
+		err = fmt.Errorf("%w %v\n%s", ErrInvalidCommandLine, extraArgs, buffer.String())
 	}
 
 	return

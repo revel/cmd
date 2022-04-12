@@ -16,12 +16,12 @@
             "name": "Create new",
             "type": "go",
             "request": "launch",
-            "preLaunchTask": "Clean",
+            "preLaunchTask": "Clean-Test-Project",
             "mode": "auto",
             "program": "${workspaceRoot}/revel",
-            "args": ["new", "-a", "/tmp/revel/aaa"],
+            "args": ["new", "-v","-a", "${workspaceRoot}/.temp/revel/reveltest", "-p","revel.com/testproject"],
             "env": {
-                "GOPATH": "/tmp/revel/GOPATH"
+                "GOPATH": "${workspaceRoot}/.temp/revel/GOPATH"
               },            
         },
         {
@@ -30,9 +30,20 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceRoot}/revel",
-            "args": ["run","-v", "-a", "/tmp/revel/aaa"],
+            "args": ["run","-v", "-v","-a", "${workspaceRoot}/.temp/revel/reveltest"],
             "env": {
-                "GOPATH": "/tmp/revel/GOPATH"
+                "GOPATH": "${workspaceRoot}/.temp/revel/GOPATH"
+              },            
+        },
+        {
+            "name": "Run program Directly",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceRoot}/.temp/revel/reveltest/app/tmp/main.go",
+            "args": ["-port=9000","-importPath=revel.com/testproject/reveltest", "-runMode={\"mode\":\"dev\", \"specialUseFlag\":true,\"packagePathMap\":{\"github.com/revel/modules/static\":\"/home/notzippy/go/pkg/mod/github.com/revel/modules@v1.0.0/static\",\"github.com/revel/modules/testrunner\":\"/home/notzippy/go/pkg/mod/github.com/revel/modules@v1.0.0/testrunner\",\"github.com/revel/revel\":\"/home/notzippy/go/pkg/mod/github.com/revel/revel@v1.0.0\",\"revel.com/testproject/reveltest\":\"/mnt/DevSystem/Work/Workareas/revel/revel3/cmd/.temp/revel/reveltest\"}}"],
+            "env": {
+                "GOPATH": "${workspaceRoot}/.temp/revel/GOPATH"
               },            
         }
     ]

@@ -1,6 +1,7 @@
 package parser2
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
@@ -151,7 +152,8 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 		0)
 
 	if err != nil {
-		if errList, ok := err.(scanner.ErrorList); ok {
+		var errList scanner.ErrorList
+		if errors.As(err, &errList) {
 			pos := errList[0].Pos
 			newError := &utils.SourceError{
 				SourceType:  ".go source",

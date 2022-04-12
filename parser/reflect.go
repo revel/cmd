@@ -8,6 +8,7 @@ package parser
 // It catalogs the controllers, their methods, and their arguments.
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
@@ -83,7 +84,8 @@ func (pc *processContainer) processPath(path string, info os.FileInfo, err error
 		0)
 
 	if err != nil {
-		if errList, ok := err.(scanner.ErrorList); ok {
+		var errList scanner.ErrorList
+		if errors.As(err, &errList) {
 			pos := errList[0].Pos
 			newError := &utils.SourceError{
 				SourceType:  ".go source",

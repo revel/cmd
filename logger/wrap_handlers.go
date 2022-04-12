@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+// Error is used for constant errors.
+type Error string
+
+// Error implements the error interface.
+func (e Error) Error() string {
+	return string(e)
+}
+
+const (
+	ErrNotFunc   Error = "not a function"
+	ErrTakesArgs Error = "takes arguments"
+	ErrNoReturn  Error = "no return value"
+)
+
 // Function handler wraps the declared function and returns the handler for it.
 func FuncHandler(fn func(r *Record) error) LogHandler {
 	return funcHandler(fn)
@@ -71,15 +85,15 @@ func evaluateLazy(lz Lazy) (interface{}, error) {
 	t := reflect.TypeOf(lz.Fn)
 
 	if t.Kind() != reflect.Func {
-		return nil, fmt.Errorf("INVALID_LAZY, not func: %+v", lz.Fn)
+		return nil, fmt.Errorf("%w %+v", ErrNotFunc, lz.Fn)
 	}
 
 	if t.NumIn() > 0 {
-		return nil, fmt.Errorf("INVALID_LAZY, func takes args: %+v", lz.Fn)
+		return nil, fmt.Errorf("%w %+v", ErrTakesArgs, lz.Fn)
 	}
 
 	if t.NumOut() == 0 {
-		return nil, fmt.Errorf("INVALID_LAZY, no func return val: %+v", lz.Fn)
+		return nil, fmt.Errorf("%w %+v", ErrNoReturn, lz.Fn)
 	}
 
 	value := reflect.ValueOf(lz.Fn)

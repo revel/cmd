@@ -20,7 +20,7 @@ func NewTypeExprFromData(expr, pkgName string, pkgIndex int, valid bool) TypeExp
 
 // NewTypeExpr returns the syntactic expression for referencing this type in Go.
 func NewTypeExprFromAst(pkgName string, expr ast.Expr) TypeExpr {
-	error := ""
+	err := ""
 	switch t := expr.(type) {
 	case *ast.Ident:
 		if IsBuiltinType(t.Name) {
@@ -41,14 +41,14 @@ func NewTypeExprFromAst(pkgName string, expr ast.Expr) TypeExpr {
 			e := NewTypeExprFromAst(pkgName, t.Value)
 			return NewTypeExprFromData("map["+identKey.Name+"]"+e.Expr, e.PkgName, e.pkgIndex+len("map["+identKey.Name+"]"), e.Valid)
 		}
-		error = fmt.Sprintf("Failed to generate name for Map field :%v. Make sure the field name is valid.", t.Key)
+		err = fmt.Sprintf("Failed to generate name for Map field :%v. Make sure the field name is valid.", t.Key)
 	case *ast.Ellipsis:
 		e := NewTypeExprFromAst(pkgName, t.Elt)
 		return NewTypeExprFromData("[]"+e.Expr, e.PkgName, e.pkgIndex+2, e.Valid)
 	default:
-		error = fmt.Sprintf("Failed to generate name for field: %v Package: %v. Make sure the field name is valid.", expr, pkgName)
+		err = fmt.Sprintf("Failed to generate name for field: %v Package: %v. Make sure the field name is valid.", expr, pkgName)
 	}
-	return NewTypeExprFromData(error, "", 0, false)
+	return NewTypeExprFromData(err, "", 0, false)
 }
 
 // TypeName returns the fully-qualified type name for this expression.
@@ -61,7 +61,7 @@ func (e TypeExpr) TypeName(pkgOverride string) string {
 	return e.Expr[:e.pkgIndex] + pkgName + "." + e.Expr[e.pkgIndex:]
 }
 
-var builtInTypes = map[string]struct{}{
+var builtInTypes = map[string]struct{}{ //nolint:gochecknoglobals
 	"bool":       {},
 	"byte":       {},
 	"complex128": {},

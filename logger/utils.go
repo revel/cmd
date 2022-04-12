@@ -20,9 +20,9 @@ var (
 
 const (
 	// The test mode flag overrides the default log level and shows only errors.
-	TEST_MODE_FLAG = "testModeFlag"
+	TestModeFlag = "testModeFlag"
 	// The special use flag enables showing messages when the logger is setup.
-	SPECIAL_USE_FLAG = "specialUseFlag"
+	SpecialUseFlag = "specialUseFlag"
 )
 
 // Returns the logger for the name.

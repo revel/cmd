@@ -112,7 +112,7 @@ func testApp(c *model.CommandConfig) (err error) {
 	if len(app.PackagePathMap) > 0 {
 		paths, _ = json.Marshal(app.PackagePathMap)
 	}
-	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose[0], string(paths))
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.GetVerbose(), string(paths))
 	if c.HistoricMode {
 		runMode = app.Paths.RunMode
 	}

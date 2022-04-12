@@ -310,6 +310,14 @@ func (c *CommandConfig) initGoPaths() {
 }
 
 // Sets the versions on the command config.
+func (c *CommandConfig) GetVerbose() (verbose bool) {
+	if len(c.Verbose) > 0 {
+		verbose = c.Verbose[0]
+	}
+	return
+}
+
+// Sets the versions on the command config.
 func (c *CommandConfig) SetVersions() (err error) {
 	c.CommandVersion, _ = ParseVersion(cmd.Version)
 	pathMap, err := utils.FindSrcPaths(c.AppPath, []string{RevelImportPath}, c.PackageResolver)

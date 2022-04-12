@@ -2,6 +2,11 @@ module github.com/revel/cmd
 
 go 1.17
 
+retract (
+    v1.1.0 // v1.1.0-1.1.1 are failed releases
+    v1.1.1
+)
+
 require (
 	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/agtorre/gocolorize v1.0.0
@@ -15,10 +20,10 @@ require (
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/revel/config v1.0.0
+	github.com/revel/config v1.1.0
 	github.com/revel/log15 v2.11.20+incompatible
 	github.com/revel/pathtree v0.0.0-20140121041023-41257a1839e9 // indirect
-	github.com/revel/revel v1.0.0
+	github.com/revel/revel v1.1.0
 	github.com/stretchr/testify v1.7.0
 	github.com/twinj/uuid v1.0.0 // indirect
 	github.com/xeonx/timeago v1.0.0-rc4 // indirect

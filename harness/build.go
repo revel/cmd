@@ -224,10 +224,25 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			utils.Logger.Info("Build failed no missing imports", "message", stOutput)
 			return nil, newCompileError(paths, output)
 		}
-		utils.Logger.Warn("Detected missing packages, importing them", "packages", len(matches))
+		// Reduce the matches down to unique ones
+		missedPkgs := []string{}
 		for _, match := range matches {
+			found := false
+			for _, pkgName := range missedPkgs {
+				if match[1] == pkgName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missedPkgs = append(missedPkgs, match[1])
+			}
+		}
+
+		utils.Logger.Warn("Detected missing packages, importing them", "packages", len(matches))
+		for _, pkgName := range missedPkgs {
 			// Ensure we haven't already tried to go get it.
-			pkgName := match[1]
+
 			utils.Logger.Info("Trying to import ", "package", pkgName)
 			if _, alreadyTried := gotten[pkgName]; alreadyTried {
 				utils.Logger.Error("Failed to import ", "package", pkgName)
@@ -235,7 +250,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			}
 			gotten[pkgName] = struct{}{}
 			if err := c.PackageResolver(pkgName); err != nil {
-				panic("failed to resolve")
+				//				panic("failed to resolve")
 				utils.Logger.Error("Unable to resolve package", "package", pkgName, "error", err)
 				return nil, newCompileError(paths, []byte(err.Error()))
 			}

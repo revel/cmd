@@ -206,8 +206,8 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 // Refresh method rebuilds the Revel application and run it on the given port.
 // called by the watcher.
 func (h *Harness) Refresh() (err *utils.SourceError) {
-	t := time.Now()
-	fmt.Println("Changed detected, recompiling")
+	t  := time.Now();
+	fmt.Println("Change detected, recompiling")
 	err = h.refresh()
 	if err != nil && !h.ranOnce && h.useProxy {
 		addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)

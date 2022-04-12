@@ -4,9 +4,17 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Clean",
+            "label": "Clean-Test-Project",
             "type": "shell",
-            "command": "rm -rf /tmp/revel/aaa"
-        }
+            "command": "rm -rf ${workspaceRoot}/.temp/revel/testproject"
+        },
+        {
+            "label": "Update Go Mod",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceRoot}/.temp/revel/testproject"
+            },
+            "command": "go mod tidy && go mod edit -replace github.com/revel/revel => ../../../revel"
+        },
     ]
 } 

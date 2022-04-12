@@ -42,6 +42,8 @@ var (
 	doNotWatch = []string{"tmp", "views", "routes"}
 
 	lastRequestHadError int32
+	startupError        int32
+	startupErrorText    error
 )
 
 // Harness reverse proxies requests to the application server.
@@ -241,7 +243,7 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 		}
 		err = &utils.SourceError{
 			Title:       "App failed to start up",
-			Description: err.Error(),
+			Description: newErr.Error(),
 		}
 		return
 	}
@@ -255,7 +257,7 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 			if len(h.app.PackagePathMap) > 0 {
 				paths, _ = json.Marshal(h.app.PackagePathMap)
 			}
-			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose, string(paths))
+			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose[0], string(paths))
 		}
 		if err2 := h.app.Cmd(runMode).Start(h.config); err2 != nil {
 			utils.Logger.Error("Could not start application", "error", err2)
@@ -297,6 +299,7 @@ func (h *Harness) Run() {
 	paths = append(paths, h.paths.CodePaths...)
 	h.watcher = watcher.NewWatcher(h.paths, false)
 	h.watcher.Listen(h, paths...)
+
 	go h.Refresh()
 	// h.watcher.Notify()
 

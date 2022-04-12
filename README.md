@@ -11,7 +11,7 @@ Provides the `revel` command, used to create and run Revel apps.
 Install
 ------------
 ```bash
-go get -u github.com/revel/cmd/revel
+go install github.com/revel/cmd/revel@latest
 ```
 
 New Application
@@ -19,7 +19,7 @@ New Application
 
 Create a new application
 ```commandline
-revel new my/app
+revel new -a my/app
 ```
 
 ## Community

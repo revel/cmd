@@ -209,7 +209,7 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 // Refresh method rebuilds the Revel application and run it on the given port.
 // called by the watcher.
 func (h *Harness) Refresh() (err *utils.SourceError) {
-	t  := time.Now();
+	t := time.Now()
 	fmt.Println("Change detected, recompiling")
 	err = h.refresh()
 	if err != nil && !h.ranOnce && h.useProxy {
@@ -265,8 +265,8 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 			if len(h.app.PackagePathMap) > 0 {
 				paths, _ = json.Marshal(h.app.PackagePathMap)
 			}
-      
-			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose[0], string(paths))
+
+			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.GetVerbose(), string(paths))
 		}
 
 		if err2 := h.app.Cmd(runMode).Start(h.config); err2 != nil {
@@ -312,7 +312,7 @@ func (h *Harness) Run() {
 	paths = append(paths, h.paths.CodePaths...)
 	h.watcher = watcher.NewWatcher(h.paths, false)
 	h.watcher.Listen(h, paths...)
-  
+
 	go func() {
 		if err := h.Refresh(); err != nil {
 			utils.Logger.Error("Failed to refresh", "error", err)

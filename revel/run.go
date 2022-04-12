@@ -133,7 +133,7 @@ func runApp(c *model.CommandConfig) (err error) {
 	// If the app is run in "watched" mode, use the harness to run it.
 	if revelPath.Config.BoolDefault("watch", true) && revelPath.Config.BoolDefault("watch.code", true) {
 		utils.Logger.Info("Running in watched mode.")
-		runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, revelPath.RunMode, c.Verbose)
+		runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v}`, revelPath.RunMode, c.Verbose[0])
 		if c.HistoricMode {
 			runMode = revelPath.RunMode
 		}
@@ -152,7 +152,7 @@ func runApp(c *model.CommandConfig) (err error) {
 	if len(app.PackagePathMap) > 0 {
 		paths, _ = json.Marshal(app.PackagePathMap)
 	}
-	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose, string(paths))
+	runMode := fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, app.Paths.RunMode, c.Verbose[0], string(paths))
 	if c.HistoricMode {
 		runMode = revelPath.RunMode
 	}

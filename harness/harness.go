@@ -43,6 +43,8 @@ var (
 	doNotWatch = []string{"tmp", "views", "routes"}
 
 	lastRequestHadError int32
+	startupError        int32
+	startupErrorText    error
 )
 
 // Harness reverse proxies requests to the application server.
@@ -207,8 +209,8 @@ func NewHarness(c *model.CommandConfig, paths *model.RevelContainer, runMode str
 // Refresh method rebuilds the Revel application and run it on the given port.
 // called by the watcher.
 func (h *Harness) Refresh() (err *utils.SourceError) {
-	t := time.Now()
-	fmt.Println("Changed detected, recompiling")
+	t  := time.Now();
+	fmt.Println("Change detected, recompiling")
 	err = h.refresh()
 	if err != nil && !h.ranOnce && h.useProxy {
 		addr := fmt.Sprintf("%s:%d", h.paths.HTTPAddr, h.paths.HTTPPort)
@@ -247,7 +249,7 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 
 		err = &utils.SourceError{
 			Title:       "App failed to start up",
-			Description: err.Error(),
+			Description: newErr.Error(),
 		}
 
 		return
@@ -263,8 +265,8 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 			if len(h.app.PackagePathMap) > 0 {
 				paths, _ = json.Marshal(h.app.PackagePathMap)
 			}
-
-			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose, string(paths))
+      
+			runMode = fmt.Sprintf(`{"mode":"%s", "specialUseFlag":%v,"packagePathMap":%s}`, h.app.Paths.RunMode, h.config.Verbose[0], string(paths))
 		}
 
 		if err2 := h.app.Cmd(runMode).Start(h.config); err2 != nil {
@@ -310,12 +312,12 @@ func (h *Harness) Run() {
 	paths = append(paths, h.paths.CodePaths...)
 	h.watcher = watcher.NewWatcher(h.paths, false)
 	h.watcher.Listen(h, paths...)
+  
 	go func() {
 		if err := h.Refresh(); err != nil {
 			utils.Logger.Error("Failed to refresh", "error", err)
 		}
 	}()
-	// h.watcher.Notify()
 
 	if h.useProxy {
 		go func() {

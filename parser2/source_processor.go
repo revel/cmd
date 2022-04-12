@@ -108,6 +108,7 @@ func (s *SourceProcessor) addPackages() (err error) {
 		// packages.LoadSyntax | packages.NeedDeps,
 		Dir: s.revelContainer.AppPath,
 	}
+	config.Env = utils.ReducedEnv(false)
 	s.packageList, err = packages.Load(config, allPackages...)
 	s.log.Info("Loaded modules ", "len results", len(s.packageList), "error", err)
 

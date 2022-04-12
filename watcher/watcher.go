@@ -52,7 +52,7 @@ type Watcher struct {
 // Creates a new watched based on the container.
 func NewWatcher(paths *model.RevelContainer, eagerRefresh bool) *Watcher {
 	return &Watcher{
-		forceRefresh:    false,
+		forceRefresh:    true,
 		lastError:       -1,
 		paths:           paths,
 		refreshInterval: time.Duration(paths.Config.IntDefault("watch.rebuild.delay", 1000)) * time.Millisecond,

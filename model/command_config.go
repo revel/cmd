@@ -173,8 +173,6 @@ func (c *CommandConfig) initAppFolder() (err error) {
 		} else {
 			appFolder = filepath.Join(wd, appFolder)
 		}
-	} else if strings.Contains(appFolder, ".") {
-		appFolder = filepath.Join(wd, filepath.Base(c.ImportPath))
 	} else if !filepath.IsAbs(appFolder) {
 		appFolder = filepath.Join(wd, appFolder)
 	}
@@ -245,7 +243,7 @@ func (c *CommandConfig) InitPackageResolver() {
 		var getCmd *exec.Cmd
 		print("Downloading related packages ...")
 		if c.Vendored {
-			getCmd = exec.Command(c.GoCmd, "mod", "tidy")
+			getCmd = exec.Command(c.GoCmd, "mod", "tidy", "-v")
 		} else {
 			utils.Logger.Info("No vendor folder detected, not using dependency manager to import package", "package", pkgName)
 			getCmd = exec.Command(c.GoCmd, "get", "-u", pkgName)

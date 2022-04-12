@@ -21,7 +21,7 @@ import (
 const ErrNoSkeleton Error = "failed to find skeleton in filepath"
 
 var cmdNew = &Command{
-	UsageLine: "new -i [path] -s [skeleton]",
+	UsageLine: "new -i [path] -s [skeleton] -p [package name]",
 	Short:     "create a skeleton Revel application",
 	Long: `
 New creates a few files to get a new Revel application running quickly.
@@ -127,7 +127,7 @@ func newApp(c *model.CommandConfig) (err error) {
 			return
 		}
 	} else {
-		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a ", c.ImportPath)
+		fmt.Fprintln(os.Stdout, "\nYou can run it with:\n   revel run -a", c.ImportPath)
 	}
 
 	return

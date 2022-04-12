@@ -25,6 +25,8 @@ import (
 )
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
+var importErrorPattern2 = regexp.MustCompile("no required module provides package ([^;]+)+")
+var addPackagePattern = regexp.MustCompile(`to add:\n\tgo get (.*)\n`)
 
 type ByString []*model.TypeInfo
 
@@ -210,6 +212,13 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 
 		// See if it was an import error that we can go get.
 		matches := importErrorPattern.FindAllStringSubmatch(stOutput, -1)
+		if matches == nil {
+			matches = importErrorPattern2.FindAllStringSubmatch(stOutput, -1)
+		}
+		if matches == nil {
+			matches = addPackagePattern.FindAllStringSubmatch(stOutput, -1)
+
+		}
 		utils.Logger.Info("Build failed checking for missing imports", "message", stOutput, "missing_imports", len(matches))
 		if matches == nil {
 			utils.Logger.Info("Build failed no missing imports", "message", stOutput)
@@ -226,6 +235,7 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 			}
 			gotten[pkgName] = struct{}{}
 			if err := c.PackageResolver(pkgName); err != nil {
+				panic("failed to resolve")
 				utils.Logger.Error("Unable to resolve package", "package", pkgName, "error", err)
 				return nil, newCompileError(paths, []byte(err.Error()))
 			}

@@ -3,7 +3,6 @@ module github.com/revel/cmd
 go 1.12
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/agtorre/gocolorize v1.0.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-stack/stack v1.8.0 // indirect
@@ -23,9 +22,8 @@ require (
 	golang.org/x/net v0.0.0-20210119194325-5f4716e94777 // indirect
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
 	golang.org/x/tools v0.0.0-20200219054238-753a1d49df85
-	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
-	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/stack.v0 v0.0.0-20141108040640-9b43fcefddd0
-	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )
+
+replace github.com/revel/revel v0.21.0 => ../revel

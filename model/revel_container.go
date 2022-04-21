@@ -2,10 +2,16 @@
 package model
 
 import (
+	"bufio"
 	"fmt"
+	"go/build"
+	"io"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/revel/cmd/utils"
 	"github.com/revel/config"
@@ -92,6 +98,15 @@ type (
 	WrappedRevelCallback struct {
 		FireEventFunction func(key Event, value interface{}) (response EventResponse)
 		ImportFunction    func(pkgName string) error
+	}
+	Mod struct {
+		ImportPath    string
+		SourcePath    string
+		Version       string
+		SourceVersion string
+		Dir           string   // full path, $GOPATH/pkg/mod/
+		Pkgs          []string // sub-pkg import paths
+		VendorList    []string // files to vendor
 	}
 )
 
@@ -235,6 +250,31 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 
 	// Reorder module order by key name, a poor mans sort but at least it is consistent
 	sort.Strings(keys)
+	modtxtPath := filepath.Join(rp.SourcePath, "vendor", "modules.txt")
+	if utils.Exists(modtxtPath) {
+		// Parse out require sections of module.txt
+		modules := rp.vendorInitilizeLocal(modtxtPath, keys)
+		for _, mod := range modules {
+			for _, vendorFile := range mod.VendorList {
+				x := strings.Index(vendorFile, mod.Dir)
+				if x < 0 {
+					utils.Logger.Crit("Error! vendor file doesn't belong to mod, strange.", "vendorFile", "mod.Dir", mod.Dir)
+				}
+
+				localPath := fmt.Sprintf("%s%s", mod.ImportPath, vendorFile[len(mod.Dir):])
+				localFile := filepath.Join(rp.SourcePath, "vendor", localPath)
+
+				utils.Logger.Infof("vendoring %s\n", localPath)
+
+				os.MkdirAll(filepath.Dir(localFile), os.ModePerm)
+				if _, err := copyFile(vendorFile, localFile); err != nil {
+					fmt.Printf("Error! %s - unable to copy file %s\n", err.Error(), vendorFile)
+					os.Exit(1)
+				}
+			}
+		}
+	}
+
 	for _, key := range keys {
 		moduleImportPath := rp.Config.StringDefault(key, "")
 		if moduleImportPath == "" {
@@ -242,8 +282,8 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 		}
 
 		modulePath, err := rp.ResolveImportPath(moduleImportPath)
+		utils.Logger.Info("Resolving import path ", "modulePath", modulePath, "module_import_path", moduleImportPath, "error", err)
 		if err != nil {
-			utils.Logger.Info("Missing module ", "module_import_path", moduleImportPath, "error", err)
 
 			if err := callback.PackageResolver(moduleImportPath); err != nil {
 				return fmt.Errorf("failed to resolve package %w", err)
@@ -264,6 +304,88 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 		callback.FireEvent(REVEL_AFTER_MODULE_LOADED, []interface{}{rp, name, moduleImportPath, modulePath})
 	}
 	return
+}
+
+// Adds a module paths to the container object.
+func (rp *RevelContainer) vendorInitilizeLocal(modtxtPath string, revel_modules_keys []string) []*Mod {
+	revel_modules := []string{}
+	for _, key := range revel_modules_keys {
+		moduleImportPath := rp.Config.StringDefault(key, "")
+		if moduleImportPath == "" {
+			continue
+		}
+		revel_modules = append(revel_modules, moduleImportPath)
+	}
+	f, _ := os.Open(modtxtPath)
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	scanner.Split(bufio.ScanLines)
+
+	var (
+		mod *Mod
+		err error
+	)
+	modules := []*Mod{}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Look for # character
+		if line[0] == 35 {
+			s := strings.Split(line, " ")
+			if (len(s) != 6 && len(s) != 3) || s[1] == "explicit" {
+				continue
+			}
+
+			mod = &Mod{
+				ImportPath: s[1],
+				Version:    s[2],
+			}
+			if s[2] == "=>" {
+				// issue https://github.com/golang/go/issues/33848 added these,
+				// see comments. I think we can get away with ignoring them.
+				continue
+			}
+			// Handle "replace" in module file if any
+			if len(s) > 3 && s[3] == "=>" {
+				mod.SourcePath = s[4]
+
+				// Handle replaces with a relative target. For example:
+				// "replace github.com/status-im/status-go/protocol => ./protocol"
+				if strings.HasPrefix(s[4], ".") || strings.HasPrefix(s[4], "/") {
+					mod.Dir, err = filepath.Abs(s[4])
+					if err != nil {
+						fmt.Printf("invalid relative path: %v", err)
+						os.Exit(1)
+					}
+				} else {
+					mod.SourceVersion = s[5]
+					mod.Dir = pkgModPath(mod.SourcePath, mod.SourceVersion)
+				}
+			} else {
+				mod.Dir = pkgModPath(mod.ImportPath, mod.Version)
+			}
+
+			if _, err := os.Stat(mod.Dir); os.IsNotExist(err) {
+				utils.Logger.Critf("Error! %q module path does not exist, check $GOPATH/pkg/mod\n", mod.Dir)
+			}
+
+			// Determine if we need to examine this mod, based on the list of modules being imported
+			for _, importPath := range revel_modules {
+				if strings.HasPrefix(importPath, mod.ImportPath) {
+					updateModVendorList(mod, importPath)
+				}
+			}
+
+			// Build list of files to module path source to project vendor folder
+			modules = append(modules, mod)
+
+			continue
+		}
+
+		mod.Pkgs = append(mod.Pkgs, line)
+	}
+	return modules
 }
 
 // Adds a module paths to the container object.
@@ -312,4 +434,77 @@ func (rp *RevelContainer) ResolveImportPath(importPath string) (string, error) {
 		return filepath.Dir(pkgs[0].GoFiles[0]), nil
 	}
 	return pkgs[0].PkgPath, fmt.Errorf("%w: %s", ErrNoFiles, importPath)
+}
+
+func normString(str string) (normStr string) {
+	for _, char := range str {
+		if unicode.IsUpper(char) {
+			normStr += "!" + string(unicode.ToLower(char))
+		} else {
+			normStr += string(char)
+		}
+	}
+	return
+}
+
+func pkgModPath(importPath, version string) string {
+	goPath := build.Default.GOPATH
+	if goPath == "" {
+		if goPath = os.Getenv("GOPATH"); goPath == "" {
+			// the default GOPATH for go v1.11
+			goPath = filepath.Join(os.Getenv("HOME"), "go")
+		}
+	}
+
+	normPath := normString(importPath)
+	normVersion := normString(version)
+
+	return filepath.Join(goPath, "pkg", "mod", fmt.Sprintf("%s@%s", normPath, normVersion))
+}
+
+func copyFile(src, dst string) (int64, error) {
+	srcStat, err := os.Stat(src)
+	if err != nil {
+		return 0, err
+	}
+
+	if !srcStat.Mode().IsRegular() {
+		return 0, fmt.Errorf("%s is not a regular file", src)
+	}
+
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	return io.Copy(dstFile, srcFile)
+}
+
+func updateModVendorList(mod *Mod, importPath string) {
+	vendorList := []string{}
+	pathPrefix := filepath.Join(mod.Dir, importPath[len(mod.ImportPath):])
+
+	filepath.WalkDir(pathPrefix, func(path string, d fs.DirEntry, err error) (e error) {
+		if d.IsDir() {
+			return
+		}
+
+		if err != nil {
+			utils.Logger.Crit("Failed to walk vendor dir")
+		}
+		utils.Logger.Info("Adding to file in vendor list", "path", path)
+		vendorList = append(vendorList, path)
+		return
+	})
+
+	utils.Logger.Info("For module", "module", mod.ImportPath, "files", len(vendorList))
+
+	mod.VendorList = append(mod.VendorList, vendorList...)
 }

@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - "1.13.x"
-  - "1.14.x"
+  - "1.18.x"
+  - "1.17.x"
   - "tip"
 
 os:
@@ -65,6 +65,14 @@ script:
   - cd $INITIALWD
   - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@$REVEL_BRANCH" -a my/testapp3 --package revelframework.com
   - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@$REVEL_BRANCH" -a my/testapp3
+
+  # Check vendored version of revel
+  - cd $INITIALWD
+  - revel new     --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@$REVEL_BRANCH" -a my/testapp4 --package revelframework.com
+  - cd my/testapp4
+  - go mod vendor
+  - cd ../..
+  - revel test    --gomod-flags "edit -replace=github.com/revel/revel=github.com/revel/revel@$REVEL_BRANCH" -a my/testapp4
 
 matrix:
   allow_failures:

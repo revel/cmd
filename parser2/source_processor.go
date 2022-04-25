@@ -128,7 +128,8 @@ func (s *SourceProcessor) processPath(path string, info os.FileInfo, err error) 
 	}
 
 	// Ignore files and folders not marked tmp (since those are generated)
-	if !info.IsDir() || info.Name() == "tmp" {
+	// Also ignore files in the vendor folder.
+	if !info.IsDir() || info.Name() == "tmp" || strings.HasPrefix(path, filepath.Join(s.revelContainer.BasePath, "vendor")) {
 		return nil
 	}
 

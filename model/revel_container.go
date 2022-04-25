@@ -308,7 +308,7 @@ func (rp *RevelContainer) loadModules(callback RevelCallback) (err error) {
 
 // Adds a module paths to the container object.
 func (rp *RevelContainer) vendorInitilizeLocal(modtxtPath string, revel_modules_keys []string) []*Mod {
-	revel_modules := []string{}
+	revel_modules := []string{"github.com/revel/revel"}
 	for _, key := range revel_modules_keys {
 		moduleImportPath := rp.Config.StringDefault(key, "")
 		if moduleImportPath == "" {

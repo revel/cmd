@@ -157,10 +157,10 @@ func (s *SourceInfoProcessor) getValidation(funcDecl *ast.FuncDecl, p *packages.
 		}
 
 		if typeExpr := model.NewTypeExprFromAst("", key); typeExpr.Valid {
-			lineKeys[p.Fset.Position(callExpr.End()).Line] = typeExpr.TypeName("")
+			lineKeys[p.Fset.Position(callExpr.Pos()).Line] = typeExpr.TypeName("")
 		} else {
 			s.sourceProcessor.log.Error("Error: Failed to generate key for field validation. Make sure the field name is valid.", "file", p.PkgPath,
-				"line", p.Fset.Position(callExpr.End()).Line, "function", funcDecl.Name.String())
+				"line", p.Fset.Position(callExpr.Pos()).Line, "function", funcDecl.Name.String())
 		}
 		return true
 	})

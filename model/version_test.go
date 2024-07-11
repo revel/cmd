@@ -15,11 +15,11 @@ var versionTests = [][]string{
 }
 
 // Test that the event handler can be attached and it dispatches the event received.
-func TestVersion(t *testing.T) {
+func TestVersionString(t *testing.T) {
 	for _, v := range versionTests {
 		p, e := model.ParseVersion(v[0])
 		assert.Nil(t, e, "Should have parsed %s", v)
-		assert.Equal(t, p.String(), v[1], "Should be equal %s==%s", p.String(), v)
+		assert.Equal(t, p.VersionString(), v[1], "Should be equal %s==%s", p.String(), v)
 	}
 }
 

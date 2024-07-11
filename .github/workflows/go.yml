@@ -1,0 +1,41 @@
+name: Go test
+
+on: [push]
+
+jobs:
+  unit-test:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.19', '1.20', '1.21' , '1.22' ]
+
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Display Go version
+        run: go version
+      - name: Unit Test
+        run: go test -race ./...
+
+  build-test:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.19', '1.20', '1.21', '1.22' ]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Display Go version
+        run: go version
+      - name: Build revel
+        run: go build -o /dev/null ./revel 

@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/revel/cmd/logger"
+	"github.com/ilyaqq1999/cmd/logger"
 )
 
 type (

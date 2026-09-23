@@ -10,9 +10,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/revel/cmd/harness"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
+	"github.com/ilyaqq1999/cmd/harness"
+	"github.com/ilyaqq1999/cmd/model"
+	"github.com/ilyaqq1999/cmd/utils"
 )
 
 var cmdRun = &Command{

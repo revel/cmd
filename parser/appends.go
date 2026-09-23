@@ -4,8 +4,8 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
+	"github.com/ilyaqq1999/cmd/model"
+	"github.com/ilyaqq1999/cmd/utils"
 )
 
 // If this Decl is a struct type definition, it is summarized and added to specs.

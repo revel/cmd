@@ -396,7 +396,7 @@ func findSrcPaths(appPath string, packagesList []string) (sourcePathsmap map[str
 			}
 		}
 		if !found {
-			if packageName == "github.com/revel/revel" {
+			if packageName == "github.com/ilyaqq1999/revel" {
 				err = ErrNoRevel
 			} else {
 				err = ErrNoApp

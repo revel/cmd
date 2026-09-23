@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/revel/cmd/model"
-	main "github.com/revel/cmd/revel"
+	"github.com/ilyaqq1999/cmd/model"
+	main "github.com/ilyaqq1999/cmd/revel"
 	"github.com/stretchr/testify/assert"
 )
 

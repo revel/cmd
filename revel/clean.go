@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
+	"github.com/ilyaqq1999/cmd/model"
+	"github.com/ilyaqq1999/cmd/utils"
 )
 
 var cmdClean = &Command{
@@ -41,7 +41,7 @@ func updateCleanConfig(c *model.CommandConfig, args []string) bool {
 		return true
 	}
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, cmdClean.Long)
+		fmt.Fprint(os.Stderr, cmdClean.Long)
 		return false
 	}
 	c.Clean.ImportPath = args[0]

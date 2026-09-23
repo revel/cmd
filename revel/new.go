@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
+	"github.com/ilyaqq1999/cmd/model"
+	"github.com/ilyaqq1999/cmd/utils"
 )
 
 const ErrNoSkeleton Error = "failed to find skeleton in filepath"
@@ -55,7 +55,7 @@ func updateNewConfig(c *model.CommandConfig, args []string) bool {
 
 	if len(args) == 0 {
 		if len(c.New.ImportPath) == 0 {
-			fmt.Fprintf(os.Stderr, cmdNew.Long)
+			fmt.Fprint(os.Stderr, cmdNew.Long)
 			return false
 		}
 		return true
@@ -142,6 +142,21 @@ func createModVendor(c *model.CommandConfig) (err error) {
 	utils.Logger.Info("Exec:", "args", goModCmd.Args, "env", goModCmd.Env, "workingdir", goModCmd.Dir)
 
 	getOutput, err := goModCmd.CombinedOutput()
+
+	// Pin the Revel framework to a concrete version right away, so the first
+	// build's "go mod tidy" (which only fills in *missing* requirements) has
+	// nothing left to silently resolve to whatever happens to be newest.
+	if err == nil {
+		pinCmd := exec.Command("go", "get", model.RevelImportPath)
+		utils.CmdInit(pinCmd, !c.Vendored, c.AppPath)
+		utils.Logger.Info("Pinning Revel framework version", "exec", pinCmd.Args, "workingdir", pinCmd.Dir)
+		var pinOutput []byte
+		pinOutput, err = pinCmd.CombinedOutput()
+		if err != nil {
+			getOutput = pinOutput
+		}
+	}
+
 	if c.New.Callback != nil {
 		err = c.New.Callback()
 	}
@@ -283,7 +298,63 @@ func copyNewAppFiles(c *model.CommandConfig) (err error) {
 		return utils.NewBuildIfError(err, "Copy Dir failed")
 	}
 
+	// The skeleton repo (github.com/revel/skeletons) hardcodes imports of, and
+	// app.conf module settings for, the upstream framework and modules repo;
+	// point the copied source/config at whichever forks this CLI is actually
+	// configured for (model.RevelImportPath / model.RevelModulesImportPath).
+	if err = rewriteFrameworkImportPath(c.AppPath); err != nil {
+		return utils.NewBuildIfError(err, "Failed to rewrite framework import path")
+	}
+
 	// Dotfiles are skipped by mustCopyDir, so we have to explicitly copy the .gitignore.
 	gitignore := ".gitignore"
 	return utils.CopyFile(filepath.Join(c.AppPath, gitignore), filepath.Join(c.New.SkeletonPath, gitignore))
+}
+
+// upstreamImportPaths maps the import paths every github.com/revel/skeletons
+// template hardcodes (in .go source and conf/app.conf module.* settings) to
+// this CLI's configured equivalents.
+func upstreamImportPaths() map[string]string {
+	return map[string]string{
+		"github.com/revel/revel":   model.RevelImportPath,
+		"github.com/revel/modules": model.RevelModulesImportPath,
+	}
+}
+
+// rewriteFrameworkImportPath updates freshly copied skeleton source and
+// config to reference the configured framework/modules forks instead of the
+// skeleton's hardcoded upstream paths, so a fork actually gets built against.
+func rewriteFrameworkImportPath(appPath string) error {
+	replacements := upstreamImportPaths()
+	hasReplacement := false
+	for upstream, fork := range replacements {
+		if upstream != fork {
+			hasReplacement = true
+		}
+	}
+	if !hasReplacement {
+		return nil
+	}
+	return filepath.Walk(appPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		if !strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, ".conf") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		updated := string(data)
+		for upstream, fork := range replacements {
+			if upstream != fork {
+				updated = strings.ReplaceAll(updated, upstream, fork)
+			}
+		}
+		if updated == string(data) {
+			return nil
+		}
+		return os.WriteFile(path, []byte(updated), info.Mode())
+	})
 }

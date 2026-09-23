@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/revel/cmd/logger"
+	"github.com/ilyaqq1999/cmd/logger"
 	"github.com/revel/config"
 )
 

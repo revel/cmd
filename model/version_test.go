@@ -3,7 +3,7 @@ package model_test
 import (
 	"testing"
 
-	"github.com/revel/cmd/model"
+	"github.com/ilyaqq1999/cmd/model"
 	"github.com/stretchr/testify/assert"
 )
 

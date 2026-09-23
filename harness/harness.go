@@ -34,9 +34,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
-	"github.com/revel/cmd/watcher"
+	"github.com/ilyaqq1999/cmd/model"
+	"github.com/ilyaqq1999/cmd/utils"
+	"github.com/ilyaqq1999/cmd/watcher"
 )
 
 var (
@@ -344,7 +344,7 @@ func (h *Harness) Run() {
 	}
 
 	// Make a new channel to listen for the interrupt event
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	//nolint:staticcheck // os.Kill ineffective on Unix, useful on Windows?
 	signal.Notify(ch, os.Interrupt, os.Kill)
 	<-ch
